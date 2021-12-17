@@ -19,6 +19,10 @@ fftw-source = ["fftw/source"]
 fftw-mkl = ["fftw/intel-mkl"]
 gsl = ["GSL/v2_1"]
 
+[profile.release]
+lto = true
+codegen-units = 1
+
 [dependencies]
 # it is a dependency of intel-mkl-tool, we pin it to temporary solve
 # https://github.com/rust-math/intel-mkl-src/issues/68
