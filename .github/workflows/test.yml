@@ -27,17 +27,17 @@ jobs:
       uses: actions-rs/cargo@v1
       with:
         command: build
-        args: --manifest-path=light-curve-feature/Cargo.toml --all-targets --no-default-features --features gsl,fftw-source
+        args: --all-targets --no-default-features --features gsl,fftw-source
     - name: Build light-curve-feature gsl+fftw-system
       uses: actions-rs/cargo@v1
       with:
         command: build
-        args: --manifest-path=light-curve-feature/Cargo.toml --all-targets --no-default-features --features gsl,fftw-system
+        args: --all-targets --no-default-features --features gsl,fftw-system
     - name: Build light-curve-feature gsl+fftw-mkl
       uses: actions-rs/cargo@v1
       with:
         command: build
-        args: --manifest-path=light-curve-feature/Cargo.toml --all-targets --no-default-features --features gsl,fftw-mkl
+        args: --all-targets --no-default-features --features gsl,fftw-mkl
     - name: Run tests
       uses: actions-rs/cargo@v1
       with:
