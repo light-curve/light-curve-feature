@@ -2,7 +2,7 @@
 name = "light-curve-feature-test-util"
 version = "0.0.0"
 description = "Common test utilities for light-curve-feature tests, benchmarks and examples"
-repository = "https://github.com/light-curve/light-curve"
+repository = "https://github.com/light-curve/light-curve-feature"
 authors = ["Konstantin Malanchev <hombit@gmail.com>"]
 license = "MIT"
 edition = "2018"

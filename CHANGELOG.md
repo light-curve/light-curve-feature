@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-—
+- The project repository was split from other 'light-curve*' crates and moved into <https://gituhb.com/light-curve/light-curve-feature>
 
 ### Deprecated
 

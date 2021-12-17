@@ -19,10 +19,10 @@ where
 {
     // Relative to the current file
     const ZTF_IDS_CSV: &str =
-        include_str!("../../../test-data/SNIa/snIa_bandg_minobs10_beforepeak3_afterpeak4.csv");
+        include_str!("../../test-data/SNIa/snIa_bandg_minobs10_beforepeak3_afterpeak4.csv");
 
     // Relative to the project root
-    const LC_DIR: Dir = include_dir!("../../test-data/SNIa/light-curves");
+    const LC_DIR: Dir = include_dir!("../test-data/SNIa/light-curves");
 
     ZTF_IDS_CSV.split_terminator('\n').map(|ztf_id| {
         let filename = format!("{}.csv", ztf_id);
