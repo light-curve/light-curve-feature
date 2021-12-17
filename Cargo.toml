@@ -49,7 +49,7 @@ unzip3 = "^1.0"
 light-curve-feature = { path = ".", default-features = false, features = ["gsl"] }
 light-curve-feature-test-util = { path = "test-util" }
 rand = "^0.7"
-rand_distr = "^0.2"
+rand_distr = "^0.4"
 criterion = "^0.3"
 chfft = "^0.3.4"
 realfft= "^1.1"
