@@ -7,7 +7,7 @@ If you are looking for Python bindings for this package, please see <https://git
 
 [![docs.rs badge](https://docs.rs/light-curve-feature/badge.svg)](https://docs.rs/light-curve-feature)
 ![testing](https://github.com/light-curve/light-curve-feature/actions/workflows/test.yml/badge.svg)
-[![pre-commit.ci status](https://results.pre-commit.ci/badge/github/light-curve/light-curve-feature/master.svg)](https://results.pre-commit.ci/latest/github/light-curve/light-curve-python/master)
+[![pre-commit.ci status](https://results.pre-commit.ci/badge/github/light-curve/light-curve-feature/master.svg)](https://results.pre-commit.ci/latest/github/light-curve/light-curve-feature/master)
 
 All features are available in [Feature](crate::Feature) enum, and the recommended way to extract multiple features at
 once is [FeatureExtractor](crate::FeatureExtractor) struct built from a `Vec<Feature>`. Data is represented by
