@@ -25,6 +25,8 @@ pub use features::*;
 mod float_trait;
 pub use float_trait::Float;
 
+mod graph;
+
 mod lnerfc;
 
 mod nl_fit;
