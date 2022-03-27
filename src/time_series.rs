@@ -7,7 +7,7 @@ use itertools::Itertools;
 use ndarray::{s, Array1, ArrayView1, Zip};
 use ndarray_stats::SummaryStatisticsExt;
 
-/// A [TimeSeries] component
+/// A [`TimeSeries`] component
 #[derive(Clone, Debug)]
 pub struct DataSample<'a, T>
 where
@@ -236,7 +236,7 @@ where
     /// `t` is time, `m` is magnitude (or flux), `w` is weights.
     ///
     /// All arrays must have the same length, `t` must increase monotonically. Input arrays could be
-    /// [ndarray::Array1], [ndarray::ArrayView1], 1-D [ndarray::CowArray], or `&[T]`. Several
+    /// [`ndarray::Array1`], [`ndarray::ArrayView1`], 1-D [`ndarray::CowArray`], or `&[T]`. Several
     /// features assumes that `w` array corresponds to inverse square errors of `m`.
     pub fn new(
         t: impl Into<DataSample<'a, T>>,
@@ -270,11 +270,11 @@ where
         }
     }
 
-    /// Construct [TimeSeries] from time and magnitude (flux)
+    /// Construct [`TimeSeries`] from time and magnitude (flux)
     ///
-    /// It is the same as [TimeSeries::new], but sets unity weights. It doesn't recommended to use
-    /// it for features dependent on weights / observation errors like [crate::StetsonK] or
-    /// [crate::LinearFit].
+    /// It is the same as [`TimeSeries::new`], but sets unity weights. It doesn't recommended to use
+    /// it for features dependent on weights / observation errors like [`crate::StetsonK`] or
+    /// [`crate::LinearFit`].
     pub fn new_without_weight(
         t: impl Into<DataSample<'a, T>>,
         m: impl Into<DataSample<'a, T>>,
@@ -361,14 +361,14 @@ where
 
     pub fn get_t_min_m(&mut self) -> T {
         if self.t_min_m.is_none() {
-            self.set_t_min_max_m()
+            self.set_t_min_max_m();
         }
         self.t_min_m.unwrap()
     }
 
     pub fn get_t_max_m(&mut self) -> T {
         if self.t_max_m.is_none() {
-            self.set_t_min_max_m()
+            self.set_t_min_max_m();
         }
         self.t_max_m.unwrap()
     }

@@ -109,7 +109,7 @@ where
         let threshold = self.quantile * amplitude;
         let count_under = ts.m.sample.fold(0, |count, &m| {
             let under = T::abs(m - m_median) < threshold;
-            count + (under as u32)
+            count + u32::from(under)
         });
         Ok(vec![count_under.value_as::<T>().unwrap() / ts.lenf()])
     }

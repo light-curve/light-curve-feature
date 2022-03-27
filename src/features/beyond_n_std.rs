@@ -128,7 +128,7 @@ where
         let threshold = ts.m.get_std() * self.nstd;
         let count_beyond = ts.m.sample.fold(0, |count, &m| {
             let beyond = T::abs(m - m_mean) > threshold;
-            count + (beyond as u32)
+            count + u32::from(beyond)
         });
         Ok(vec![count_beyond.value_as::<T>().unwrap() / ts.lenf()])
     }

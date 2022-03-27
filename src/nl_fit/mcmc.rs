@@ -128,8 +128,8 @@ impl CurveFitTrait for McmcCurveFit {
                 }
             });
             (
-                best_x.into_iter().map(|x| x as f64).collect::<Vec<_>>(),
-                best_lnprob as f64,
+                best_x.into_iter().map(f64::from).collect::<Vec<_>>(),
+                f64::from(best_lnprob),
             )
         };
 
@@ -201,8 +201,8 @@ where
                     if (right - left) < f32::EPSILON {
                         return *component;
                     }
-                    let std = f64::min(STD, (*right - *left) as f64);
-                    let normal_distr = distributions::Normal::new((*component) as f64, std);
+                    let std = f64::min(STD, f64::from(*right - *left));
+                    let normal_distr = distributions::Normal::new(f64::from(*component), std);
                     loop {
                         let sample = normal_distr.ind_sample(rng) as f32;
                         if (*left < sample) && (sample < *right) {

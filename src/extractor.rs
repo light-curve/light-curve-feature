@@ -120,7 +120,7 @@ where
 {
     fn eval(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
         let mut vec = Vec::with_capacity(self.size_hint());
-        for x in self.features.iter() {
+        for x in &self.features {
             vec.extend(x.eval(ts)?);
         }
         Ok(vec)

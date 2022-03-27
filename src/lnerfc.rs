@@ -22,7 +22,6 @@ fn sum_series(a: &[f64], x: f64) -> f64 {
 
 #[allow(clippy::excessive_precision)]
 fn log_erfc_smallabs(x: f64) -> f64 {
-    let y = x / SQRTPI;
     /* series for -1/2 Log[Erfc[Sqrt[Pi] y]] */
     const REVERSE_C: [f64; 15] = [
         0.00048204,
@@ -41,6 +40,7 @@ fn log_erfc_smallabs(x: f64) -> f64 {
         1.0,
         0.0,
     ];
+    let y = x / SQRTPI;
     -2.0 * sum_series(&REVERSE_C, y)
 }
 
