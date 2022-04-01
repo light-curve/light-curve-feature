@@ -9,6 +9,7 @@ use std::fmt::Debug;
 use std::iter;
 
 fn number_ending(i: usize) -> &'static str {
+    #[allow(clippy::match_same_arms)]
     match (i % 10, i % 100) {
         (1, 11) => "th",
         (1, _) => "st",
@@ -103,18 +104,14 @@ impl EvaluatorInfoTrait for PeriodogramPeaks {
 }
 impl FeatureNamesDescriptionsTrait for PeriodogramPeaks {
     fn get_names(&self) -> Vec<&str> {
-        self.properties
-            .names
-            .iter()
-            .map(|name| name.as_str())
-            .collect()
+        self.properties.names.iter().map(String::as_str).collect()
     }
 
     fn get_descriptions(&self) -> Vec<&str> {
         self.properties
             .descriptions
             .iter()
-            .map(|descr| descr.as_str())
+            .map(String::as_str)
             .collect()
     }
 }
@@ -383,18 +380,14 @@ where
     <F as std::convert::TryInto<PeriodogramPeaks>>::Error: Debug,
 {
     fn get_names(&self) -> Vec<&str> {
-        self.properties
-            .names
-            .iter()
-            .map(|name| name.as_str())
-            .collect()
+        self.properties.names.iter().map(String::as_str).collect()
     }
 
     fn get_descriptions(&self) -> Vec<&str> {
         self.properties
             .descriptions
             .iter()
-            .map(|descr| descr.as_str())
+            .map(String::as_str)
             .collect()
     }
 }
@@ -474,9 +467,9 @@ where
         periodogram.set_freq_resolution(resolution);
         periodogram.set_max_freq_factor(max_freq_factor);
         periodogram.set_nyquist(nyquist);
-        features.into_iter().for_each(|feature| {
+        for feature in features {
             periodogram.add_feature(feature);
-        });
+        }
         periodogram.set_periodogram_algorithm(periodogram_algorithm);
         periodogram
     }

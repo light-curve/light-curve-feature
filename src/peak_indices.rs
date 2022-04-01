@@ -15,7 +15,7 @@ where
             |(mut v, prev_x, prev_is_rising), (i, &x)| {
                 let is_rising = x > prev_x;
                 if prev_is_rising && (!is_rising) {
-                    v.push(i - 1)
+                    v.push(i - 1);
                 }
                 (v, x, is_rising)
             },

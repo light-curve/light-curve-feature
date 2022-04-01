@@ -61,6 +61,7 @@ where
         if h_floor < 0.0 {
             self.minimum()
         } else {
+            #[allow(clippy::cast_sign_loss)]
             let i = h_floor as usize;
             if i >= self.len() - 1 {
                 self.maximum()

@@ -82,7 +82,7 @@ impl<T: Float> Iterator for SinCosOmegaTau<T> {
     fn next(&mut self) -> Option<Self::Item> {
         let mut sum_sin = T::zero();
         let mut sum_cos = T::zero();
-        for s_c in self.sin_cos_2omega_x.iter_mut() {
+        for s_c in &mut self.sin_cos_2omega_x {
             let (sin, cos) = s_c.next().unwrap();
             sum_sin += sin;
             sum_cos += cos;

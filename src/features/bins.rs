@@ -187,18 +187,14 @@ where
     F: FeatureEvaluator<T>,
 {
     fn get_names(&self) -> Vec<&str> {
-        self.properties
-            .names
-            .iter()
-            .map(|name| name.as_str())
-            .collect()
+        self.properties.names.iter().map(String::as_str).collect()
     }
 
     fn get_descriptions(&self) -> Vec<&str> {
         self.properties
             .descriptions
             .iter()
-            .map(|descr| descr.as_str())
+            .map(String::as_str)
             .collect()
     }
 }
