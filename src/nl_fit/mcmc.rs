@@ -119,14 +119,16 @@ impl CurveFitTrait for McmcCurveFit {
 
         let (best_x, best_lnprob) = {
             let (mut best_x, mut best_lnprob) = (initial_guesses[0].values.clone(), initial_lnprob);
-            let _ = sampler.sample(&initial_guesses, self.niterations as usize, |step| {
-                for (pos, &lnprob) in step.pos.iter().zip(step.lnprob.iter()) {
-                    if lnprob > best_lnprob {
-                        best_x = pos.values.clone();
-                        best_lnprob = lnprob;
+            sampler
+                .sample(&initial_guesses, self.niterations as usize, |step| {
+                    for (pos, &lnprob) in step.pos.iter().zip(step.lnprob.iter()) {
+                        if lnprob > best_lnprob {
+                            best_x = pos.values.clone();
+                            best_lnprob = lnprob;
+                        }
                     }
-                }
-            });
+                })
+                .unwrap();
             (
                 best_x.into_iter().map(f64::from).collect::<Vec<_>>(),
                 f64::from(best_lnprob),
