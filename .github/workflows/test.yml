@@ -3,57 +3,81 @@ name: Test
 on: [push, pull_request]
 
 jobs:
-  rust:
+  build:
+    runs-on: ubuntu-latest
 
+    strategy:
+      fail-fast: false
+      matrix:
+        build_args:
+          - ""
+          - " --features gsl,fftw-source --no-default-features"
+          - " --features gsl,fftw-system --no-default-features"
+          - " --features gsl,fftw-mkl --no-default-features"
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Install FFTW and GSL
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libfftw3-dev libgsl-dev
+    - uses: actions-rs/toolchain@v1
+    - uses: actions-rs/cargo@v1
+      with:
+        command: build
+        args: --all-targets ${{ matrix.build_args }}
+
+  test:
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v3
-      with:
-        submodules: true
     - name: Install FFTW and GSL
       run: |
         sudo apt-get update
-        sudo apt-get install libfftw3-dev libgsl-dev
+        sudo apt-get install -y libfftw3-dev libgsl-dev
     - uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
-    - name: Build
-      uses: actions-rs/cargo@v1
-      with:
-        command: build
-        args: --all-targets
-    - name: Build light-curve-feature gsl+fftw-source
-      uses: actions-rs/cargo@v1
-      with:
-        command: build
-        args: --all-targets --no-default-features --features gsl,fftw-source
-    - name: Build light-curve-feature gsl+fftw-system
-      uses: actions-rs/cargo@v1
-      with:
-        command: build
-        args: --all-targets --no-default-features --features gsl,fftw-system
-    - name: Build light-curve-feature gsl+fftw-mkl
-      uses: actions-rs/cargo@v1
-      with:
-        command: build
-        args: --all-targets --no-default-features --features gsl,fftw-mkl
-    - name: Run tests
-      uses: actions-rs/cargo@v1
+    - uses: actions-rs/cargo@v1
       with:
         command: test
-    - name: Run examples
-      uses: actions-rs/cargo@v1
+
+  examples:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Install FFTW and GSL
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libfftw3-dev libgsl-dev
+    - uses: actions-rs/toolchain@v1
+    - uses: actions-rs/cargo@v1
       with:
         command: run
         args: --example plot_snia_curve_fits -- -n=1
-    - name: Check formatting
-      uses: actions-rs/cargo@v1
+
+  fmt:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions-rs/toolchain@v1
+    - uses: actions-rs/cargo@v1
       with:
         command: fmt
         args: -- --check
-    - name: Run code analysis
-      uses: actions-rs/cargo@v1
+
+  clippy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Install FFTW and GSL
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libfftw3-dev libgsl-dev
+    - uses: actions-rs/toolchain@v1
+    - uses: actions-rs/cargo@v1
       with:
         command: clippy
         args: --all-targets -- -D warnings
