@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `NyquistFreq` constructor static methods
+—
 
 ### Changed
 
@@ -25,11 +25,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Make `FixedNyquistFreq` public
+—
 
 ### Security
 
 —
+
+## [0.4.3] 2022 May 12
+
+### Added
+
+- `NyquistFreq` constructor static methods
+
+### Fixed
+
+- Make `FixedNyquistFreq` public
 
 ## [0.4.2] 2022 May 12
 
