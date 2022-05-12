@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `Cargo.toml` keywords and categories
 - Add `Fixed(FixedNyquistFreq)` variant of `NyquistFreq` which defines a fixed Nyquist frequency to use for pariodogram
 
 ### Changed
