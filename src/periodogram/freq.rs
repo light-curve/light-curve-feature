@@ -31,6 +31,7 @@ pub enum NyquistFreq {
     Average(AverageNyquistFreq),
     Median(MedianNyquistFreq),
     Quantile(QuantileNyquistFreq),
+    Fixed(FixedNyquistFreq),
 }
 
 /// $\Delta t = \mathrm{duration} / (N - 1)$ is the mean time interval between observations
@@ -78,6 +79,29 @@ impl NyquistFreqTrait for QuantileNyquistFreq {
         let sorted_dt: SortedArray<_> = diff(t).into();
         let dt = sorted_dt.ppf(self.quantile);
         T::PI() / dt
+    }
+}
+
+/// User-defined Nyquist frequency
+///
+/// Note, that the actual maximum periodogram frequency provided by `FreqGrid` differs from this
+/// value because of `max_freq_factor` and maximum value to step ratio rounding
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[serde(rename = "Fixed")]
+pub struct FixedNyquistFreq(f32);
+
+impl FixedNyquistFreq {
+    /// pi / dt
+    pub fn from_dt<T: Float>(dt: T) -> Self {
+        let dt: f32 = dt.approx().unwrap();
+        assert!(dt > 0.0);
+        Self(core::f32::consts::PI / dt)
+    }
+}
+
+impl NyquistFreqTrait for FixedNyquistFreq {
+    fn nyquist_freq<T: Float>(&self, _t: &[T]) -> T {
+        self.0.value_as().unwrap()
     }
 }
 
