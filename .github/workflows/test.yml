@@ -18,18 +18,22 @@ jobs:
       with:
         toolchain: stable
     - uses: actions-rs/cargo@v1
+      name: default build
       with:
         command: build
         args: --all-targets
     - uses: actions-rs/cargo@v1
+      name: build GSL + static FFTW
       with:
         command: build
         args: --all-targets --features gsl,fftw-source --no-default-features
     - uses: actions-rs/cargo@v1
+      name: build GSL + dynamic FFTW
       with:
         command: build
         args: --all-targets --features gsl,fftw-system --no-default-features
     - uses: actions-rs/cargo@v1
+      name: build GSL + MKL
       with:
         command: build
         args: --all-targets --features gsl,fftw-mkl --no-default-features
