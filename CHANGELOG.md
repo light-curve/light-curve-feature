@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The project repository was split from other 'light-curve*' crates and moved into <https://gituhb.com/light-curve/light-curve-feature>
 - `light-curve-common` is a dev-dependency now
+- CI: split Github Actions workflow into pieces
 
 ### Deprecated
 
