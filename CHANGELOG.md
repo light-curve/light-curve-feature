@@ -34,7 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 —
 
-## [0.4.1]
+## [0.4.1] 2021 Dec 15
 
 ### Changed
 
@@ -45,7 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed amplitude prior of `VillarLnPrior::Hosseinzadeh2020`
 - The example plotted wrong graphs for the Villar function
 
-## [0.4.0]
+## [0.4.0] 2021 Dec 10
 
 ### Added
 
@@ -74,14 +74,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update `clap` to `3.0.0-rc.0`, it is used for the example executable only
 - `EtaE` and `MaximumSlope` docs updated to highlight cadence dependency of these features
 
-## [0.3.3]
+## [0.3.3] 2021 Oct 14
 
 ### Fixed
 
 - Equation in `VillarFit` was different from the paper
 - `VillarFit`'s and `BazinFit`'s amplitude, tau_rise, tau_fall and plateau duration (for `VillarFit`) are insured to be positive
 
-## [0.3.2]
+## [0.3.2] 2021 Aug 30
 
 ### Changed
 
@@ -92,7 +92,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Equation rendering in `VillarFit` HTML docs
 
 
-## [0.3.1]
+## [0.3.1] 2021 Aug 16
 
 ### Changed
 
@@ -103,7 +103,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Docs for `Extractor`, `FeatureEvaluator`, `AndersonDarlingNormal`, `Bins`, `Cusum`, `EtaE`, `InterPercentileRange`, `LinearFit`, `LinearTrend`, `Median`, `PercentAmplitude`, `Periodogram`, `ReducedChi2`, `VillarFit` and `BazinFit`
 
-## [0.3.0]
+## [0.3.0] 2021 Aug 10
 
 ### Added
 
