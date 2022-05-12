@@ -34,6 +34,24 @@ pub enum NyquistFreq {
     Fixed(FixedNyquistFreq),
 }
 
+impl NyquistFreq {
+    pub fn average() -> Self {
+        Self::Average(AverageNyquistFreq)
+    }
+
+    pub fn median() -> Self {
+        Self::Median(MedianNyquistFreq)
+    }
+
+    pub fn quantile(quantile: f32) -> Self {
+        Self::Quantile(QuantileNyquistFreq { quantile })
+    }
+
+    pub fn fixed(freq: f32) -> Self {
+        Self::Fixed(FixedNyquistFreq(freq))
+    }
+}
+
 /// $\Delta t = \mathrm{duration} / (N - 1)$ is the mean time interval between observations
 ///
 /// The denominator is $(N-1)$ for compatibility with Nyquist frequency for uniform grid. Note that

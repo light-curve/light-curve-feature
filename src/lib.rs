@@ -38,8 +38,8 @@ pub use nl_fit::{CurveFitAlgorithm, McmcCurveFit};
 pub mod periodogram;
 pub use periodogram::recurrent_sin_cos::RecurrentSinCos;
 pub use periodogram::{
-    AverageNyquistFreq, MedianNyquistFreq, NyquistFreq, PeriodogramPower, PeriodogramPowerDirect,
-    PeriodogramPowerFft, QuantileNyquistFreq,
+    AverageNyquistFreq, FixedNyquistFreq, MedianNyquistFreq, NyquistFreq, PeriodogramPower,
+    PeriodogramPowerDirect, PeriodogramPowerFft, QuantileNyquistFreq,
 };
 
 pub mod prelude;
