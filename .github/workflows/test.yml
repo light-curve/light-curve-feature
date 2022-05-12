@@ -6,17 +6,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    strategy:
-      fail-fast: false
-      matrix:
-        build_args:
-          - ""
-          - " --features gsl,fftw-source --no-default-features"
-          - " --features gsl,fftw-system --no-default-features"
-          - " --features gsl,fftw-mkl --no-default-features"
-
     steps:
     - uses: actions/checkout@v3
+      with:
+        submodules: true
     - name: Install FFTW and GSL
       run: |
         sudo apt-get update
@@ -27,13 +20,27 @@ jobs:
     - uses: actions-rs/cargo@v1
       with:
         command: build
-        args: --all-targets ${{ matrix.build_args }}
+        args: --all-targets
+    - uses: actions-rs/cargo@v1
+      with:
+        command: build
+        args: --all-targets --features gsl,fftw-source --no-default-features
+    - uses: actions-rs/cargo@v1
+      with:
+        command: build
+        args: --all-targets --features gsl,fftw-system --no-default-features
+    - uses: actions-rs/cargo@v1
+      with:
+        command: build
+        args: --all-targets --features gsl,fftw-mkl --no-default-features
 
   test:
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v3
+      with:
+        submodules: true
     - name: Install FFTW and GSL
       run: |
         sudo apt-get update
@@ -50,6 +57,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+      with:
+        submodules: true
     - name: Install FFTW and GSL
       run: |
         sudo apt-get update
@@ -67,6 +76,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+      with:
+        submodules: true
     - uses: actions-rs/toolchain@v1
       with:
         toolchain: stable
@@ -80,6 +91,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+      with:
+        submodules: true
     - name: Install FFTW and GSL
       run: |
         sudo apt-get update
