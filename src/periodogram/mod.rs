@@ -13,7 +13,9 @@ pub use fft::{FftwComplex, FftwFloat};
 
 mod freq;
 use freq::FreqGrid;
-pub use freq::{AverageNyquistFreq, MedianNyquistFreq, NyquistFreq, QuantileNyquistFreq};
+pub use freq::{
+    AverageNyquistFreq, FixedNyquistFreq, MedianNyquistFreq, NyquistFreq, QuantileNyquistFreq,
+};
 
 mod power_fft;
 pub use power_fft::PeriodogramPowerFft;
