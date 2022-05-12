@@ -9,6 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+—
+
+### Changed
+
+—
+
+### Deprecated
+
+—
+
+### Removed
+
+—
+
+### Fixed
+
+—
+
+### Security
+
+—
+
+## [0.4.2] 2022 May 12
+
+### Added
+
 - `Cargo.toml` keywords and categories
 - Add `Fixed(FixedNyquistFreq)` variant of `NyquistFreq` which defines a fixed Nyquist frequency to use for pariodogram
 
@@ -18,21 +44,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `light-curve-common` is a dev-dependency now
 - CI: split Github Actions workflow into pieces
 
-### Deprecated
-
-—
-
 ### Removed
 
 - Unused `dyn-clonable` dependency
-
-### Fixed
-
-—
-
-### Security
-
-—
 
 ## [0.4.1] 2021 Dec 15
 
