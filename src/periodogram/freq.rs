@@ -106,7 +106,7 @@ impl NyquistFreqTrait for QuantileNyquistFreq {
 /// value because of `max_freq_factor` and maximum value to step ratio rounding
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(rename = "Fixed")]
-pub struct FixedNyquistFreq(f32);
+pub struct FixedNyquistFreq(pub f32);
 
 impl FixedNyquistFreq {
     /// pi / dt
