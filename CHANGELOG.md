@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-—
+- Overflow in `{Bazin,Villar}Fit` https://github.com/light-curve/light-curve-feature/issues/48
 
 ### Security
 
