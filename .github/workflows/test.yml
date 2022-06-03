@@ -56,6 +56,25 @@ jobs:
       with:
         command: test
 
+  test-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+      - name: Install FFTW and GSL
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libfftw3-dev libgsl-dev
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --profile=release-with-debug
+
   examples:
     runs-on: ubuntu-latest
 

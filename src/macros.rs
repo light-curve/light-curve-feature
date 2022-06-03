@@ -158,7 +158,15 @@ macro_rules! fit_eval {
                 result
                     .into_iter()
                     .chain(std::iter::once(reduced_chi2))
-                    .map(|x| x.approx_as::<T>().unwrap())
+                    .map(|x| {
+                        x.approx_as::<T>().unwrap_or_else(|_| {
+                            if x.is_sign_negative() {
+                                T::min_value()
+                            } else {
+                                T::max_value()
+                            }
+                        })
+                    })
                     .collect()
             };
 
