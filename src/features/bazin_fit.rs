@@ -405,6 +405,7 @@ mod tests {
     use super::*;
     use crate::nl_fit::LnPrior1D;
     use crate::tests::*;
+    #[cfg(feature = "gsl")]
     use crate::LmsderCurveFit;
     use crate::TimeSeries;
 
@@ -455,6 +456,7 @@ mod tests {
         assert_relative_eq!(&values[..5], &desired[..], max_relative = 0.01);
     }
 
+    #[cfg(feature = "gsl")]
     #[test]
     fn bazin_fit_noisy_lmsder() {
         bazin_fit_noisy(BazinFit::new(
@@ -464,6 +466,7 @@ mod tests {
         ));
     }
 
+    #[cfg(feature = "gsl")]
     #[test]
     fn bazin_fit_noizy_mcmc_plus_lmsder() {
         let lmsder = LmsderCurveFit::new(1);

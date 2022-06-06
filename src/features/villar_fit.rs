@@ -593,8 +593,10 @@ impl From<LnPrior<NPARAMS>> for VillarLnPrior {
 #[allow(clippy::excessive_precision)]
 mod tests {
     use super::*;
+    #[cfg(feature = "gsl")]
     use crate::nl_fit::LnPrior1D;
     use crate::tests::*;
+    #[cfg(feature = "gsl")]
     use crate::LmsderCurveFit;
     use crate::TimeSeries;
 
@@ -611,6 +613,7 @@ mod tests {
         [0.0; 11],
     );
 
+    #[cfg(feature = "gsl")]
     fn villar_fit_noisy(eval: VillarFit) {
         const N: usize = 50;
 
@@ -652,6 +655,7 @@ mod tests {
         assert_relative_eq!(&values[..NPARAMS], &desired[..], max_relative = 0.01);
     }
 
+    #[cfg(feature = "gsl")]
     #[test]
     fn villar_fit_noisy_lmsder() {
         villar_fit_noisy(VillarFit::new(
@@ -661,6 +665,7 @@ mod tests {
         ));
     }
 
+    #[cfg(feature = "gsl")]
     #[test]
     fn villar_fit_noizy_mcmc_plus_lmsder() {
         let lmsder = LmsderCurveFit::new(1);
@@ -672,6 +677,7 @@ mod tests {
         ));
     }
 
+    #[cfg(feature = "gsl")]
     #[test]
     fn villar_fit_noizy_mcmc_with_prior() {
         let prior = LnPrior::ind_components([
@@ -731,6 +737,7 @@ mod tests {
     }
 
     /// https://github.com/light-curve/light-curve-feature/issues/48
+    #[cfg(feature = "gsl")]
     #[test]
     fn villar_fit_issue48() {
         let t = [

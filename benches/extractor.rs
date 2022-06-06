@@ -119,15 +119,25 @@ where
 
     {
         let mut real_data: Vec<_> = iter_sn1a_flux_ts::<T>().map(|(_ztf_id, ts)| ts).collect();
-        let curve_fits: Vec<CurveFitAlgorithm> = vec![
-            LmsderCurveFit::new(5).into(),
-            LmsderCurveFit::new(10).into(),
-            LmsderCurveFit::new(15).into(),
-            McmcCurveFit::new(128, None).into(),
-            McmcCurveFit::new(1024, None).into(),
-            McmcCurveFit::new(128, Some(LmsderCurveFit::new(5).into())).into(),
-            McmcCurveFit::new(1024, Some(LmsderCurveFit::new(10).into())).into(),
-        ];
+        #[allow(clippy::vec_init_then_push)]
+        let curve_fits: Vec<CurveFitAlgorithm> = {
+            let mut curve_fits = vec![];
+            #[cfg(feature = "gsl")]
+            {
+                curve_fits.push(LmsderCurveFit::new(5).into());
+                curve_fits.push(LmsderCurveFit::new(10).into());
+                curve_fits.push(LmsderCurveFit::new(15).into());
+            }
+            curve_fits.push(McmcCurveFit::new(128, None).into());
+            curve_fits.push(McmcCurveFit::new(1024, None).into());
+            #[cfg(feature = "gsl")]
+            {
+                curve_fits.push(McmcCurveFit::new(128, Some(LmsderCurveFit::new(5).into())).into());
+                curve_fits
+                    .push(McmcCurveFit::new(1024, Some(LmsderCurveFit::new(10).into())).into());
+            }
+            curve_fits
+        };
         for curve_fit in curve_fits.into_iter() {
             let features: Vec<Feature<_>> = vec![
                 BazinFit::new(

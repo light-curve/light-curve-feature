@@ -55,6 +55,7 @@ jobs:
     - uses: actions-rs/cargo@v1
       with:
         command: test
+        args: --no-default-features --features=fftw-source,gsl
 
   test-release:
     runs-on: ubuntu-latest
@@ -73,7 +74,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --profile=release-with-debug
+          args: --profile=release-with-debug --no-default-features --features=fftw-source,gsl
 
   examples:
     runs-on: ubuntu-latest
@@ -92,7 +93,7 @@ jobs:
     - uses: actions-rs/cargo@v1
       with:
         command: run
-        args: --example plot_snia_curve_fits -- -n=1
+        args: --example plot_snia_curve_fits --no-default-features --features=fftw-source,gsl -- -n=1
 
   fmt:
     runs-on: ubuntu-latest
@@ -126,7 +127,7 @@ jobs:
     - uses: actions-rs/cargo@v1
       with:
         command: clippy
-        args: --all-targets -- -D warnings
+        args: --all-targets --no-default-features --features=fftw-source,gsl -- -D warnings
 
   arm:
 
@@ -137,4 +138,18 @@ jobs:
       with:
         submodules: true
     - name: build
-      run: cargo build --all-targets
+      run: cargo build --all-targets --no-default-features --features=fftw-source,gsl
+
+  windows:
+
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: build
+        run: cargo build --all-targets --no-default-features --features=fftw-source
