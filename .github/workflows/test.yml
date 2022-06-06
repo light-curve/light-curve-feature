@@ -140,6 +140,22 @@ jobs:
     - name: build
       run: cargo build --all-targets --no-default-features --features=fftw-source,gsl
 
+  macos:
+
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+      - name: Install gsl
+        run: brew install gsl
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: build
+        run: cargo build --all-targets --no-default-features --features=fftw-source,gsl
+
   windows:
 
     runs-on: windows-latest
