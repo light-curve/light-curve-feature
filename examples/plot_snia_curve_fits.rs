@@ -1,8 +1,10 @@
 use clap::Parser;
 use light_curve_feature::{
-    features::VillarLnPrior, prelude::*, BazinFit, Feature, FeatureEvaluator, LmsderCurveFit,
-    LnPrior, McmcCurveFit, TimeSeries, VillarFit,
+    features::VillarLnPrior, prelude::*, BazinFit, Feature, FeatureEvaluator, McmcCurveFit,
+    TimeSeries, VillarFit,
 };
+#[cfg(feature = "gsl")]
+use light_curve_feature::{LmsderCurveFit, LnPrior};
 use light_curve_feature_test_util::iter_sn1a_flux_ts;
 use ndarray::{Array1, ArrayView1};
 use plotters::prelude::*;
@@ -18,44 +20,49 @@ fn main() {
 
     std::fs::create_dir_all(&dir).expect("Cannot create output directory");
 
-    let features: Vec<(&str, Feature<_>)> = vec![
-        (
-            "BazinFit LMSDER",
-            BazinFit::new(
-                LmsderCurveFit::default().into(),
-                LnPrior::none(),
-                BazinFit::default_inits_bounds(),
-            )
-            .into(),
-        ),
-        (
-            "BazinFit MCMC+LMSDER",
-            BazinFit::new(
-                McmcCurveFit::new(1024, Some(LmsderCurveFit::default().into())).into(),
-                LnPrior::none(),
-                BazinFit::default_inits_bounds(),
-            )
-            .into(),
-        ),
-        (
-            "VillarFit LMSDER",
-            VillarFit::new(
-                LmsderCurveFit::default().into(),
-                LnPrior::none(),
-                VillarFit::default_inits_bounds(),
-            )
-            .into(),
-        ),
-        (
-            "VillarFit MCMC+LMSDER",
-            VillarFit::new(
-                McmcCurveFit::new(1024, Some(LmsderCurveFit::default().into())).into(),
-                LnPrior::none(),
-                VillarFit::default_inits_bounds(),
-            )
-            .into(),
-        ),
-        (
+    #[allow(clippy::vec_init_then_push)]
+    let features = {
+        let mut features: Vec<(&str, Feature<_>)> = vec![];
+        #[cfg(feature = "gsl")]
+        {
+            features.push((
+                "BazinFit LMSDER",
+                BazinFit::new(
+                    LmsderCurveFit::default().into(),
+                    LnPrior::none(),
+                    BazinFit::default_inits_bounds(),
+                )
+                .into(),
+            ));
+            features.push((
+                "BazinFit MCMC+LMSDER",
+                BazinFit::new(
+                    McmcCurveFit::new(1024, Some(LmsderCurveFit::default().into())).into(),
+                    LnPrior::none(),
+                    BazinFit::default_inits_bounds(),
+                )
+                .into(),
+            ));
+            features.push((
+                "VillarFit LMSDER",
+                VillarFit::new(
+                    LmsderCurveFit::default().into(),
+                    LnPrior::none(),
+                    VillarFit::default_inits_bounds(),
+                )
+                .into(),
+            ));
+            features.push((
+                "VillarFit MCMC+LMSDER",
+                VillarFit::new(
+                    McmcCurveFit::new(1024, Some(LmsderCurveFit::default().into())).into(),
+                    LnPrior::none(),
+                    VillarFit::default_inits_bounds(),
+                )
+                .into(),
+            ));
+        }
+        features.push((
             "VillarFit MCMC+prior",
             VillarFit::new(
                 McmcCurveFit::new(1024, None).into(),
@@ -95,8 +102,9 @@ fn main() {
                 ),
             )
             .into(),
-        ),
-    ];
+        ));
+        features
+    };
     iter_sn1a_flux_ts()
         .take(n)
         .filter(|(ztf_id, _)| ztf_id.starts_with("ZTF18aaxsioa"))

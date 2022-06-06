@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-—
+- CI: build on Windows w/o GSL
 
 ### Changed
 
@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-—
+- Make it possible to run tests, benchmarks and examples without `gsl` feature
 
 ### Security
 
