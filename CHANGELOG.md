@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- CI: build on Windows w/o GSL
+—
 
 ### Changed
 
@@ -25,11 +25,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Make it possible to run tests, benchmarks and examples without `gsl` feature
+—
 
 ### Security
 
 —
+
+## [0.4.5] 2002 June 10
+
+### Added
+
+- CI: build on Windows w/o GSL
+
+
+### Fixed
+
+- Fix `NaN` panic in MCMC https://github.com/light-curve/light-curve-feature/issues/51
+- Make it possible to run tests, benchmarks and examples without `gsl` feature
+
 
 ## [0.4.4] 2022 June 3
 

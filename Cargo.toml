@@ -1,6 +1,6 @@
 [package]
 name = "light-curve-feature"
-version = "0.4.4"
+version = "0.4.5"
 description = "Feature extractor from noisy time series"
 categories = ["science"]
 keywords = ["astronomy", "time-series"]
