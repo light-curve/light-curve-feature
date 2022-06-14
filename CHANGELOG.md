@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Breaking** MSRV 1.56 -> 1.57
+—
 
 ### Deprecated
 
@@ -31,7 +31,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 —
 
-## [0.4.5] 2002 June 10
+## [0.5.0] 2022 June 14
+
+### Changed
+
+- **Breaking** MSRV 1.56 -> 1.57
+
+## [0.4.5] 2022 June 10
 
 ### Added
 
