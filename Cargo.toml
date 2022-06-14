@@ -25,10 +25,6 @@ gsl = ["GSL/v2_1"]
 lto = true
 codegen-units = 1
 
-[profile.release-with-debug]
-inherits = "release"
-debug = true
-
 [dependencies]
 # it is a dependency of intel-mkl-tool, we pin it to temporary solve
 # https://github.com/rust-math/intel-mkl-src/issues/68

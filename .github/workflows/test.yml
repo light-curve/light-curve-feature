@@ -74,7 +74,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --profile=release-with-debug --no-default-features --features=fftw-source,gsl
+          args: --release --no-default-features --features=fftw-source,gsl
 
   examples:
     runs-on: ubuntu-latest

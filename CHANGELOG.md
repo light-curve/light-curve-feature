@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-—
+- Remove profile section from Cargo.toml because it is not supported by our MSRV 1.56
 
 ### Security
 
