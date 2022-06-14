@@ -31,11 +31,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 —
 
+
 ## [0.5.0] 2022 June 14
 
 ### Changed
 
 - **Breaking** MSRV 1.56 -> 1.57
+
+
+## [0.4.6] 2022 June 14
+
+### Fixed
+
+- Remove profile section from Cargo.toml because it is not supported by our MSRV 1.56
+
 
 ## [0.4.5] 2022 June 10
 
