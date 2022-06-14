@@ -63,6 +63,7 @@ jobs:
       name: build GSL + dynamic FFTW
       with:
         command: build
+        toolchain: ${{ steps.get_msrv.outputs.msrv }}
         args: --all-targets --features gsl,fftw-source --no-default-features
 
 
