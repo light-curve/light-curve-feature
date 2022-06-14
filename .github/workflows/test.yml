@@ -38,6 +38,35 @@ jobs:
         command: build
         args: --all-targets --features gsl,fftw-mkl --no-default-features
 
+  msrv-build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+
+    - name: Install GSL
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libgsl-dev
+
+    - name: Get minimum supported Rust version
+      run: echo "::set-output name=msrv::$(grep '^rust-version = ' Cargo.toml | grep -o '[0-9.]\+')"
+      id: get_msrv
+
+    - uses: actions-rs/toolchain@v1
+      with:
+        toolchain: ${{ steps.get_msrv.outputs.msrv }}
+
+    - uses: actions-rs/cargo@v1
+      name: build GSL + dynamic FFTW
+      with:
+        command: build
+        toolchain: ${{ steps.get_msrv.outputs.msrv }}
+        args: --all-targets --features gsl,fftw-source --no-default-features
+
+
   test:
     runs-on: ubuntu-latest
 
