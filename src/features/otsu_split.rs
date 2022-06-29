@@ -73,6 +73,11 @@ where
 {
     fn eval(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
         self.check_ts_length(ts)?;
+
+        if ts.m.get_max() == ts.m.get_min() {
+            return Err(EvaluatorError::FlatTimeSeries);
+        }
+
         let mut dm = T::zero();
         let mut w: usize = 0;
         let mean = ts.m.get_mean();
@@ -97,9 +102,6 @@ where
             last_variance = variance;
         }
 
-        let mut lower: DataSample<_> = msorted[0..w - 1].into();
-        let mut upper: DataSample<_> = msorted[w..count].into();
-
         let std_lower;
         let std_upper;
         let mean_lower;
@@ -109,14 +111,16 @@ where
             std_lower = T::zero();
             mean_lower = msorted[0];
         } else {
+            let mut lower: DataSample<_> = msorted[0..w - 1].into();
             std_lower = lower.get_std();
             mean_lower = lower.get_mean()
         }
 
-        if (count - w) == 1 {
+        if (count - w) == 0 {
             std_upper = T::zero();
             mean_upper = msorted[count - 1];
         } else {
+            let mut upper: DataSample<_> = msorted[w..count].into();
             std_upper = upper.get_std();
             mean_upper = upper.get_mean();
         }
@@ -145,10 +149,11 @@ mod tests {
         [0.5, 1.5, 1.5, 1.5],
     );
 
-    feature_test!(
-        otsu_split_zero,
-        [OtsuSplit::new()],
-        [0.0, 0.0, 0.0, 0.25],
-        [1.5, 1.5, 1.5, 1.5],
-    );
+    #[test]
+    fn otsu_split_plateau() {
+        let eval = OtsuSplit::new();
+        let x = [1.5, 1.5, 1.5, 1.5];
+        let mut ts = TimeSeries::new_without_weight(&x, &x);
+        assert_eq!(eval.eval(&mut ts), Err(EvaluatorError::FlatTimeSeries));
+    }
 }
