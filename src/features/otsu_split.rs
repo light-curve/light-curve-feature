@@ -51,7 +51,12 @@ impl OtsuSplit {
 
 impl FeatureNamesDescriptionsTrait for OtsuSplit {
     fn get_names(&self) -> Vec<&str> {
-        vec!["otsu_mean_diff", "otsu_std_lower", "otsu_std_upper", "otsu_lower_to_all_ratio"]
+        vec![
+            "otsu_mean_diff",
+            "otsu_std_lower",
+            "otsu_std_upper",
+            "otsu_lower_to_all_ratio",
+        ]
     }
 
     fn get_descriptions(&self) -> Vec<&str> {
@@ -63,8 +68,8 @@ impl FeatureNamesDescriptionsTrait for OtsuSplit {
 }
 
 impl<T> FeatureEvaluator<T> for OtsuSplit
-    where
-        T: Float,
+where
+    T: Float,
 {
     fn eval(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
         self.check_ts_length(ts)?;
@@ -83,7 +88,8 @@ impl<T> FeatureEvaluator<T> for OtsuSplit
                 break;
             }
 
-            let variance = dm * dm / (count - w).value_as::<T>().unwrap() / w.value_as::<T>().unwrap();
+            let variance =
+                dm * dm / (count - w).value_as::<T>().unwrap() / w.value_as::<T>().unwrap();
 
             if variance < last_variance {
                 break;
@@ -91,7 +97,7 @@ impl<T> FeatureEvaluator<T> for OtsuSplit
             last_variance = variance;
         }
 
-        let mut lower: DataSample<_> = msorted[0..w-1].into();
+        let mut lower: DataSample<_> = msorted[0..w - 1].into();
         let mut upper: DataSample<_> = msorted[w..count].into();
 
         let std_lower;
@@ -102,17 +108,15 @@ impl<T> FeatureEvaluator<T> for OtsuSplit
         if w == 2 {
             std_lower = T::zero();
             mean_lower = msorted[0];
-        }
-        else {
+        } else {
             std_lower = lower.get_std();
             mean_lower = lower.get_mean()
         }
 
         if (count - w) == 1 {
             std_upper = T::zero();
-            mean_upper = msorted[count-1];
-        }
-        else {
+            mean_upper = msorted[count - 1];
+        } else {
             std_upper = upper.get_std();
             mean_upper = upper.get_mean();
         }
