@@ -72,6 +72,9 @@ pub use median_buffer_range_percentage::MedianBufferRangePercentage;
 mod observation_count;
 pub use observation_count::ObservationCount;
 
+mod otsu_split;
+pub use otsu_split::OtsuSplit;
+
 mod percent_amplitude;
 pub use percent_amplitude::PercentAmplitude;
 

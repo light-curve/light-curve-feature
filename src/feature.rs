@@ -45,6 +45,7 @@ where
     MedianAbsoluteDeviation,
     MedianBufferRangePercentage(MedianBufferRangePercentage<T>),
     ObservationCount,
+    OtsuSplit,
     PercentAmplitude,
     PercentDifferenceMagnitudePercentile,
     Periodogram(Periodogram<T, Self>),
