@@ -74,16 +74,16 @@ where
     fn eval(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
         self.check_ts_length(ts)?;
 
+        let mut delta_mean = T::zero();
+        let mut w: usize = 0;
+        let mean = ts.m.get_mean();
+        let count = ts.lenu();
         let msorted = ts.m.get_sorted();
 
         if msorted.minimum() == msorted.maximum() {
             return Err(EvaluatorError::FlatTimeSeries);
         }
 
-        let mut delta_mean = T::zero();
-        let mut w: usize = 0;
-        let mean = ts.m.get_mean();
-        let count = ts.lenu();
         let mut last_variance = T::zero();
 
         for &m in msorted.iter() {
