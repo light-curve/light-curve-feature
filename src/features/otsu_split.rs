@@ -18,7 +18,7 @@ intra-class intensity variance, or equivalently, by maximizing inter-class varia
 
 Otsu, Nobuyuki 1979. [DOI:10.1109/tsmc.1979.4310076](https://doi.org/10.1109/tsmc.1979.4310076)
 
-Matwey Kornilov Otsu thresholding algorithm realization was used as a reference:
+Matwey Kornilov's Otsu thresholding algorithm realization was used as a reference:
     http://curl.sai.msu.ru/hg/home/matwey/domecam/file/tip/include/otsu.h
     https://ieeexplore.ieee.org/document/9170791
 "#;
@@ -74,27 +74,29 @@ where
     fn eval(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
         self.check_ts_length(ts)?;
 
-        if ts.m.get_max() == ts.m.get_min() {
+        let msorted = ts.m.get_sorted();
+
+        if msorted.minimum() == msorted.maximum() {
             return Err(EvaluatorError::FlatTimeSeries);
         }
 
-        let mut dm = T::zero();
+        let mut delta_mean = T::zero();
         let mut w: usize = 0;
         let mean = ts.m.get_mean();
         let count = ts.lenu();
-        let msorted = ts.m.get_sorted();
         let mut last_variance = T::zero();
 
         for &m in msorted.iter() {
             w += 1;
-            dm += mean - m;
+            delta_mean += mean - m;
 
             if w == count {
                 break;
             }
 
-            let variance =
-                dm * dm / (count - w).value_as::<T>().unwrap() / w.value_as::<T>().unwrap();
+            let variance = delta_mean * delta_mean
+                / (count - w).value_as::<T>().unwrap()
+                / w.value_as::<T>().unwrap();
 
             if variance < last_variance {
                 break;
