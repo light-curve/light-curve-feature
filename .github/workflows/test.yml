@@ -33,7 +33,9 @@ jobs:
     - name: Get minimum supported Rust version
       run: echo "::set-output name=msrv::$(grep '^rust-version = ' Cargo.toml | grep -o '[0-9.]\+')"
       id: get_msrv
-    - uses: dtolnay/rust-toolchain@${{ steps.get_msrv.outputs.msrv }}
+    - uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ steps.get_msrv.outputs.msrv }}
     - run: cargo +${{ steps.get_msrv.outputs.msrv }} build --all-targets --features gsl,fftw-source --no-default-features
 
   test:
@@ -53,14 +55,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: true
-      - name: Install FFTW and GSL
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libfftw3-dev libgsl-dev
-      - run: cargo test --profile=release-with-debug --no-default-features --features=fftw-source,gsl
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+    - name: Install FFTW and GSL
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libfftw3-dev libgsl-dev
+    - run: cargo test --profile=release-with-debug --no-default-features --features=fftw-source,gsl
 
   examples:
     runs-on: ubuntu-latest
@@ -109,7 +111,6 @@ jobs:
       run: cargo build --all-targets --no-default-features --features=fftw-source,gsl
 
   macos:
-
     runs-on: macos-latest
 
     steps:
@@ -121,11 +122,10 @@ jobs:
       - run: cargo build --all-targets --no-default-features --features=fftw-source,gsl
 
   windows:
-
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: true
-      - run: cargo build --all-targets --no-default-features --features=fftw-source
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+    - run: cargo build --all-targets --no-default-features --features=fftw-source
