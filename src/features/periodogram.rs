@@ -103,6 +103,7 @@ impl EvaluatorInfoTrait for PeriodogramPeaks {
         &self.properties.info
     }
 }
+
 impl FeatureNamesDescriptionsTrait for PeriodogramPeaks {
     fn get_names(&self) -> Vec<&str> {
         self.properties.names.iter().map(String::as_str).collect()
