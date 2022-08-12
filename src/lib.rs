@@ -27,6 +27,9 @@ pub use float_trait::Float;
 
 mod lnerfc;
 
+mod multicolor;
+pub use multicolor::*;
+
 mod nl_fit;
 #[cfg(any(feature = "ceres-source", feature = "ceres-system"))]
 pub use nl_fit::CeresCurveFit;

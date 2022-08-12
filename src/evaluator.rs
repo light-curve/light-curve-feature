@@ -11,7 +11,7 @@ use serde::de::DeserializeOwned;
 pub use serde::{Deserialize, Serialize};
 pub use std::fmt::Debug;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct EvaluatorInfo {
     pub size: usize,
     pub min_ts_length: usize,
@@ -22,7 +22,7 @@ pub struct EvaluatorInfo {
     pub variability_required: bool,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct EvaluatorProperties {
     pub info: EvaluatorInfo,
     pub names: Vec<String>,
