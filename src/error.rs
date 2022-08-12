@@ -1,5 +1,5 @@
 /// Error returned from [crate::FeatureEvaluator]
-#[derive(Debug, thiserror::Error, PartialEq)]
+#[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum EvaluatorError {
     #[error("time-series' length {actual} is smaller than the minimum required length {minimum}")]
     ShortTimeSeries { actual: usize, minimum: usize },
@@ -11,7 +11,7 @@ pub enum EvaluatorError {
     ZeroDivision(&'static str),
 }
 
-#[derive(Debug, thiserror::Error, PartialEq)]
+#[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum SortedArrayError {
     #[error("SortedVec constructors accept sorted arrays only")]
     Unsorted,

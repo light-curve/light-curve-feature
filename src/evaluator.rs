@@ -12,7 +12,7 @@ use serde::de::DeserializeOwned;
 pub use serde::{Deserialize, Serialize};
 pub use std::fmt::Debug;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EvaluatorInfo {
     pub size: usize,
     pub min_ts_length: usize,
