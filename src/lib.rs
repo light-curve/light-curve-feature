@@ -27,6 +27,9 @@ pub use float_trait::Float;
 
 mod lnerfc;
 
+mod multicolor;
+pub use multicolor::*;
+
 mod nl_fit;
 pub use nl_fit::evaluator::FitFeatureEvaluatorGettersTrait;
 #[cfg(feature = "gsl")]
