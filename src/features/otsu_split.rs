@@ -75,7 +75,7 @@ where
         self.check_ts_length(ts)?;
 
         let mut delta_mean = T::zero();
-        let mut w: usize = 0;
+        let mut w = 0;
         let mean = ts.m.get_mean();
         let count = ts.lenu();
         let msorted = ts.m.get_sorted();
@@ -89,10 +89,6 @@ where
         for &m in msorted.iter() {
             w += 1;
             delta_mean += mean - m;
-
-            if w == count {
-                break;
-            }
 
             let variance = delta_mean * delta_mean
                 / (count - w).value_as::<T>().unwrap()
@@ -109,25 +105,22 @@ where
         let mean_lower;
         let mean_upper;
 
-        if w == 2 {
-            std_lower = T::zero();
-            mean_lower = msorted[0];
+        let mut lower: DataSample<_> = msorted[0..w - 1].into();
+        std_lower = if lower.sample.len() == 1 {
+            T::zero()
         } else {
-            let mut lower: DataSample<_> = msorted[0..w - 1].into();
-            std_lower = lower.get_std();
-            mean_lower = lower.get_mean()
-        }
+            lower.get_std()
+        };
+        mean_lower = lower.get_mean();
 
-        if (count - w) == 0 {
-            std_upper = T::zero();
-            mean_upper = msorted[count - 1];
+        let mut upper: DataSample<_> = msorted[w - 1..count].into();
+        std_upper = if upper.sample.len() == 1 {
+            T::zero()
         } else {
-            let mut upper: DataSample<_> = msorted[w..count].into();
-            std_upper = upper.get_std();
-            mean_upper = upper.get_mean();
-        }
+            upper.get_std()
+        };
+        mean_upper = upper.get_mean();
 
-        // let mean_diff = upper.get_mean() - lower.get_mean();
         let mean_diff = mean_upper - mean_lower;
         let lower_to_all = (w - 1).value_as::<T>().unwrap() / count.value_as::<T>().unwrap();
 
@@ -147,8 +140,27 @@ mod tests {
     feature_test!(
         otsu_split,
         [OtsuSplit::new()],
+        [
+            0.725,
+            0.012909944487358068,
+            0.07071067811865482,
+            0.6666666666666666
+        ],
+        [0.51, 0.52, 0.53, 0.54, 1.2, 1.3],
+    );
+
+    feature_test!(
+        otsu_split_lower,
+        [OtsuSplit::new()],
         [1.0, 0.0, 0.0, 0.25],
         [0.5, 1.5, 1.5, 1.5],
+    );
+
+    feature_test!(
+        otsu_split_upper,
+        [OtsuSplit::new()],
+        [1.0, 0.0, 0.0, 0.75],
+        [0.5, 0.5, 0.5, 1.5],
     );
 
     #[test]
