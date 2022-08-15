@@ -150,6 +150,13 @@ mod tests {
     );
 
     feature_test!(
+        otsu_split_min_observations,
+        [OtsuSplit::new()],
+        [0.01, 0.0, 0.0, 0.5],
+        [0.51, 0.52],
+    );
+
+    feature_test!(
         otsu_split_lower,
         [OtsuSplit::new()],
         [1.0, 0.0, 0.0, 0.25],
