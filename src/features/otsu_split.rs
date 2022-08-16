@@ -1,6 +1,7 @@
 use crate::evaluator::*;
 use crate::time_series::DataSample;
 use conv::prelude::*;
+use ndarray::{ArrayView1, Axis};
 
 macro_const! {
     const DOC: &'static str = r#"
@@ -47,6 +48,50 @@ impl OtsuSplit {
     pub fn doc() -> &'static str {
         DOC
     }
+
+    pub fn threshold<'a, 'b, T>(
+        ds: &'b mut DataSample<'a, T>,
+    ) -> Result<(T, ArrayView1<'b, T>, ArrayView1<'b, T>), EvaluatorError>
+    where
+        'a: 'b,
+        T: Float,
+    {
+        if ds.sample.len() < 2 {
+            return Err(EvaluatorError::ShortTimeSeries {
+                actual: ds.sample.len(),
+                minimum: 2,
+            });
+        }
+
+        let mut delta_mean = T::zero();
+        let mut w = 0;
+        let mean = ds.get_mean();
+        let count = ds.sample.len();
+        let sorted = ds.get_sorted();
+
+        if sorted.minimum() == sorted.maximum() {
+            return Err(EvaluatorError::FlatTimeSeries);
+        }
+
+        let mut last_variance = T::zero();
+
+        for &m in sorted.iter() {
+            w += 1;
+            delta_mean += mean - m;
+
+            let variance = delta_mean * delta_mean
+                / (count - w).value_as::<T>().unwrap()
+                / w.value_as::<T>().unwrap();
+
+            if variance < last_variance {
+                break;
+            }
+            last_variance = variance;
+        }
+
+        let (lower, upper) = sorted.0.view().split_at(Axis(0), w - 1);
+        Ok((sorted.0[w - 1], lower, upper))
+    }
 }
 
 impl FeatureNamesDescriptionsTrait for OtsuSplit {
@@ -74,55 +119,26 @@ where
     fn eval(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
         self.check_ts_length(ts)?;
 
-        let mut delta_mean = T::zero();
-        let mut w = 0;
-        let mean = ts.m.get_mean();
-        let count = ts.lenu();
-        let msorted = ts.m.get_sorted();
+        let (_, lower, upper) = Self::threshold(&mut ts.m)?;
+        let mut lower: DataSample<_> = lower.into();
+        let mut upper: DataSample<_> = upper.into();
 
-        if msorted.minimum() == msorted.maximum() {
-            return Err(EvaluatorError::FlatTimeSeries);
-        }
-
-        let mut last_variance = T::zero();
-
-        for &m in msorted.iter() {
-            w += 1;
-            delta_mean += mean - m;
-
-            let variance = delta_mean * delta_mean
-                / (count - w).value_as::<T>().unwrap()
-                / w.value_as::<T>().unwrap();
-
-            if variance < last_variance {
-                break;
-            }
-            last_variance = variance;
-        }
-
-        let std_lower;
-        let std_upper;
-        let mean_lower;
-        let mean_upper;
-
-        let mut lower: DataSample<_> = msorted[0..w - 1].into();
-        std_lower = if lower.sample.len() == 1 {
+        let std_lower = if lower.sample.len() == 1 {
             T::zero()
         } else {
             lower.get_std()
         };
-        mean_lower = lower.get_mean();
+        let mean_lower = lower.get_mean();
 
-        let mut upper: DataSample<_> = msorted[w - 1..count].into();
-        std_upper = if upper.sample.len() == 1 {
+        let std_upper = if upper.sample.len() == 1 {
             T::zero()
         } else {
             upper.get_std()
         };
-        mean_upper = upper.get_mean();
+        let mean_upper = upper.get_mean();
 
         let mean_diff = mean_upper - mean_lower;
-        let lower_to_all = (w - 1).value_as::<T>().unwrap() / count.value_as::<T>().unwrap();
+        let lower_to_all = lower.sample.len().value_as::<T>().unwrap() / ts.lenf();
 
         Ok(vec![mean_diff, std_lower, std_upper, lower_to_all])
     }
@@ -134,6 +150,7 @@ where
 mod tests {
     use super::*;
     use crate::tests::*;
+    use ndarray::array;
 
     check_feature!(OtsuSplit);
 
@@ -169,6 +186,18 @@ mod tests {
         [1.0, 0.0, 0.0, 0.75],
         [0.5, 0.5, 0.5, 1.5],
     );
+
+    #[test]
+    fn otsu_threshold() {
+        let mut ds = vec![0.5, 0.5, 0.5, 1.5].into();
+        let (expected_threshold, expected_lower, expected_upper) =
+            (1.5, array![0.5, 0.5, 0.5], array![1.5]);
+        let (actual_threshold, actual_lower, actual_upper) =
+            OtsuSplit::threshold(&mut ds).expect("input is not flat");
+        assert_eq!(expected_threshold, actual_threshold);
+        assert_eq!(expected_lower, actual_lower);
+        assert_eq!(expected_upper, actual_upper);
+    }
 
     #[test]
     fn otsu_split_plateau() {
