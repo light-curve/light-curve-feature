@@ -128,6 +128,8 @@ struct Opts {
     dir: String,
 }
 
+type BoxedModel = Box<dyn Fn(f64, &[f64]) -> f64>;
+
 fn fitted_model(
     t: ArrayView1<f64>,
     ts: &mut TimeSeries<f64>,
@@ -136,7 +138,7 @@ fn fitted_model(
     let values = feature.eval(ts).expect("Feature cannot be extracted");
     println!("{:?}", values);
     let reduced_chi2 = values[values.len() - 1];
-    let model: Box<dyn Fn(f64, &[f64]) -> f64> = match feature {
+    let model: BoxedModel = match feature {
         Feature::BazinFit(..) => Box::new(BazinFit::f),
         Feature::VillarFit(..) => Box::new(VillarFit::f),
         _ => panic!("Unknown *Fit variant"),
