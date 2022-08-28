@@ -1,6 +1,6 @@
+use crate::data::TimeSeries;
 use crate::float_trait::Float;
 use crate::periodogram::freq::FreqGrid;
-use crate::time_series::TimeSeries;
 
 use enum_dispatch::enum_dispatch;
 use std::fmt::Debug;

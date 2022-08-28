@@ -1,3 +1,4 @@
+use crate::data::MultiColorTimeSeries;
 use crate::error::MultiColorEvaluatorError;
 use crate::evaluator::{
     EvaluatorError, EvaluatorInfo, EvaluatorInfoTrait, EvaluatorProperties, FeatureEvaluator,
@@ -5,7 +6,6 @@ use crate::evaluator::{
 };
 use crate::feature::Feature;
 use crate::float_trait::Float;
-use crate::time_series::TimeSeries;
 
 use enum_dispatch::enum_dispatch;
 use itertools::Itertools;
@@ -91,8 +91,6 @@ impl PassbandTrait for NoPassband {
     }
 }
 
-pub struct MultiColorTimeSeries<'a, P: PassbandTrait, T: Float>(BTreeMap<P, TimeSeries<'a, T>>);
-
 #[enum_dispatch]
 pub trait MultiColorPassbandSetTrait<P>
 where
@@ -167,14 +165,13 @@ where
             PassbandSet::AllAvailable => Ok(()),
             PassbandSet::FixedSet(self_passbands) => {
                 if mcts
-                    .0
                     .keys()
                     .all(|mcts_passband| self_passbands.contains(mcts_passband))
                 {
                     Ok(())
                 } else {
                     Err(MultiColorEvaluatorError::wrong_passbands_error(
-                        mcts.0.keys(),
+                        mcts.keys(),
                         self_passbands.iter(),
                     ))
                 }
@@ -189,8 +186,7 @@ where
     ) -> Result<BTreeMap<P, usize>, MultiColorEvaluatorError> {
         // Use try_reduce when stabilizes
         // https://github.com/rust-lang/rust/issues/87053
-        mcts.0
-            .iter()
+        mcts.iter()
             .map(|(passband, ts)| {
                 let length = ts.lenu();
                 if length < self.min_ts_length() {
@@ -483,7 +479,7 @@ where
             PassbandSet::FixedSet(set) => set
                 .iter()
                 .map(|passband| {
-                    self.feature.eval(mcts.0.get_mut(passband).expect(
+                    self.feature.eval(mcts.get_mut(passband).expect(
                         "we checked all needed passbands are in mcts, but we still cannot find one",
                     )).map_err(|error| MultiColorEvaluatorError::MonochromeEvaluatorError {
                         passband: passband.name().into(),
@@ -624,7 +620,7 @@ mod color_median {
             for (median, passband) in medians.iter_mut().zip(self.passbands.iter()) {
                 *median = self
                     .median
-                    .eval(mcts.0.get_mut(passband).expect(
+                    .eval(mcts.get_mut(passband).expect(
                         "we checked all needed passbands are in mcts, but we still cannot find one",
                     ))
                     .map_err(|error| MultiColorEvaluatorError::MonochromeEvaluatorError {

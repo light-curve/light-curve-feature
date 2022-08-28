@@ -1,5 +1,5 @@
+use crate::data::SortedArray;
 use crate::evaluator::*;
-use crate::sorted_array::SortedArray;
 
 macro_const! {
     const DOC: &'static str = r#"
