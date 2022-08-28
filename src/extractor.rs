@@ -1,8 +1,8 @@
+use crate::data::TimeSeries;
 use crate::error::EvaluatorError;
 use crate::evaluator::*;
 use crate::feature::Feature;
 use crate::float_trait::Float;
-use crate::time_series::TimeSeries;
 
 use std::marker::PhantomData;
 

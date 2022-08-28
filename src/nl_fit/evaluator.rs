@@ -1,6 +1,6 @@
+use crate::data::TimeSeries;
 use crate::float_trait::Float;
 use crate::nl_fit::{data::NormalizedData, CurveFitAlgorithm, LikeFloat, LnPrior};
-use crate::time_series::TimeSeries;
 
 use schemars::JsonSchema;
 use serde::de::DeserializeOwned;

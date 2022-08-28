@@ -1,5 +1,5 @@
+use crate::data::TimeSeries;
 use crate::float_trait::Float;
-use crate::time_series::TimeSeries;
 
 use ndarray::Zip;
 

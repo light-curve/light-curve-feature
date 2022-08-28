@@ -7,6 +7,9 @@ mod tests;
 #[macro_use]
 mod macros;
 
+mod data;
+pub use data::{DataSample, TimeSeries};
+
 mod evaluator;
 pub use evaluator::{EvaluatorInfoTrait, FeatureEvaluator, FeatureNamesDescriptionsTrait};
 
@@ -49,8 +52,6 @@ pub use periodogram::{
 
 pub mod prelude;
 
-mod sorted_array;
-
 mod straight_line_fit;
 #[doc(hidden)]
 pub use straight_line_fit::fit_straight_line;
@@ -61,9 +62,6 @@ pub use transformers::{Transformer, TransformerTrait};
 mod peak_indices;
 #[doc(hidden)]
 pub use peak_indices::peak_indices;
-
-mod time_series;
-pub use time_series::{DataSample, TimeSeries};
 
 mod types;
 

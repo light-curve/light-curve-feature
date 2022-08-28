@@ -1,8 +1,8 @@
+pub use crate::data::TimeSeries;
 pub use crate::evaluator::*;
 pub use crate::extractor::FeatureExtractor;
 pub use crate::feature::Feature;
 pub use crate::float_trait::Float;
-pub use crate::time_series::TimeSeries;
 
 pub use light_curve_common::{all_close, linspace};
 pub use ndarray::{Array1, ArrayView1};
