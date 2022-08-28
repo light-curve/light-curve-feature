@@ -1,5 +1,5 @@
+use crate::data::{DataSample, TimeSeries};
 use crate::float_trait::Float;
-use crate::time_series::{DataSample, TimeSeries};
 
 use conv::ConvUtil;
 use ndarray::Array1;

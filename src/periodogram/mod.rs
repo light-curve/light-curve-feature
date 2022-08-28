@@ -1,7 +1,7 @@
 //! Periodogram-related stuff
 
+use crate::data::TimeSeries;
 use crate::float_trait::Float;
-use crate::time_series::TimeSeries;
 
 use enum_dispatch::enum_dispatch;
 use schemars::JsonSchema;
@@ -151,9 +151,9 @@ where
 mod tests {
     use super::*;
 
+    use crate::data::SortedArray;
     use crate::peak_indices::peak_indices_reverse_sorted;
     use crate::periodogram::freq::{DynamicFreqGridParams, ZeroBasedPow2FreqGrid};
-    use crate::sorted_array::SortedArray;
 
     use approx::assert_relative_eq;
     use light_curve_common::{all_close, linspace};
