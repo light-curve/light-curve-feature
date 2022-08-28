@@ -1,7 +1,7 @@
 //! Periodogram-related stuff
 
+use crate::data::TimeSeries;
 use crate::float_trait::Float;
-use crate::time_series::TimeSeries;
 
 use conv::ConvAsUtil;
 use enum_dispatch::enum_dispatch;
@@ -107,8 +107,8 @@ where
 mod tests {
     use super::*;
 
+    use crate::data::SortedArray;
     use crate::peak_indices::peak_indices_reverse_sorted;
-    use crate::sorted_array::SortedArray;
 
     use light_curve_common::{all_close, linspace};
     use rand::prelude::*;

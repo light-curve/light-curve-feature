@@ -1,6 +1,6 @@
+pub use crate::data::TimeSeries;
 pub use crate::error::EvaluatorError;
 pub use crate::float_trait::Float;
-pub use crate::time_series::TimeSeries;
 
 pub use conv::errors::GeneralError;
 use enum_dispatch::enum_dispatch;

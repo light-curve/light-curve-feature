@@ -1,5 +1,5 @@
+use crate::data::DataSample;
 use crate::evaluator::*;
-use crate::time_series::DataSample;
 use conv::prelude::*;
 use ndarray::{s, Array1, ArrayView1, Axis, Zip};
 use ndarray_stats::QuantileExt;
