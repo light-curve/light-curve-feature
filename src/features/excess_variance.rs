@@ -32,6 +32,7 @@ lazy_info!(
     m_required: true,
     w_required: true,
     sorting_required: false,
+    variability_required: false,
 );
 
 impl ExcessVariance {
@@ -58,8 +59,7 @@ impl<T> FeatureEvaluator<T> for ExcessVariance
 where
     T: Float,
 {
-    fn eval(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
-        self.check_ts_length(ts)?;
+    fn eval_no_ts_check(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
         let mean_error2 = ts.w.sample.fold(T::zero(), |sum, w| sum + w.recip()) / ts.lenf();
         Ok(vec![
             (ts.m.get_std2() - mean_error2) / ts.m.get_mean().powi(2),

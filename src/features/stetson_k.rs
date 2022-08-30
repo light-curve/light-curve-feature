@@ -34,6 +34,7 @@ lazy_info!(
     m_required: true,
     w_required: true,
     sorting_required: false,
+    variability_required: true,
 );
 
 impl StetsonK {
@@ -60,9 +61,8 @@ impl<T> FeatureEvaluator<T> for StetsonK
 where
     T: Float,
 {
-    fn eval(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
-        self.check_ts_length(ts)?;
-        let chi2 = get_nonzero_reduced_chi2(ts)? * (ts.lenf() - T::one());
+    fn eval_no_ts_check(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
+        let chi2 = ts.get_m_reduced_chi2() * (ts.lenf() - T::one());
         let mean = ts.get_m_weighted_mean();
         let value = Zip::from(&ts.m.sample)
             .and(&ts.w.sample)

@@ -52,6 +52,7 @@ impl PeriodogramPeaks {
             m_required: true,
             w_required: false,
             sorting_required: true,
+            variability_required: false,
         };
         let names = (0..peaks)
             .flat_map(|i| vec![format!("period_{}", i), format!("period_s_to_n_{}", i)])
@@ -123,8 +124,7 @@ impl<T> FeatureEvaluator<T> for PeriodogramPeaks
 where
     T: Float,
 {
-    fn eval(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
-        self.check_ts_length(ts)?;
+    fn eval_no_ts_check(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
         let peak_indices = peak_indices_reverse_sorted(&ts.m.sample);
         Ok(peak_indices
             .iter()
@@ -383,6 +383,7 @@ where
             m_required: true,
             w_required: false,
             sorting_required: true,
+            variability_required: false,
         };
         Self {
             properties: EvaluatorProperties {
