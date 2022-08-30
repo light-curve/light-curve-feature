@@ -127,6 +127,7 @@ lazy_info!(
     m_required: true,
     w_required: true,
     sorting_required: true, // improve reproducibility
+    variability_required: false,
 );
 
 impl<T, U> FitModelTrait<T, U, NPARAMS> for VillarFit

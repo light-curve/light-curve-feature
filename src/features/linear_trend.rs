@@ -43,6 +43,7 @@ lazy_info!(
     m_required: true,
     w_required: false,
     sorting_required: true,
+    variability_required: false,
 );
 
 impl FeatureNamesDescriptionsTrait for LinearTrend {
@@ -63,8 +64,7 @@ impl<T> FeatureEvaluator<T> for LinearTrend
 where
     T: Float,
 {
-    fn eval(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
-        self.check_ts_length(ts)?;
+    fn eval_no_ts_check(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
         let result = fit_straight_line(ts, false);
         Ok(vec![
             result.slope,

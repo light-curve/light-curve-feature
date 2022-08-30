@@ -43,6 +43,7 @@ lazy_info!(
     m_required: true,
     w_required: false,
     sorting_required: false,
+    variability_required: true,
 );
 
 impl FeatureNamesDescriptionsTrait for Kurtosis {
@@ -59,10 +60,9 @@ impl<T> FeatureEvaluator<T> for Kurtosis
 where
     T: Float,
 {
-    fn eval(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
-        self.check_ts_length(ts)?;
-        let m_std2 = get_nonzero_m_std2(ts)?;
+    fn eval_no_ts_check(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
         let m_mean = ts.m.get_mean();
+        let m_std2 = ts.m.get_std2();
         let n = ts.lenf();
         let n1 = n + T::one();
         let n_1 = n - T::one();
