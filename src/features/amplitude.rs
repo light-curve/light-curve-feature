@@ -47,6 +47,7 @@ lazy_info!(
     m_required: true,
     w_required: false,
     sorting_required: false,
+    variability_required: false,
 );
 
 impl FeatureNamesDescriptionsTrait for Amplitude {
@@ -63,8 +64,7 @@ impl<T> FeatureEvaluator<T> for Amplitude
 where
     T: Float,
 {
-    fn eval(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
-        self.check_ts_length(ts)?;
+    fn eval_no_ts_check(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
         Ok(vec![T::half() * (ts.m.get_max() - ts.m.get_min())])
     }
 }

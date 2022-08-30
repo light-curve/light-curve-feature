@@ -46,6 +46,7 @@ where
             m_required: features.iter().any(|x| x.is_m_required()),
             w_required: features.iter().any(|x| x.is_w_required()),
             sorting_required: features.iter().any(|x| x.is_sorting_required()),
+            variability_required: features.iter().any(|x| x.is_variability_required()),
         }
         .into();
         Self {
@@ -118,10 +119,10 @@ where
     T: Float,
     F: FeatureEvaluator<T>,
 {
-    fn eval(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
+    fn eval_no_ts_check(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
         let mut vec = Vec::with_capacity(self.size_hint());
         for x in &self.features {
-            vec.extend(x.eval(ts)?);
+            vec.extend(x.eval_no_ts_check(ts)?);
         }
         Ok(vec)
     }

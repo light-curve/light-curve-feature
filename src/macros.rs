@@ -8,6 +8,7 @@ macro_rules! lazy_info {
         m_required: $m: expr,
         w_required: $w: expr,
         sorting_required: $sort: expr,
+        variability_required: $var: expr,
     ) => {
         lazy_static! {
             static ref $name: EvaluatorInfo = EvaluatorInfo {
@@ -17,6 +18,7 @@ macro_rules! lazy_info {
                 m_required: $m,
                 w_required: $w,
                 sorting_required: $sort,
+                variability_required: $var,
             };
         }
     };
@@ -29,6 +31,7 @@ macro_rules! lazy_info {
         m_required: $m: expr,
         w_required: $w: expr,
         sorting_required: $sort: expr,
+        variability_required: $var: expr,
     ) => {
         lazy_info!(
             $name,
@@ -38,6 +41,7 @@ macro_rules! lazy_info {
             m_required: $m,
             w_required: $w,
             sorting_required: $sort,
+            variability_required: $var,
         );
 
         impl EvaluatorInfoTrait for $feature {
@@ -56,6 +60,7 @@ macro_rules! lazy_info {
         m_required: $m: expr,
         w_required: $w: expr,
         sorting_required: $sort: expr,
+        variability_required: $var: expr,
     ) => {
         lazy_info!(
             $name,
@@ -65,6 +70,7 @@ macro_rules! lazy_info {
             m_required: $m,
             w_required: $w,
             sorting_required: $sort,
+            variability_required: $var,
         );
 
         impl<T: Float> EvaluatorInfoTrait for $feature {
@@ -80,7 +86,7 @@ macro_rules! lazy_info {
 /// - `transform_ts(&self, ts: &mut TimeSeries<T>) -> Result<impl OwnedArrays<T>, EvaluatorError>`
 macro_rules! transformer_eval {
     () => {
-        fn eval(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
+        fn eval_no_ts_check(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
             let arrays = self.transform_ts(ts)?;
             let mut new_ts = arrays.ts();
             self.feature_extractor.eval(&mut new_ts)
@@ -121,9 +127,7 @@ macro_rules! json_schema {
 /// - declare `const NPARAMS: usize` in your code
 macro_rules! fit_eval {
     () => {
-        fn eval(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
-            self.check_ts_length(ts)?;
-
+        fn eval_no_ts_check(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
             let norm_data = NormalizedData::<f64>::from_ts(ts);
 
             let (x0, lower, upper) = {
