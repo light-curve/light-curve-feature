@@ -36,6 +36,7 @@ lazy_info!(
     m_required: true,
     w_required: false,
     sorting_required: false,
+    variability_required: true,
 );
 
 impl OtsuSplit {
@@ -47,27 +48,16 @@ impl OtsuSplit {
         DOC
     }
 
-    pub fn threshold<'a, 'b, T>(
+    fn threshold_no_ds_check<'a, 'b, T>(
         ds: &'b mut DataSample<'a, T>,
-    ) -> Result<(T, ArrayView1<'b, T>, ArrayView1<'b, T>), EvaluatorError>
+    ) -> (T, ArrayView1<'b, T>, ArrayView1<'b, T>)
     where
         'a: 'b,
         T: Float,
     {
-        if ds.sample.len() < 2 {
-            return Err(EvaluatorError::ShortTimeSeries {
-                actual: ds.sample.len(),
-                minimum: 2,
-            });
-        }
-
         let count = ds.sample.len();
         let countf = count.approx().unwrap();
         let sorted = ds.get_sorted();
-
-        if sorted.minimum() == sorted.maximum() {
-            return Err(EvaluatorError::FlatTimeSeries);
-        }
 
         // size is (count - 1)
         let cumsum1: Array1<_> = sorted
@@ -110,7 +100,30 @@ impl OtsuSplit {
         let index = inter_class_variance.argmax().unwrap();
 
         let (lower, upper) = sorted.0.view().split_at(Axis(0), index + 1);
-        Ok((sorted.0[index + 1], lower, upper))
+        (sorted.0[index + 1], lower, upper)
+    }
+
+    pub fn threshold<'a, 'b, T>(
+        ds: &'b mut DataSample<'a, T>,
+    ) -> Result<(T, ArrayView1<'b, T>, ArrayView1<'b, T>), EvaluatorError>
+    where
+        'a: 'b,
+        T: Float,
+    {
+        if ds.sample.len() < 2 {
+            return Err(EvaluatorError::ShortTimeSeries {
+                actual: ds.sample.len(),
+                minimum: 2,
+            });
+        }
+
+        // Sorted array will be cached inside ds, we will reuse it in threshold_no_ds_check
+        let sorted = ds.get_sorted();
+        if sorted.minimum() == sorted.maximum() {
+            return Err(EvaluatorError::FlatTimeSeries);
+        }
+
+        return Ok(Self::threshold_no_ds_check(ds));
     }
 }
 
@@ -136,9 +149,7 @@ impl<T> FeatureEvaluator<T> for OtsuSplit
 where
     T: Float,
 {
-    fn eval(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
-        self.check_ts_length(ts)?;
-
+    fn eval_no_ts_check(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
         let (_, lower, upper) = Self::threshold(&mut ts.m)?;
         let mut lower: DataSample<_> = lower.into();
         let mut upper: DataSample<_> = upper.into();

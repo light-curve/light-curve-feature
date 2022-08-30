@@ -38,6 +38,7 @@ lazy_info!(
     m_required: true,
     w_required: false,
     sorting_required: false,
+    variability_required: false,
 );
 
 impl PercentDifferenceMagnitudePercentile {
@@ -94,8 +95,7 @@ impl<T> FeatureEvaluator<T> for PercentDifferenceMagnitudePercentile
 where
     T: Float,
 {
-    fn eval(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
-        self.check_ts_length(ts)?;
+    fn eval_no_ts_check(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
         let nominator =
             ts.m.get_sorted().ppf(1.0 - self.quantile) - ts.m.get_sorted().ppf(self.quantile);
         let denominator = ts.m.get_median();

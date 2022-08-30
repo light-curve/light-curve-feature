@@ -119,6 +119,8 @@ pub fn eval_info_tests(
             .as_ref()
             .map(check_size);
     }
+
+    eval_info_variability_required_test(&eval, &t_sorted, &w, &mut rng);
 }
 
 fn eval_info_ts_length_test(
@@ -263,6 +265,43 @@ fn eval_info_sorting_required_test(
         v, baseline, is_sorting_required,
     );
     Some(v)
+}
+
+fn eval_info_variability_required_test(
+    eval: &Feature<f64>,
+    t: &[f64],
+    w: &[f64],
+    rng: &mut StdRng,
+) {
+    assert!(
+        !eval.is_variability_required() || eval.is_m_required(),
+        "variability_required is treu, but m_required is false"
+    );
+
+    let m = vec![rng.sample::<f64, StandardNormal>(StandardNormal).abs(); t.len()];
+    let mut ts = TimeSeries::new(t, &m, w);
+    assert_eq!(eval.is_variability_required(), eval.eval(&mut ts).is_err());
+
+    match (
+        std::panic::catch_unwind(|| eval.eval_no_ts_check(&mut TimeSeries::new(t, &m, w))),
+        eval.is_variability_required(),
+    ) {
+        (Ok(_result), true) => {}
+        // |-- This doesn't work sometimes because of float rounding issues
+        // v
+        // (Ok(result), true) => assert!(result
+        //     .map(|v| assert!(
+        //         !v.iter().copied().all(f64::is_finite),
+        //         "{:?} are all finite",
+        //         v
+        //     ))
+        //     .is_err()),
+        (Ok(result), false) => assert!(result
+            .map(|v| assert!(v.into_iter().all(f64::is_finite)))
+            .is_ok()),
+        (Err(_err), true) => {}
+        (Err(err), false) => panic!("{:?}", err),
+    }
 }
 
 #[macro_export]
