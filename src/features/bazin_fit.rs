@@ -108,6 +108,7 @@ lazy_info!(
     m_required: true,
     w_required: true,
     sorting_required: true, // improve reproducibility
+    variability_required: false,
 );
 
 struct Params<'a, T> {

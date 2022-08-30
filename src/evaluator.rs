@@ -20,6 +20,7 @@ pub struct EvaluatorInfo {
     pub m_required: bool,
     pub w_required: bool,
     pub sorting_required: bool,
+    pub variability_required: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -68,6 +69,11 @@ pub trait EvaluatorInfoTrait {
     /// If feature requires time-sorting on the input [TimeSeries]
     fn is_sorting_required(&self) -> bool {
         self.get_info().sorting_required
+    }
+
+    /// If feature requires magnitude array elements to be different
+    fn is_variability_required(&self) -> bool {
+        self.get_info().variability_required
     }
 }
 
@@ -124,8 +130,14 @@ pub trait FeatureEvaluator<T: Float>:
     + DeserializeOwned
     + JsonSchema
 {
+    /// Version of [FeatureEvaluator::eval] which can panic for incorrect input
+    fn eval_no_ts_check(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError>;
+
     /// Vector of feature values or `EvaluatorError`
-    fn eval(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError>;
+    fn eval(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
+        self.check_ts(ts)?;
+        self.eval_no_ts_check(ts)
+    }
 
     /// Returns vector of feature values and fill invalid components with given value
     fn eval_or_fill(&self, ts: &mut TimeSeries<T>, fill_value: T) -> Vec<T> {
@@ -135,8 +147,13 @@ pub trait FeatureEvaluator<T: Float>:
         }
     }
 
+    fn check_ts(&self, ts: &mut TimeSeries<T>) -> Result<(), EvaluatorError> {
+        self.check_ts_length(ts)?;
+        self.check_ts_variability(ts)
+    }
+
     /// Checks if [TimeSeries] has enough points to evaluate the feature
-    fn check_ts_length(&self, ts: &TimeSeries<T>) -> Result<usize, EvaluatorError> {
+    fn check_ts_length(&self, ts: &TimeSeries<T>) -> Result<(), EvaluatorError> {
         let length = ts.lenu();
         if length < self.min_ts_length() {
             Err(EvaluatorError::ShortTimeSeries {
@@ -144,35 +161,17 @@ pub trait FeatureEvaluator<T: Float>:
                 minimum: self.min_ts_length(),
             })
         } else {
-            Ok(length)
+            Ok(())
         }
     }
-}
 
-pub fn get_nonzero_m_std<T: Float>(ts: &mut TimeSeries<T>) -> Result<T, EvaluatorError> {
-    let std = ts.m.get_std();
-    if std.is_zero() || ts.is_plateau() {
-        Err(EvaluatorError::FlatTimeSeries)
-    } else {
-        Ok(std)
-    }
-}
-
-pub fn get_nonzero_m_std2<T: Float>(ts: &mut TimeSeries<T>) -> Result<T, EvaluatorError> {
-    let std2 = ts.m.get_std2();
-    if std2.is_zero() || ts.is_plateau() {
-        Err(EvaluatorError::FlatTimeSeries)
-    } else {
-        Ok(std2)
-    }
-}
-
-pub fn get_nonzero_reduced_chi2<T: Float>(ts: &mut TimeSeries<T>) -> Result<T, EvaluatorError> {
-    let reduced_chi2 = ts.get_m_reduced_chi2();
-    if reduced_chi2.is_zero() || ts.is_plateau() {
-        Err(EvaluatorError::FlatTimeSeries)
-    } else {
-        Ok(reduced_chi2)
+    /// Checks if [TimeSeries] meets variability requirement
+    fn check_ts_variability(&self, ts: &mut TimeSeries<T>) -> Result<(), EvaluatorError> {
+        if self.is_variability_required() && ts.is_plateau() {
+            Err(EvaluatorError::FlatTimeSeries)
+        } else {
+            Ok(())
+        }
     }
 }
 

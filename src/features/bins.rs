@@ -62,6 +62,7 @@ where
             m_required: true,
             w_required: true,
             sorting_required: true,
+            variability_required: false,
         };
         Self {
             properties: EvaluatorProperties {
@@ -92,6 +93,9 @@ where
         let window = self.window;
         let offset = self.offset;
         self.properties.info.size += feature.size_hint();
+        self.properties.info.min_ts_length =
+            usize::max(self.properties.info.min_ts_length, feature.min_ts_length());
+        self.properties.info.variability_required |= feature.is_variability_required();
         self.properties.names.extend(
             feature
                 .get_names()
@@ -133,7 +137,12 @@ where
     }
 
     fn transform_ts(&self, ts: &mut TimeSeries<T>) -> Result<TmwArrays<T>, EvaluatorError> {
-        self.check_ts_length(ts)?;
+        if ts.lenu() == 0 {
+            return Err(EvaluatorError::ShortTimeSeries {
+                actual: ts.lenu(),
+                minimum: 1,
+            });
+        }
         let (t, m, w): (Vec<_>, Vec<_>, Vec<_>) =
             ts.t.as_slice()
                 .iter()
