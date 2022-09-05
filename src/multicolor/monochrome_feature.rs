@@ -106,11 +106,10 @@ where
     T: Float,
     F: FeatureEvaluator<T>,
 {
-    fn eval_multicolor(
+    fn eval_multicolor_no_mcts_check(
         &self,
         mcts: &mut MultiColorTimeSeries<P, T>,
     ) -> Result<Vec<T>, MultiColorEvaluatorError> {
-        self.check_mcts_passabands(mcts)?;
         match &self.passband_set {
             PassbandSet::FixedSet(set) => set
                 .iter()

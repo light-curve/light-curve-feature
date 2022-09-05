@@ -52,7 +52,7 @@ where
 }
 
 lazy_info!(
-    COLOR_MEDIAN_INFO,
+    COLOR_OF_MEDIAN_INFO,
     size: 1,
     min_ts_length: 1,
     t_required: false,
@@ -67,7 +67,7 @@ where
     P: Ord,
 {
     fn get_info(&self) -> &EvaluatorInfo {
-        &COLOR_MEDIAN_INFO
+        &COLOR_OF_MEDIAN_INFO
     }
 }
 
@@ -98,11 +98,10 @@ where
     P: PassbandTrait,
     T: Float,
 {
-    fn eval_multicolor(
+    fn eval_multicolor_no_mcts_check(
         &self,
         mcts: &mut MultiColorTimeSeries<P, T>,
     ) -> Result<Vec<T>, MultiColorEvaluatorError> {
-        self.check_mcts_passabands(mcts)?;
         let mut medians = [T::zero(); 2];
         for (median, passband) in medians.iter_mut().zip(self.passbands.iter()) {
             *median = self
