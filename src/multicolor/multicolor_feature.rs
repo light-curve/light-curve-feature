@@ -1,4 +1,4 @@
-use crate::data::MultiColorTimeSeries;
+use crate::data::{MultiColorTimeSeries, TimeSeries};
 use crate::error::MultiColorEvaluatorError;
 use crate::evaluator::{EvaluatorInfo, EvaluatorInfoTrait, FeatureNamesDescriptionsTrait};
 use crate::feature::Feature;
@@ -11,7 +11,7 @@ use enum_dispatch::enum_dispatch;
 pub use lazy_static::lazy_static;
 pub use schemars::JsonSchema;
 pub use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 use std::fmt::Debug;
 
 #[enum_dispatch(MultiColorEvaluator<P, T>, FeatureNamesDescriptionsTrait, EvaluatorInfoTrait, MultiColorPassbandSetTrait<P>)]

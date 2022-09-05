@@ -1,5 +1,7 @@
 #![doc = include_str!("../README.md")]
 
+extern crate core;
+
 #[cfg(test)]
 #[macro_use]
 mod tests;

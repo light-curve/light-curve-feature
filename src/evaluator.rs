@@ -75,6 +75,42 @@ pub trait EvaluatorInfoTrait {
     fn is_variability_required(&self) -> bool {
         self.get_info().variability_required
     }
+
+    fn check_ts<F>(&self, ts: &mut TimeSeries<F>) -> Result<(), EvaluatorError>
+    where
+        F: Float,
+    {
+        self.check_ts_length(ts)?;
+        self.check_ts_variability(ts)
+    }
+
+    /// Checks if [TimeSeries] has enough points to evaluate the feature
+    fn check_ts_length<F>(&self, ts: &TimeSeries<F>) -> Result<(), EvaluatorError>
+    where
+        F: Float,
+    {
+        let length = ts.lenu();
+        if length < self.min_ts_length() {
+            Err(EvaluatorError::ShortTimeSeries {
+                actual: length,
+                minimum: self.min_ts_length(),
+            })
+        } else {
+            Ok(())
+        }
+    }
+
+    /// Checks if [TimeSeries] meets variability requirement
+    fn check_ts_variability<F>(&self, ts: &mut TimeSeries<F>) -> Result<(), EvaluatorError>
+    where
+        F: Float,
+    {
+        if self.is_variability_required() && ts.is_plateau() {
+            Err(EvaluatorError::FlatTimeSeries)
+        } else {
+            Ok(())
+        }
+    }
 }
 
 // impl<P> EvaluatorInfoTrait for P
@@ -144,33 +180,6 @@ pub trait FeatureEvaluator<T: Float>:
         match self.eval(ts) {
             Ok(v) => v,
             Err(_) => vec![fill_value; self.size_hint()],
-        }
-    }
-
-    fn check_ts(&self, ts: &mut TimeSeries<T>) -> Result<(), EvaluatorError> {
-        self.check_ts_length(ts)?;
-        self.check_ts_variability(ts)
-    }
-
-    /// Checks if [TimeSeries] has enough points to evaluate the feature
-    fn check_ts_length(&self, ts: &TimeSeries<T>) -> Result<(), EvaluatorError> {
-        let length = ts.lenu();
-        if length < self.min_ts_length() {
-            Err(EvaluatorError::ShortTimeSeries {
-                actual: length,
-                minimum: self.min_ts_length(),
-            })
-        } else {
-            Ok(())
-        }
-    }
-
-    /// Checks if [TimeSeries] meets variability requirement
-    fn check_ts_variability(&self, ts: &mut TimeSeries<T>) -> Result<(), EvaluatorError> {
-        if self.is_variability_required() && ts.is_plateau() {
-            Err(EvaluatorError::FlatTimeSeries)
-        } else {
-            Ok(())
         }
     }
 }
