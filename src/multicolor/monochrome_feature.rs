@@ -106,23 +106,26 @@ where
     T: Float,
     F: FeatureEvaluator<T>,
 {
-    fn eval_multicolor_no_mcts_check(
-        &self,
-        mcts: &mut MultiColorTimeSeries<P, T>,
-    ) -> Result<Vec<T>, MultiColorEvaluatorError> {
+    fn eval_multicolor_no_mcts_check<'slf, 'a, 'mcts>(
+        &'slf self,
+        mcts: &'mcts mut MultiColorTimeSeries<'a, P, T>,
+    ) -> Result<Vec<T>, MultiColorEvaluatorError>
+    where
+        'slf: 'a,
+        'a: 'mcts,
+    {
         match &self.passband_set {
-            PassbandSet::FixedSet(set) => set
-                .iter()
-                .map(|passband| {
-                    self.feature.eval(mcts.get_mut(passband).expect(
-                        "we checked all needed passbands are in mcts, but we still cannot find one",
-                    )).map_err(|error| MultiColorEvaluatorError::MonochromeEvaluatorError {
-                        passband: passband.name().into(),
-                        error,
-                    })
-                })
-                .flatten_ok()
-                .collect(),
+            PassbandSet::FixedSet(set) => {
+                mcts.iter_matched_passbands_mut(set.iter())
+                    .map(|(passband, ts)| {
+                        self.feature.eval_no_ts_check(
+                                ts.expect("we checked all needed passbands are in mcts, but we still cannot find one")
+                        ).map_err(|error| MultiColorEvaluatorError::MonochromeEvaluatorError {
+                            passband: passband.name().into(),
+                            error,
+                        })
+                    }).flatten_ok().collect()
+            }
             PassbandSet::AllAvailable => panic!("passband_set must be FixedSet variant here"),
         }
     }
