@@ -89,10 +89,14 @@ where
     P: PassbandTrait,
     T: Float,
 {
-    fn eval_multicolor_no_mcts_check(
-        &self,
-        mcts: &mut MultiColorTimeSeries<P, T>,
-    ) -> Result<Vec<T>, MultiColorEvaluatorError> {
+    fn eval_multicolor_no_mcts_check<'slf, 'a, 'mcts>(
+        &'slf self,
+        mcts: &'mcts mut MultiColorTimeSeries<'a, P, T>,
+    ) -> Result<Vec<T>, MultiColorEvaluatorError>
+    where
+        'slf: 'a,
+        'a: 'mcts,
+    {
         let mut maxima = [T::zero(); 2];
         for ((_passband, mcts), maximum) in mcts
             .iter_matched_passbands_mut(self.passbands.iter())

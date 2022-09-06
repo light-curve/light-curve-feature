@@ -122,22 +122,30 @@ where
     T: Float,
     MCF: MultiColorEvaluator<P, T>,
 {
-    fn eval_multicolor_no_mcts_check(
-        &self,
-        mcts: &mut MultiColorTimeSeries<P, T>,
-    ) -> Result<Vec<T>, MultiColorEvaluatorError> {
+    fn eval_multicolor_no_mcts_check<'slf, 'a, 'mcts>(
+        &'slf self,
+        mcts: &'mcts mut MultiColorTimeSeries<'a, P, T>,
+    ) -> Result<Vec<T>, MultiColorEvaluatorError>
+    where
+        'slf: 'a,
+        'a: 'mcts,
+    {
         let mut vec = Vec::with_capacity(self.size_hint());
         for x in &self.features {
-            vec.extend(x.eval_multicolor(mcts)?);
+            vec.extend(x.eval_multicolor_no_mcts_check(mcts)?);
         }
         Ok(vec)
     }
 
-    fn eval_or_fill_multicolor(
-        &self,
-        mcts: &mut MultiColorTimeSeries<P, T>,
+    fn eval_or_fill_multicolor<'slf, 'a, 'mcts>(
+        &'slf self,
+        mcts: &'mcts mut MultiColorTimeSeries<'a, P, T>,
         fill_value: T,
-    ) -> Result<Vec<T>, MultiColorEvaluatorError> {
+    ) -> Result<Vec<T>, MultiColorEvaluatorError>
+    where
+        'slf: 'a,
+        'a: 'mcts,
+    {
         self.features
             .iter()
             .map(|x| x.eval_or_fill_multicolor(mcts, fill_value))
