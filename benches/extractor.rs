@@ -33,6 +33,7 @@ where
         Median::default().into(),
         MedianAbsoluteDeviation::default().into(),
         MedianBufferRangePercentage::default().into(),
+        OtsuSplit::default().into(),
         PercentAmplitude::default().into(),
         PercentDifferenceMagnitudePercentile::default().into(),
         ReducedChi2::default().into(),
