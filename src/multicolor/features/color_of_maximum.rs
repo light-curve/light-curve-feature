@@ -1,9 +1,6 @@
 use crate::data::MultiColorTimeSeries;
 use crate::error::MultiColorEvaluatorError;
-use crate::evaluator::{
-    EvaluatorInfo, EvaluatorInfoTrait, FeatureEvaluator, FeatureNamesDescriptionsTrait,
-};
-use crate::features::Median;
+use crate::evaluator::{EvaluatorInfo, EvaluatorInfoTrait, FeatureNamesDescriptionsTrait};
 use crate::float_trait::Float;
 use crate::multicolor::multicolor_evaluator::*;
 use crate::multicolor::{PassbandSet, PassbandTrait};
@@ -16,18 +13,17 @@ use std::fmt::Debug;
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(bound(deserialize = "P: PassbandTrait + Deserialize<'de>"))]
-pub struct ColorOfMedian<P>
+pub struct ColorOfMaximum<P>
 where
     P: Ord,
 {
     passband_set: PassbandSet<P>,
     passbands: [P; 2],
-    median: Median,
     name: String,
     description: String,
 }
 
-impl<P> ColorOfMedian<P>
+impl<P> ColorOfMaximum<P>
 where
     P: PassbandTrait,
 {
@@ -35,24 +31,19 @@ where
         let set: BTreeSet<_> = passbands.clone().into();
         Self {
             passband_set: set.into(),
-            name: format!(
-                "color_median_{}_{}",
-                passbands[0].name(),
-                passbands[1].name()
-            ),
+            name: format!("color_max_{}_{}", passbands[0].name(), passbands[1].name()),
             description: format!(
-                "difference of median magnitudes {}-{}",
+                "difference of maximum value magnitudes {}-{}",
                 passbands[0].name(),
                 passbands[1].name()
             ),
             passbands,
-            median: Median {},
         }
     }
 }
 
 lazy_info!(
-    COLOR_OF_MEDIAN_INFO,
+    COLOR_OF_MAXIMUM_INFO,
     size: 1,
     min_ts_length: 1,
     t_required: false,
@@ -62,16 +53,16 @@ lazy_info!(
     variability_required: false,
 );
 
-impl<P> EvaluatorInfoTrait for ColorOfMedian<P>
+impl<P> EvaluatorInfoTrait for ColorOfMaximum<P>
 where
     P: Ord,
 {
     fn get_info(&self) -> &EvaluatorInfo {
-        &COLOR_OF_MEDIAN_INFO
+        &COLOR_OF_MAXIMUM_INFO
     }
 }
 
-impl<P> FeatureNamesDescriptionsTrait for ColorOfMedian<P>
+impl<P> FeatureNamesDescriptionsTrait for ColorOfMaximum<P>
 where
     P: Ord,
 {
@@ -84,7 +75,7 @@ where
     }
 }
 
-impl<P> MultiColorPassbandSetTrait<P> for ColorOfMedian<P>
+impl<P> MultiColorPassbandSetTrait<P> for ColorOfMaximum<P>
 where
     P: PassbandTrait,
 {
@@ -93,7 +84,7 @@ where
     }
 }
 
-impl<P, T> MultiColorEvaluator<P, T> for ColorOfMedian<P>
+impl<P, T> MultiColorEvaluator<P, T> for ColorOfMaximum<P>
 where
     P: PassbandTrait,
     T: Float,
@@ -102,19 +93,14 @@ where
         &self,
         mcts: &mut MultiColorTimeSeries<P, T>,
     ) -> Result<Vec<T>, MultiColorEvaluatorError> {
-        let mut medians = [T::zero(); 2];
-        for ((passband, mcts), median) in mcts
+        let mut maxima = [T::zero(); 2];
+        for ((_passband, mcts), maximum) in mcts
             .iter_matched_passbands_mut(self.passbands.iter())
-            .zip(medians.iter_mut())
+            .zip(maxima.iter_mut())
         {
             let mcts = mcts.expect("MultiColorTimeSeries must have all required passbands");
-            *median = self.median.eval(mcts).map_err(|error| {
-                MultiColorEvaluatorError::MonochromeEvaluatorError {
-                    passband: passband.name().into(),
-                    error,
-                }
-            })?[0]
+            *maximum = mcts.m.get_max()
         }
-        Ok(vec![medians[0] - medians[1]])
+        Ok(vec![maxima[0] - maxima[1]])
     }
 }
