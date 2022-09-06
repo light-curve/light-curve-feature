@@ -3,7 +3,7 @@ use crate::error::MultiColorEvaluatorError;
 use crate::evaluator::{EvaluatorInfo, EvaluatorInfoTrait, FeatureNamesDescriptionsTrait};
 use crate::feature::Feature;
 use crate::float_trait::Float;
-use crate::multicolor::features::ColorOfMedian;
+use crate::multicolor::features::{ColorOfMaximum, ColorOfMedian, ColorOfMinimum};
 use crate::multicolor::multicolor_evaluator::*;
 use crate::multicolor::{MonochromeFeature, MultiColorExtractor};
 
@@ -28,7 +28,9 @@ where
     // Monochrome Features
     MonochromeFeature(MonochromeFeature<P, T, Feature<T>>),
     // Features
+    ColorOfMaximum(ColorOfMaximum<P>),
     ColorOfMedian(ColorOfMedian<P>),
+    ColorOfMinimum(ColorOfMinimum<P>),
 }
 
 impl<P, T> MultiColorFeature<P, T>
