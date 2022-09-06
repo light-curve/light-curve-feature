@@ -11,7 +11,9 @@ Difference of subset means, standard deviation of the lower subset, standard dev
 subset and lower-to-all observation count ratio for two subsets of magnitudes obtained by Otsu's
 method split. Otsu's method is used to perform automatic thresholding. The algorithm returns a
 single threshold that separate values into two classes. This threshold is determined by minimizing
-intra-class intensity variance, or equivalently, by maximizing inter-class variance.
+intra-class intensity variance, or equivalently, by maximizing inter-class variance. There can be 
+more than one extremum. In this case, the algorithm returns the minimum threshold.
+
 
 - Depends on: **magnitude**
 - Minimum number of observations: **2**
