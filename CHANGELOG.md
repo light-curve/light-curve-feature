@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-—
+- `OtsuSplit` feature evaluator https://github.com/light-curve/light-curve-feature/pull/58
 
 ### Changed
 
