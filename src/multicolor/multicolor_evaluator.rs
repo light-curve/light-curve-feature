@@ -50,12 +50,14 @@ enum InternalMctsError {
 }
 
 impl InternalMctsError {
-    fn into_multi_color_evaluator_error<P, T>(
+    fn into_multi_color_evaluator_error<'mcts, 'a, 'ps, P, T>(
         self,
-        mcts: &MultiColorTimeSeries<P, T>,
-        ps: &PassbandSet<P>,
+        mcts: &'mcts MultiColorTimeSeries<'a, P, T>,
+        ps: &'ps PassbandSet<P>,
     ) -> MultiColorEvaluatorError
     where
+        'ps: 'a,
+        'a: 'mcts,
         P: PassbandTrait,
         T: Float,
     {
@@ -63,7 +65,7 @@ impl InternalMctsError {
             InternalMctsError::MultiColorEvaluatorError(e) => e,
             InternalMctsError::InternalWrongPassbandSet => {
                 MultiColorEvaluatorError::wrong_passbands_error(
-                    mcts.keys(),
+                    mcts.passbands(),
                     match ps {
                         PassbandSet::FixedSet(ps) => ps.iter(),
                         PassbandSet::AllAvailable => {
@@ -88,26 +90,39 @@ where
     T: Float,
 {
     /// Version of [MultiColorEvaluator::eval_multicolor] without basic [MultiColorTimeSeries] checks
-    fn eval_multicolor_no_mcts_check(
-        &self,
-        mcts: &mut MultiColorTimeSeries<P, T>,
-    ) -> Result<Vec<T>, MultiColorEvaluatorError>;
+    fn eval_multicolor_no_mcts_check<'slf, 'a, 'mcts>(
+        &'slf self,
+        mcts: &'mcts mut MultiColorTimeSeries<'a, P, T>,
+    ) -> Result<Vec<T>, MultiColorEvaluatorError>
+    where
+        'slf: 'a,
+        'a: 'mcts;
 
     /// Vector of feature values or `EvaluatorError`
-    fn eval_multicolor(
-        &self,
-        mcts: &mut MultiColorTimeSeries<P, T>,
-    ) -> Result<Vec<T>, MultiColorEvaluatorError> {
+    fn eval_multicolor<'slf, 'a, 'mcts>(
+        &'slf self,
+        mcts: &'mcts mut MultiColorTimeSeries<'a, P, T>,
+    ) -> Result<Vec<T>, MultiColorEvaluatorError>
+    where
+        'slf: 'a,
+        'a: 'mcts,
+        P: 'a,
+    {
         self.check_mcts(mcts)?;
         self.eval_multicolor_no_mcts_check(mcts)
     }
 
     /// Returns vector of feature values and fill invalid components with given value
-    fn eval_or_fill_multicolor(
-        &self,
-        mcts: &mut MultiColorTimeSeries<P, T>,
+    fn eval_or_fill_multicolor<'slf, 'a, 'mcts>(
+        &'slf self,
+        mcts: &'mcts mut MultiColorTimeSeries<'a, P, T>,
         fill_value: T,
-    ) -> Result<Vec<T>, MultiColorEvaluatorError> {
+    ) -> Result<Vec<T>, MultiColorEvaluatorError>
+    where
+        'slf: 'a,
+        'a: 'mcts,
+        P: 'a,
+    {
         Ok(match self.eval_multicolor(mcts) {
             Ok(v) => v,
             Err(_) => vec![fill_value; self.size_hint()],
@@ -115,10 +130,15 @@ where
     }
 
     /// Check [MultiColorTimeSeries] to have required passbands and individual [TimeSeries] are valid
-    fn check_mcts(
-        &self,
-        mcts: &mut MultiColorTimeSeries<P, T>,
-    ) -> Result<(), MultiColorEvaluatorError> {
+    fn check_mcts<'slf, 'a, 'mcts>(
+        &'slf self,
+        mcts: &'mcts mut MultiColorTimeSeries<'a, P, T>,
+    ) -> Result<(), MultiColorEvaluatorError>
+    where
+        'slf: 'a,
+        'a: 'mcts,
+        P: 'a,
+    {
         mcts.iter_passband_set_mut(self.get_passband_set())
             .map(|(p, maybe_ts)| {
                 maybe_ts
@@ -187,10 +207,14 @@ mod tests {
     where
         T: Float,
     {
-        fn eval_multicolor_no_mcts_check(
-            &self,
-            _mcts: &mut MultiColorTimeSeries<MonochromePassband<'static, f64>, T>,
-        ) -> Result<Vec<T>, MultiColorEvaluatorError> {
+        fn eval_multicolor_no_mcts_check<'slf, 'a, 'mcts>(
+            &'slf self,
+            _mcts: &'mcts mut MultiColorTimeSeries<'a, MonochromePassband<'static, f64>, T>,
+        ) -> Result<Vec<T>, MultiColorEvaluatorError>
+        where
+            'slf: 'a,
+            'a: 'mcts,
+        {
             Ok(vec![T::zero()])
         }
     }
