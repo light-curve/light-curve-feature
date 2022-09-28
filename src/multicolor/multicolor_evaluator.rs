@@ -139,7 +139,8 @@ where
         'a: 'mcts,
         P: 'a,
     {
-        mcts.iter_passband_set_mut(self.get_passband_set())
+        mcts.mapping_mut()
+            .iter_passband_set_mut(self.get_passband_set())
             .map(|(p, maybe_ts)| {
                 maybe_ts
                     .ok_or(InternalMctsError::InternalWrongPassbandSet)
@@ -227,16 +228,16 @@ mod tests {
         let passband_v_capital = MonochromePassband::new(5500e-8, "V");
         let passband_r_capital = MonochromePassband::new(6400e-8, "R");
         let mut mcts = {
-            let mut passbands = BTreeMap::new();
-            passbands.insert(
+            let mut mapping = BTreeMap::new();
+            mapping.insert(
                 passband_b_capital.clone(),
                 TimeSeries::new_without_weight(&t, &m),
             );
-            passbands.insert(
+            mapping.insert(
                 passband_v_capital.clone(),
                 TimeSeries::new_without_weight(&t, &m),
             );
-            MultiColorTimeSeries::new(passbands)
+            MultiColorTimeSeries::from_map(mapping)
         };
 
         let feature = TestTimeMultiColorFeature {
