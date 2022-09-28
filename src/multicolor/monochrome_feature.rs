@@ -116,7 +116,7 @@ where
     {
         match &self.passband_set {
             PassbandSet::FixedSet(set) => {
-                mcts.iter_matched_passbands_mut(set.iter())
+                mcts.mapping_mut().iter_matched_passbands_mut(set.iter())
                     .map(|(passband, ts)| {
                         self.feature.eval_no_ts_check(
                                 ts.expect("we checked all needed passbands are in mcts, but we still cannot find one")
