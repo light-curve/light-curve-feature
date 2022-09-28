@@ -108,6 +108,7 @@ where
     {
         let mut medians = [T::zero(); 2];
         for ((passband, mcts), median) in mcts
+            .mapping_mut()
             .iter_matched_passbands_mut(self.passbands.iter())
             .zip(medians.iter_mut())
         {

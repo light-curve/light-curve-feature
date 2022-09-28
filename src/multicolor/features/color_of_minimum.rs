@@ -99,6 +99,7 @@ where
     {
         let mut minima = [T::zero(); 2];
         for ((_passband, mcts), minimum) in mcts
+            .mapping_mut()
             .iter_matched_passbands_mut(self.passbands.iter())
             .zip(minima.iter_mut())
         {

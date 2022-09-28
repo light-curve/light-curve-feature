@@ -99,6 +99,7 @@ where
     {
         let mut maxima = [T::zero(); 2];
         for ((_passband, mcts), maximum) in mcts
+            .mapping_mut()
             .iter_matched_passbands_mut(self.passbands.iter())
             .zip(maxima.iter_mut())
         {
