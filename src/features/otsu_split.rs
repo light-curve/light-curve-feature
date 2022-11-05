@@ -70,6 +70,7 @@ impl OtsuSplit {
         let mean = ds.get_mean();
         let count = ds.sample.len();
         let sorted = ds.get_sorted();
+        let eps = 1e-5.value_as::<T>().unwrap();
 
         if sorted.minimum() == sorted.maximum() {
             return Err(EvaluatorError::FlatTimeSeries);
@@ -85,7 +86,7 @@ impl OtsuSplit {
                 / (count - w).value_as::<T>().unwrap()
                 / w.value_as::<T>().unwrap();
 
-            if variance < last_variance {
+            if variance < (last_variance + eps) {
                 break;
             }
             last_variance = variance;
