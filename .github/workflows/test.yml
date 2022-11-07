@@ -36,7 +36,8 @@ jobs:
     - uses: dtolnay/rust-toolchain@master
       with:
         toolchain: ${{ steps.get_msrv.outputs.msrv }}
-    - run: cargo +${{ steps.get_msrv.outputs.msrv }} build --all-targets --features gsl,fftw-source --no-default-features
+    # Build "normal" target only, see https://github.com/light-curve/light-curve-feature/issues/74
+    - run: cargo +${{ steps.get_msrv.outputs.msrv }} build --no-default-features --features gsl,fftw-source
 
   test:
     runs-on: ubuntu-latest
