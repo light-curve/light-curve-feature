@@ -1,7 +1,7 @@
 use crate::evaluator::*;
 use crate::time_series::DataSample;
 use conv::prelude::*;
-use ndarray::{array, s, Array, ArrayView1, Axis};
+use ndarray::{ArrayView1, Axis};
 
 macro_const! {
     const DOC: &'static str = r#"
@@ -72,7 +72,7 @@ impl OtsuSplit {
             return Err(EvaluatorError::FlatTimeSeries);
         }
 
-        let mut cumsum1: Vec<T> = sorted
+        let cumsum1: Vec<T> = sorted
             .iter()
             .scan(T::zero(), |state, &m| {
                 *state += m;
@@ -116,12 +116,12 @@ impl OtsuSplit {
             .map(|(x, y)| x * y);
 
         let mean_diff = mean1.iter().zip(mean2.iter()).map(|(&x, &y)| x - y);
-        let mut inter_class_variance = mean_diff
+        let inter_class_variance = mean_diff
             .zip(weights)
             .map(|(x, y)| x * x * y.value_as::<T>().unwrap())
             .collect::<Vec<_>>();
 
-        let mut max = inter_class_variance
+        let max = inter_class_variance
             .iter()
             .max_by(|a, b| a.partial_cmp(b).unwrap())
             .unwrap();
