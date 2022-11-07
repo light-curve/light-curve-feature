@@ -185,7 +185,7 @@ fn fit_and_plot<P>(
         )
         .unwrap()
         .label("Light curve")
-        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 10, y)], &BLACK));
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 10, y)], BLACK));
 
     let t = Array1::linspace(ts.t.get_min(), ts.t.get_max(), 101);
     for (i, (name, feature)) in features.iter().enumerate() {
