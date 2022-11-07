@@ -246,6 +246,8 @@ mod tests {
         assert_eq!(eval.eval(&mut ts), Err(EvaluatorError::FlatTimeSeries));
     }
 
+    /// This test remains from the issue with the previous implementation
+    /// See [Issue #72] https://github.com/light-curve/light-curve-feature/issues/72
     feature_test!(
         otsu_split_small,
         [OtsuSplit::new()],
