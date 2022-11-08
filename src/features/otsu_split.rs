@@ -1,7 +1,8 @@
 use crate::evaluator::*;
 use crate::time_series::DataSample;
 use conv::prelude::*;
-use ndarray::{ArrayView1, Axis};
+use ndarray::{s, Array1, ArrayView1, Axis, Zip};
+use ndarray_stats::QuantileExt;
 
 macro_const! {
     const DOC: &'static str = r#"
@@ -66,67 +67,52 @@ impl OtsuSplit {
         }
 
         let count = ds.sample.len();
+        let countf = count.value_as::<T>().unwrap();
         let sorted = ds.get_sorted();
 
         if sorted.minimum() == sorted.maximum() {
             return Err(EvaluatorError::FlatTimeSeries);
         }
 
-        let cumsum1: Vec<T> = sorted
+        // size is (count - 1)
+        let cumsum1: Array1<_> = sorted
             .iter()
+            .take(count - 1)
             .scan(T::zero(), |state, &m| {
                 *state += m;
                 Some(*state)
             })
-            .collect::<Vec<_>>();
+            .collect();
 
-        let mut cumsum2: Vec<T> = sorted
+        let cumsum2: Array1<_> = sorted
             .iter()
             .rev()
             .scan(T::zero(), |state, &m| {
                 *state += m;
                 Some(*state)
             })
-            .collect::<Vec<_>>();
-        cumsum2[..count - 1].reverse();
+            .collect();
+        let cumsum2 = cumsum2.slice(s![0..count - 1; -1]);
 
-        // let amounts = (1..count).map(|i| (i as f32));
-        // let mut mean1 = cumsum1
-        //     .iter()
-        //     .zip(amounts)
-        //     .map(|(&x, y)| x / y.value_as::<T>().unwrap());
-        //
-        // let mut mean2 = cumsum2
-        //     .iter()
-        //     .zip(amounts)
-        //     .map(|(&x, y)| x / y.value_as::<T>().unwrap());
+        let amounts = Array1::range(T::one(), countf, T::one());
+        let mean1 = Zip::from(&cumsum1)
+            .and(&amounts)
+            .map_collect(|&c, &a| c / a);
+        let mean2 = Zip::from(&cumsum2)
+            .and(amounts.slice(s![..;-1]))
+            .map_collect(|&c, &a| c / a);
 
-        let mut mean1: Vec<T> = vec![];
-        let mut mean2: Vec<T> = vec![];
-        let it = cumsum1[..count - 1].iter().zip(cumsum2.iter());
+        let inter_class_variance =
+            Zip::from(&amounts)
+                .and(&mean1)
+                .and(&mean2)
+                .map_collect(|&a, &m1, &m2| {
+                    let w1 = a / countf;
+                    let w2 = T::one() - w1;
+                    w1 * w2 * (m1 - m2).powi(2)
+                });
 
-        for (i, (&x, &y)) in it.enumerate() {
-            mean1.push(x / (i + 1).value_as::<T>().unwrap());
-            mean2.push(y / (count - i - 1).value_as::<T>().unwrap());
-        }
-
-        let weights = (1..count)
-            .map(|i| (i as f32 / count as f32))
-            .zip((1..count).map(|f| (1.0 - (f as f32 / count as f32))))
-            .map(|(x, y)| x * y);
-
-        let mean_diff = mean1.iter().zip(mean2.iter()).map(|(&x, &y)| x - y);
-        let inter_class_variance = mean_diff
-            .zip(weights)
-            .map(|(x, y)| x * x * y.value_as::<T>().unwrap())
-            .collect::<Vec<_>>();
-
-        let max = inter_class_variance
-            .iter()
-            .max_by(|a, b| a.partial_cmp(b).unwrap())
-            .unwrap();
-
-        let index = inter_class_variance.iter().position(|r| r == max).unwrap();
+        let index = inter_class_variance.argmax().unwrap();
 
         let (lower, upper) = sorted.0.view().split_at(Axis(0), index + 1);
         Ok((sorted.0[index + 1], lower, upper))
