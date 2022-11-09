@@ -12,19 +12,14 @@ Difference of subset means, standard deviation of the lower subset, standard dev
 subset and lower-to-all observation count ratio for two subsets of magnitudes obtained by Otsu's
 method split. Otsu's method is used to perform automatic thresholding. The algorithm returns a
 single threshold that separate values into two classes. This threshold is determined by minimizing
-intra-class intensity variance, or equivalently, by maximizing inter-class variance. There can be
-more than one extremum. In this case, the algorithm returns the minimum threshold.
-
+intra-class intensity variance, or equivalently, by maximizing inter-class variance. 
+The algorithm returns the minimum threshold which corresponds to the absolute maximum of the inter-class variance.
 
 - Depends on: **magnitude**
 - Minimum number of observations: **2**
 - Number of features: **4**
 
 Otsu, Nobuyuki 1979. [DOI:10.1109/tsmc.1979.4310076](https://doi.org/10.1109/tsmc.1979.4310076)
-
-Matwey Kornilov's Otsu thresholding algorithm realization was used as a reference:
-    http://curl.sai.msu.ru/hg/home/matwey/domecam/file/tip/include/otsu.h
-    https://ieeexplore.ieee.org/document/9170791
 "#;
 }
 
@@ -217,6 +212,18 @@ mod tests {
         let mut ds = vec![0.5, 0.5, 0.5, 1.5].into();
         let (expected_threshold, expected_lower, expected_upper) =
             (1.5, array![0.5, 0.5, 0.5], array![1.5]);
+        let (actual_threshold, actual_lower, actual_upper) =
+            OtsuSplit::threshold(&mut ds).expect("input is not flat");
+        assert_eq!(expected_threshold, actual_threshold);
+        assert_eq!(expected_lower, actual_lower);
+        assert_eq!(expected_upper, actual_upper);
+    }
+
+    #[test]
+    fn otsu_two_max() {
+        let mut ds = vec![-1.5, 0.5, 0.5, 1.5].into();
+        let (expected_threshold, expected_lower, expected_upper) =
+            (0.5, array![-1.5], array![0.5, 0.5, 1.5]);
         let (actual_threshold, actual_lower, actual_upper) =
             OtsuSplit::threshold(&mut ds).expect("input is not flat");
         assert_eq!(expected_threshold, actual_threshold);
