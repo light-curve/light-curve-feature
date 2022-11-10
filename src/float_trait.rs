@@ -2,7 +2,7 @@ use crate::periodogram::FftwFloat;
 
 use conv::prelude::*;
 use lazy_static::lazy_static;
-use ndarray::Array0;
+use ndarray::{Array0, ScalarOperand};
 use num_traits::{float::Float as NumFloat, float::FloatConst, FromPrimitive};
 use schemars::JsonSchema;
 use serde::de::DeserializeOwned;
@@ -45,6 +45,7 @@ pub trait Float:
     + AddAssign
     + MulAssign
     + DivAssign
+    + ScalarOperand
     + Display
     + Debug
     + LowerExp
