@@ -9,27 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-—
+--
 
 ### Changed
 
-—
+--
 
 ### Deprecated
 
-—
+--
 
 ### Removed
 
-—
+--
 
 ### Fixed
 
-— Fixed `OtsuSplit` threshold implementation https://github.com/light-curve/light-curve-feature/issues/72
+--
 
 ### Security
 
-—
+--
+
+
+## [0.5.2] 2022 November 10
+
+### Fixed
+
+- Fixed `OtsuSplit` threshold implementation https://github.com/light-curve/light-curve-feature/issues/72
+
 
 ## [0.5.1] 2022 November 1
 
