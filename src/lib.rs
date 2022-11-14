@@ -58,3 +58,5 @@ mod time_series;
 pub use time_series::{DataSample, TimeSeries};
 
 mod types;
+
+pub use ndarray;
