@@ -6,11 +6,10 @@ use unzip3::Unzip3;
 
 #[derive(Deserialize)]
 struct LightCurveRecord {
-    ant_mjd: f64,
-    ant_mag: f64,
-    ant_magerr: f64,
-    ant_passband: char,
-    ant_survey: u8,
+    time: f64,
+    mag: f64,
+    magerr: f64,
+    band: char,
 }
 
 pub fn iter_sn1a_flux_ts<T>() -> impl Iterator<Item = (&'static str, TimeSeries<'static, T>)>
@@ -31,14 +30,12 @@ where
         let (t, flux, w_flux): (Vec<_>, Vec<_>, Vec<_>) = reader
             .deserialize()
             .map(|row| row.unwrap())
-            .filter(|record: &LightCurveRecord| {
-                record.ant_passband == 'g' && record.ant_survey == 1
-            })
+            .filter(|record: &LightCurveRecord| record.band == 'g')
             .map(|record| {
                 let LightCurveRecord {
-                    ant_mjd: t,
-                    ant_mag: m,
-                    ant_magerr: sigma_m,
+                    time: t,
+                    mag: m,
+                    magerr: sigma_m,
                     ..
                 } = record;
                 let flux = 10.0_f64.powf(-0.4_f64 * m);
