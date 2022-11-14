@@ -13,10 +13,7 @@ use rayon::prelude::*;
 
 fn main() {
     let Opts { n, dir } = Opts::parse();
-    let n = match n {
-        Some(n) => n,
-        None => usize::MAX,
-    };
+    let n = n.unwrap_or(usize::MAX);
 
     std::fs::create_dir_all(&dir).expect("Cannot create output directory");
 
@@ -107,7 +104,6 @@ fn main() {
     };
     iter_sn1a_flux_ts()
         .take(n)
-        .filter(|(ztf_id, _)| ztf_id.starts_with("ZTF18aaxsioa"))
         .par_bridge()
         .for_each(|(ztf_id, mut ts)| {
             let filename = format!("{}.png", ztf_id);
@@ -136,7 +132,6 @@ fn fitted_model(
     feature: &Feature<f64>,
 ) -> (Array1<f64>, f64) {
     let values = feature.eval(ts).expect("Feature cannot be extracted");
-    println!("{:?}", values);
     let reduced_chi2 = values[values.len() - 1];
     let model: BoxedModel = match feature {
         Feature::BazinFit(..) => Box::new(BazinFit::f),
