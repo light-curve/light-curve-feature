@@ -374,6 +374,28 @@ where
     }
 }
 
+// We really don't want it to be public, it is a private helper for test-data functions
+#[cfg(test)]
+impl<'a, T, D> From<(D, D, D)> for TimeSeries<'a, T>
+where
+    T: Float,
+    D: Into<DataSample<'a, T>>,
+{
+    fn from(v: (D, D, D)) -> Self {
+        Self::new(v.0, v.1, v.2)
+    }
+}
+
+#[cfg(test)]
+impl<'a, T> From<&'a (Array1<T>, Array1<T>, Array1<T>)> for TimeSeries<'a, T>
+where
+    T: Float,
+{
+    fn from(v: &'a (Array1<T>, Array1<T>, Array1<T>)) -> Self {
+        Self::new(v.0.view(), v.1.view(), v.2.view())
+    }
+}
+
 #[cfg(test)]
 #[allow(clippy::unreadable_literal)]
 #[allow(clippy::excessive_precision)]

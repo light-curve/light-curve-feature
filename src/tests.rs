@@ -312,12 +312,43 @@ macro_rules! check_doc_static_method {
 }
 
 #[macro_export]
+macro_rules! check_finite {
+    ($name: ident, $feature_expr: expr $(,)?) => {
+        #[test]
+        fn $name() {
+            let eval = $feature_expr;
+            for (path, triple) in light_curve_feature_test_util::ISSUE_LIGHT_CURVES_ALL_F64
+                .iter()
+                .chain(
+                    light_curve_feature_test_util::SNIA_LIGHT_CURVES_FLUX_F64
+                        .iter()
+                        .take(10),
+                )
+            {
+                let mut ts: TimeSeries<f64> = triple.into();
+                let result = eval.eval(&mut ts);
+                assert!(result.is_ok(), "{}", path);
+                for (value, feature_name) in result.unwrap().into_iter().zip(eval.get_names()) {
+                    assert!(
+                        value.is_finite(),
+                        "{}: {} is not finite",
+                        path,
+                        feature_name
+                    );
+                }
+            }
+        }
+    };
+}
+
+#[macro_export]
 macro_rules! check_feature {
     ($feature: ty) => {
         eval_info_test!(info_default, <$feature>::default());
         serialization_name_test!($feature);
         serde_json_test!(ser_json_de, $feature, <$feature>::default());
         check_doc_static_method!(doc_static_method, $feature);
+        check_finite!(check_values_finite, <$feature>::default());
     };
 }
 
