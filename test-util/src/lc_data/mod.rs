@@ -1,3 +1,4 @@
+use lazy_static::lazy_static;
 use record::{FluxLightCurveRecord, MagLightCurveRecord, Record};
 use types::{Error, TripleArray};
 
@@ -6,3 +7,11 @@ pub(crate) mod from_issues;
 mod record;
 pub(crate) mod snia;
 mod types;
+
+lazy_static! {
+    pub static ref ALL_LIGHT_CURVES_F64: Vec<(&'static str, TripleArray<f64>)> = {
+        let mut v = from_issues::ISSUE_LIGHT_CURVES_ALL_F64.clone();
+        v.extend_from_slice(&snia::SNIA_LIGHT_CURVES_FLUX_F64);
+        v
+    };
+}

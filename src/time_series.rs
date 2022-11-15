@@ -382,7 +382,17 @@ where
     D: Into<DataSample<'a, T>>,
 {
     fn from(v: (D, D, D)) -> Self {
-        Self::new(v.0.into(), v.1.into(), v.2.into())
+        Self::new(v.0, v.1, v.2)
+    }
+}
+
+#[cfg(test)]
+impl<'a, T> From<&'a (Array1<T>, Array1<T>, Array1<T>)> for TimeSeries<'a, T>
+where
+    T: Float,
+{
+    fn from(v: &'a (Array1<T>, Array1<T>, Array1<T>)) -> Self {
+        Self::new(v.0.view(), v.1.view(), v.2.view())
     }
 }
 

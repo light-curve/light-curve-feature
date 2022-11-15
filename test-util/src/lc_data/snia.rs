@@ -1,11 +1,12 @@
 use crate::lc_data::csv_parser::arrays_from_reader;
-use crate::lc_data::{MagLightCurveRecord, Record};
+use crate::lc_data::{MagLightCurveRecord, Record, TripleArray};
 
 use include_dir::{include_dir, Dir};
+use lazy_static::lazy_static;
 use light_curve_feature::ndarray::Zip;
 use light_curve_feature::{Float, TimeSeries};
 
-pub fn iter_sn1a_flux_ts<T>() -> impl Iterator<Item = (&'static str, TimeSeries<'static, T>)>
+pub fn iter_sn1a_flux_arrays<T>() -> impl Iterator<Item = (&'static str, TripleArray<T>)>
 where
     T: Float,
 {
@@ -30,6 +31,19 @@ where
         let w_flux = Zip::from(&w_m)
             .and(&flux)
             .map_collect(|&w_m, &flux| w_m * (flux * ln10_04).powi(-2));
-        (ztf_id, TimeSeries::new(t, flux, w_flux))
+        (ztf_id, (t, flux, w_flux))
     })
+}
+
+pub fn iter_sn1a_flux_ts<T>() -> impl Iterator<Item = (&'static str, TimeSeries<'static, T>)>
+where
+    T: Float,
+{
+    iter_sn1a_flux_arrays()
+        .map(|(name, triple)| (name, TimeSeries::new(triple.0, triple.1, triple.2)))
+}
+
+lazy_static! {
+    pub static ref SNIA_LIGHT_CURVES_FLUX_F64: Vec<(&'static str, TripleArray<f64>)> =
+        iter_sn1a_flux_arrays().collect();
 }

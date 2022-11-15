@@ -2,6 +2,7 @@ use crate::lc_data::csv_parser::arrays_from_reader;
 use crate::lc_data::{Error, FluxLightCurveRecord, MagLightCurveRecord, Record, TripleArray};
 
 use include_dir::{include_dir, Dir};
+use lazy_static::lazy_static;
 use light_curve_feature::Float;
 use std::path::Path;
 
@@ -36,7 +37,7 @@ where
     issue_light_curve::<T, P, FluxLightCurveRecord>(path, band).unwrap()
 }
 
-fn iter_issue_light_curve<T, Ph>(
+fn iter_issues_light_curve<T, Ph>(
     band: Option<char>,
 ) -> impl Iterator<Item = (&'static str, TripleArray<T>)>
 where
@@ -55,20 +56,38 @@ where
         })
 }
 
-pub fn iter_issue_light_curve_mag<T>(
+pub fn iter_issue_light_curves_mag<T>(
     band: Option<char>,
 ) -> impl Iterator<Item = (&'static str, TripleArray<T>)>
 where
     T: Float,
 {
-    iter_issue_light_curve::<T, MagLightCurveRecord>(band)
+    iter_issues_light_curve::<T, MagLightCurveRecord>(band)
 }
 
-pub fn iter_issue_light_curve_flux<T>(
+pub fn iter_issue_light_curves_flux<T>(
     band: Option<char>,
 ) -> impl Iterator<Item = (&'static str, TripleArray<T>)>
 where
     T: Float,
 {
-    iter_issue_light_curve::<T, FluxLightCurveRecord>(band)
+    iter_issues_light_curve::<T, FluxLightCurveRecord>(band)
+}
+
+lazy_static! {
+    pub static ref ISSUE_LIGHT_CURVES_MAG_F64: Vec<(&'static str, TripleArray<f64>)> =
+        iter_issue_light_curves_mag(None).collect();
+}
+
+lazy_static! {
+    pub static ref ISSUE_LIGHT_CURVES_FLUX_F64: Vec<(&'static str, TripleArray<f64>)> =
+        iter_issue_light_curves_flux(None).collect();
+}
+
+lazy_static! {
+    pub static ref ISSUE_LIGHT_CURVES_ALL_F64: Vec<(&'static str, TripleArray<f64>)> = {
+        let mut v = ISSUE_LIGHT_CURVES_MAG_F64.clone();
+        v.extend_from_slice(&ISSUE_LIGHT_CURVES_FLUX_F64);
+        v
+    };
 }
