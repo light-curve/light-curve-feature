@@ -397,3 +397,14 @@ pub fn sorted_by<T: Float>(to_sort: &[T], key: &[T]) -> Vec<T> {
     idx[..].sort_by(|&a, &b| key[a].partial_cmp(&key[b]).unwrap());
     idx.iter().map(|&i| to_sort[i]).collect()
 }
+
+// Some tests validating tests
+
+#[test]
+fn test_data_non_empty() {
+    assert!(!light_curve_feature_test_util::ISSUE_LIGHT_CURVES_FLUX_F64.is_empty());
+    assert!(!light_curve_feature_test_util::ISSUE_LIGHT_CURVES_MAG_F64.is_empty());
+    assert!(!light_curve_feature_test_util::ISSUE_LIGHT_CURVES_ALL_F64.is_empty());
+    assert!(!light_curve_feature_test_util::SNIA_LIGHT_CURVES_FLUX_F64.is_empty());
+    assert!(!light_curve_feature_test_util::ALL_LIGHT_CURVES_F64.is_empty());
+}
