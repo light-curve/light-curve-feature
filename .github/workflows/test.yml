@@ -100,8 +100,33 @@ jobs:
         sudo apt-get install -y libfftw3-dev libgsl-dev
     - run: cargo clippy --all-targets --no-default-features --features=fftw-source,gsl -- -D warnings
 
-  arm:
+  fmt-test-util:
+    runs-on: ubuntu-latest
 
+    defaults:
+      run:
+        working-directory: test-util
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+    - run: cargo fmt -- --check
+
+  clippy-test-util:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: test-util
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+      - run: cargo clippy --all-targets -- -D warnings
+
+  arm:
     runs-on: [self-hosted, linux, ARM64]
 
     steps:
