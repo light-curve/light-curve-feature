@@ -64,7 +64,7 @@ light-curve-common = "0.1.0"
 plotters = { version = "0.3.1", default-features = false, features = ["errorbar", "line_series", "ttf"] }
 plotters-bitmap = "0.3.1"
 rand = "0.7"
-rand_distr = "0.2"
+rand_distr = "0.4"
 rayon = "1.5"
 realfft= "3.1"
 rustfft = "6.1"
