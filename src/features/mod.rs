@@ -1,5 +1,8 @@
 //! Feature sctructs implements [crate::FeatureEvaluator] trait
 
+mod _periodogram_peaks;
+pub(crate) use _periodogram_peaks::PeriodogramPeaks;
+
 mod amplitude;
 pub use amplitude::Amplitude;
 
@@ -82,8 +85,8 @@ mod percent_difference_magnitude_percentile;
 pub use percent_difference_magnitude_percentile::PercentDifferenceMagnitudePercentile;
 
 mod periodogram;
+pub use _periodogram_peaks::PeriodogramPeaks as _PeriodogramPeaks;
 pub use periodogram::Periodogram;
-pub use periodogram::PeriodogramPeaks as _PeriodogramPeaks;
 
 mod reduced_chi2;
 pub use reduced_chi2::ReducedChi2;
@@ -110,4 +113,5 @@ mod villar_fit;
 pub use villar_fit::{VillarFit, VillarInitsBounds, VillarLnPrior};
 
 mod weighted_mean;
+
 pub use weighted_mean::WeightedMean;

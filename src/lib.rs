@@ -44,6 +44,9 @@ pub use nl_fit::LmsderCurveFit;
 pub use nl_fit::{prior, LnPrior, LnPrior1D};
 pub use nl_fit::{CurveFitAlgorithm, McmcCurveFit};
 
+mod number_ending;
+pub(crate) use number_ending::number_ending;
+
 #[doc(hidden)]
 pub mod periodogram;
 pub use periodogram::recurrent_sin_cos::RecurrentSinCos;
