@@ -3,6 +3,7 @@ use crate::float_trait::Float;
 use crate::multicolor::PassbandTrait;
 use crate::{DataSample, PassbandSet};
 
+use conv::prelude::*;
 use itertools::Either;
 use itertools::EitherOrBoth;
 use itertools::Itertools;
@@ -23,6 +24,22 @@ where
     P: PassbandTrait + 'p,
     T: Float,
 {
+    pub fn total_lenu(&self) -> usize {
+        match self {
+            Self::Mapping(mapping) => mapping.total_lenu(),
+            Self::Flat(flat) => flat.total_lenu(),
+            Self::MappingFlat { flat, .. } => flat.total_lenu(),
+        }
+    }
+
+    pub fn total_lenf(&self) -> T {
+        match self {
+            Self::Mapping(mapping) => mapping.total_lenf(),
+            Self::Flat(flat) => flat.total_lenf(),
+            Self::MappingFlat { flat, .. } => flat.total_lenf(),
+        }
+    }
+
     pub fn from_map(map: impl Into<BTreeMap<P, TimeSeries<'a, T>>>) -> Self {
         Self::Mapping(MappedMultiColorTimeSeries::new(map))
     }
@@ -148,13 +165,30 @@ where
         )
     }
 
+    pub fn total_lenu(&self) -> usize {
+        self.0.values().map(|ts| ts.lenu()).sum()
+    }
+
+    pub fn total_lenf(&self) -> T {
+        self.total_lenu().value_as::<T>().unwrap()
+    }
+
     pub fn passbands<'slf>(
         &'slf self,
     ) -> std::collections::btree_map::Keys<'slf, P, TimeSeries<'a, T>>
     where
         'a: 'slf,
     {
-        self.keys()
+        self.0.keys()
+    }
+
+    pub fn iter_ts<'slf>(
+        &'slf self,
+    ) -> std::collections::btree_map::Values<'slf, P, TimeSeries<'a, T>>
+    where
+        'a: 'slf,
+    {
+        self.0.values()
     }
 
     pub fn iter_passband_set<'slf, 'ps>(
@@ -304,5 +338,13 @@ where
             passbands,
             passband_set: mapping.keys().cloned().collect(),
         }
+    }
+
+    pub fn total_lenu(&self) -> usize {
+        self.t.sample.len()
+    }
+
+    pub fn total_lenf(&self) -> T {
+        self.t.sample.len().value_as::<T>().unwrap()
     }
 }

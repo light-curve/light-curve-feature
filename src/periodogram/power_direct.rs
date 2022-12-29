@@ -4,6 +4,7 @@ use crate::periodogram::freq::FreqGrid;
 use crate::periodogram::power_trait::*;
 use crate::periodogram::recurrent_sin_cos::*;
 
+use ndarray::Array1;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -22,7 +23,7 @@ impl<T> PeriodogramPowerTrait<T> for PeriodogramPowerDirect
 where
     T: Float,
 {
-    fn power(&self, freq: &FreqGrid<T>, ts: &mut TimeSeries<T>) -> Vec<T> {
+    fn power(&self, freq: &FreqGrid<T>, ts: &mut TimeSeries<T>) -> Array1<T> {
         let m_mean = ts.m.get_mean();
 
         let sin_cos_omega_tau = SinCosOmegaTau::new(freq.step, ts.t.as_slice().iter());

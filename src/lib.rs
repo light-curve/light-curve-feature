@@ -32,7 +32,7 @@ pub use float_trait::Float;
 
 mod lnerfc;
 
-mod multicolor;
+pub mod multicolor;
 pub use multicolor::*;
 
 mod nl_fit;

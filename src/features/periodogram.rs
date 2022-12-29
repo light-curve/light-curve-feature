@@ -4,6 +4,7 @@ use crate::features::_periodogram_peaks::PeriodogramPeaks;
 use crate::periodogram;
 use crate::periodogram::{AverageNyquistFreq, NyquistFreq, PeriodogramPower, PeriodogramPowerFft};
 
+use ndarray::Array1;
 use std::convert::TryInto;
 use std::fmt::Debug;
 
@@ -32,7 +33,7 @@ series without observation errors (unity weights are used if required). You can 
 #[doc = DOC!()]
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(
-    bound = "T: Float, F: FeatureEvaluator<T> + From<PeriodogramPeaks> + TryInto<PeriodogramPeaks>, <F as std::convert::TryInto<PeriodogramPeaks>>::Error: Debug,",
+    bound = "T: Float, F: FeatureEvaluator<T> + From<PeriodogramPeaks> + TryInto<PeriodogramPeaks>, <F as TryInto<PeriodogramPeaks>>::Error: Debug,",
     from = "PeriodogramParameters<T, F>",
     into = "PeriodogramParameters<T, F>"
 )]
@@ -43,7 +44,7 @@ where
     resolution: f32,
     max_freq_factor: f32,
     nyquist: NyquistFreq,
-    feature_extractor: FeatureExtractor<T, F>,
+    pub(crate) feature_extractor: FeatureExtractor<T, F>,
     periodogram_algorithm: PeriodogramPower<T>,
     properties: Box<EvaluatorProperties>,
 }
@@ -119,24 +120,24 @@ where
         self
     }
 
-    fn periodogram(&self, ts: &mut TimeSeries<T>) -> periodogram::Periodogram<T> {
+    pub(crate) fn periodogram(&self, t: &[T]) -> periodogram::Periodogram<T> {
         periodogram::Periodogram::from_t(
             self.periodogram_algorithm.clone(),
-            ts.t.as_slice(),
+            t,
             self.resolution,
             self.max_freq_factor,
             self.nyquist.clone(),
         )
     }
 
-    pub fn power(&self, ts: &mut TimeSeries<T>) -> Vec<T> {
-        self.periodogram(ts).power(ts)
+    pub fn power(&self, ts: &mut TimeSeries<T>) -> Array1<T> {
+        self.periodogram(ts.t.as_slice()).power(ts)
     }
 
-    pub fn freq_power(&self, ts: &mut TimeSeries<T>) -> (Vec<T>, Vec<T>) {
-        let p = self.periodogram(ts);
+    pub fn freq_power(&self, ts: &mut TimeSeries<T>) -> (Array1<T>, Array1<T>) {
+        let p = self.periodogram(ts.t.as_slice());
         let power = p.power(ts);
-        let freq = (0..power.len()).map(|i| p.freq(i)).collect::<Vec<_>>();
+        let freq = (0..power.len()).map(|i| p.freq_by_index(i)).collect();
         (freq, power)
     }
 }
@@ -190,15 +191,12 @@ impl<T, F> Periodogram<T, F>
 where
     T: Float,
     F: FeatureEvaluator<T> + From<PeriodogramPeaks> + TryInto<PeriodogramPeaks>,
-    <F as std::convert::TryInto<PeriodogramPeaks>>::Error: Debug,
+    <F as TryInto<PeriodogramPeaks>>::Error: Debug,
 {
     fn transform_ts(&self, ts: &mut TimeSeries<T>) -> Result<TmArrays<T>, EvaluatorError> {
-        self.check_ts_length(ts)?;
+        self.check_ts(ts)?;
         let (freq, power) = self.freq_power(ts);
-        Ok(TmArrays {
-            t: freq.into(),
-            m: power.into(),
-        })
+        Ok(TmArrays { t: freq, m: power })
     }
 }
 
@@ -225,7 +223,7 @@ impl<T, F> EvaluatorInfoTrait for Periodogram<T, F>
 where
     T: Float,
     F: FeatureEvaluator<T> + From<PeriodogramPeaks> + TryInto<PeriodogramPeaks>,
-    <F as std::convert::TryInto<PeriodogramPeaks>>::Error: Debug,
+    <F as TryInto<PeriodogramPeaks>>::Error: Debug,
 {
     fn get_info(&self) -> &EvaluatorInfo {
         &self.properties.info
@@ -236,7 +234,7 @@ impl<T, F> FeatureNamesDescriptionsTrait for Periodogram<T, F>
 where
     T: Float,
     F: FeatureEvaluator<T> + From<PeriodogramPeaks> + TryInto<PeriodogramPeaks>,
-    <F as std::convert::TryInto<PeriodogramPeaks>>::Error: Debug,
+    <F as TryInto<PeriodogramPeaks>>::Error: Debug,
 {
     fn get_names(&self) -> Vec<&str> {
         self.properties.names.iter().map(String::as_str).collect()
@@ -255,7 +253,7 @@ impl<T, F> FeatureEvaluator<T> for Periodogram<T, F>
 where
     T: Float,
     F: FeatureEvaluator<T> + From<PeriodogramPeaks> + TryInto<PeriodogramPeaks>,
-    <F as std::convert::TryInto<PeriodogramPeaks>>::Error: Debug,
+    <F as TryInto<PeriodogramPeaks>>::Error: Debug,
 {
     transformer_eval!();
 }
@@ -279,7 +277,7 @@ impl<T, F> From<Periodogram<T, F>> for PeriodogramParameters<T, F>
 where
     T: Float,
     F: FeatureEvaluator<T> + From<PeriodogramPeaks> + TryInto<PeriodogramPeaks>,
-    <F as std::convert::TryInto<PeriodogramPeaks>>::Error: Debug,
+    <F as TryInto<PeriodogramPeaks>>::Error: Debug,
 {
     fn from(f: Periodogram<T, F>) -> Self {
         let Periodogram {

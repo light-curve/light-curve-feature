@@ -66,6 +66,7 @@ clap = { version = "3.2.6", features = ["std", "color", "suggestions", "derive",
 criterion = "0.4"
 hyperdual = "1.1"
 light-curve-common = "0.1.0"
+ndarray = { version = "^0.15", features = ["approx-0_5"] }
 plotters = { version = "0.3.5", default-features = false, features = ["errorbar", "line_series", "ttf"] }
 plotters-bitmap = "0.3.3"
 rand = "0.7"

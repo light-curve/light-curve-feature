@@ -5,6 +5,7 @@ use crate::float_trait::Float;
 
 use conv::ConvAsUtil;
 use enum_dispatch::enum_dispatch;
+use ndarray::Array1;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -92,11 +93,11 @@ where
         )
     }
 
-    pub fn freq(&self, i: usize) -> T {
+    pub fn freq_by_index(&self, i: usize) -> T {
         self.freq_grid.step * (i + 1).approx().unwrap()
     }
 
-    pub fn power(&self, ts: &mut TimeSeries<T>) -> Vec<T> {
+    pub fn power(&self, ts: &mut TimeSeries<T>) -> Array1<T> {
         self.periodogram_power.power(&self.freq_grid, ts)
     }
 }
@@ -110,16 +111,17 @@ mod tests {
     use crate::data::SortedArray;
     use crate::peak_indices::peak_indices_reverse_sorted;
 
-    use light_curve_common::{all_close, linspace};
+    use approx::assert_relative_eq;
+    use ndarray::{arr1, s};
     use rand::prelude::*;
 
     #[test]
     fn compr_direct_with_scipy() {
         const OMEGA_SIN: f64 = 0.07;
         const N: usize = 100;
-        let t = linspace(0.0, 99.0, N);
-        let m: Vec<_> = t.iter().map(|&x| f64::sin(OMEGA_SIN * x)).collect();
-        let mut ts = TimeSeries::new_without_weight(&t, &m);
+        let t = Array1::linspace(0.0, 99.0, N);
+        let m = t.mapv(|x| f64::sin(OMEGA_SIN * x));
+        let mut ts = TimeSeries::new_without_weight(t, m);
         let periodogram = Periodogram::new(
             PeriodogramPowerDirect.into(),
             FreqGrid {
@@ -127,10 +129,10 @@ mod tests {
                 size: 1,
             },
         );
-        all_close(
-            &[periodogram.power(&mut ts)[0] * 2.0 / (N as f64 - 1.0)],
-            &[1.0],
-            1.0 / (N as f64),
+        assert_relative_eq!(
+            periodogram.power(&mut ts)[0] * 2.0 / (N as f64 - 1.0),
+            1.0,
+            epsilon = 1.0 / (N as f64),
         );
 
         // import numpy as np
@@ -147,26 +149,28 @@ mod tests {
             size: 5,
         };
         let periodogram = Periodogram::new(PeriodogramPowerDirect.into(), freq_grid.clone());
-        all_close(
-            &linspace(
+        assert_relative_eq!(
+            Array1::linspace(
                 freq_grid.step,
                 freq_grid.step * freq_grid.size as f64,
                 freq_grid.size,
-            ),
-            &(0..freq_grid.size)
-                .map(|i| periodogram.freq(i))
-                .collect::<Vec<_>>(),
-            1e-12,
+            )
+            .view(),
+            (0..freq_grid.size)
+                .map(|i| periodogram.freq_by_index(i))
+                .collect::<Array1<_>>()
+                .view(),
+            epsilon = 1e-12,
         );
-        let desired = [
+        let desired = arr1(&[
             16.99018018,
             18.57722516,
             21.96049738,
             28.15056806,
             36.66519435,
-        ];
+        ]);
         let actual = periodogram.power(&mut ts);
-        all_close(&actual[..], &desired[..], 1e-6);
+        assert_relative_eq!(actual, desired, epsilon = 1e-6);
     }
 
     #[test]
@@ -176,14 +180,14 @@ mod tests {
         const RESOLUTION: f32 = 1.0;
         const MAX_FREQ_FACTOR: f32 = 1.0;
 
-        let t = linspace(0.0, (N - 1) as f64, N);
-        let m: Vec<_> = t.iter().map(|&x| f64::sin(OMEGA * x)).collect();
-        let mut ts = TimeSeries::new_without_weight(&t, &m);
+        let t = Array1::linspace(0.0, (N - 1) as f64, N);
+        let m = t.mapv(|x| f64::sin(OMEGA * x));
+        let mut ts = TimeSeries::new_without_weight(t, m);
         let nyquist: NyquistFreq = AverageNyquistFreq.into();
 
         let direct = Periodogram::from_t(
             PeriodogramPowerDirect.into(),
-            &t,
+            ts.t.as_slice(),
             RESOLUTION,
             MAX_FREQ_FACTOR,
             nyquist.clone(),
@@ -191,13 +195,17 @@ mod tests {
         .power(&mut ts);
         let fft = Periodogram::from_t(
             PeriodogramPowerFft::new().into(),
-            &t,
+            ts.t.as_slice(),
             RESOLUTION,
             MAX_FREQ_FACTOR,
             nyquist,
         )
         .power(&mut ts);
-        all_close(&fft[..direct.len() - 1], &direct[..direct.len() - 1], 1e-8);
+        assert_relative_eq!(
+            fft.slice(s![..direct.len() - 1]),
+            direct.slice(s![..direct.len() - 1]),
+            epsilon = 1e-8
+        );
     }
 
     #[test]
@@ -209,17 +217,14 @@ mod tests {
         const RESOLUTION: f32 = 4.0;
         const MAX_FREQ_FACTOR: f32 = 1.0;
 
-        let t = linspace(0.0, (N - 1) as f64, N);
-        let m: Vec<_> = t
-            .iter()
-            .map(|&x| f64::sin(OMEGA1 * x) + AMPLITUDE2 * f64::cos(OMEGA2 * x))
-            .collect();
-        let mut ts = TimeSeries::new_without_weight(&t, &m);
+        let t = Array1::linspace(0.0, (N - 1) as f64, N);
+        let m = t.mapv(|x| f64::sin(OMEGA1 * x) + AMPLITUDE2 * f64::cos(OMEGA2 * x));
+        let mut ts = TimeSeries::new_without_weight(t, m);
         let nyquist: NyquistFreq = AverageNyquistFreq.into();
 
         let direct = Periodogram::from_t(
             PeriodogramPowerDirect.into(),
-            &t,
+            ts.t.as_slice(),
             RESOLUTION,
             MAX_FREQ_FACTOR,
             nyquist.clone(),
@@ -227,7 +232,7 @@ mod tests {
         .power(&mut ts);
         let fft = Periodogram::from_t(
             PeriodogramPowerFft::new().into(),
-            &t,
+            ts.t.as_slice(),
             RESOLUTION,
             MAX_FREQ_FACTOR,
             nyquist,
