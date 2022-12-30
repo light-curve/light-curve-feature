@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
---
+- Use `enum_dispatch` 0.3.9 (updated from 0.3.7) crate to implement `LnPriorTrait` for `LnPrior` https://github.com/light-curve/light-curve-feature/pull/6
 
 ### Deprecated
 
