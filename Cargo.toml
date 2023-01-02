@@ -59,7 +59,7 @@ approx = "0.5"
 chfft = "0.3.4"
 clap = { version = "3.2.6", features = ["std", "color", "suggestions", "derive", "wrap_help", "unstable-v4"] }
 criterion = "0.4"
-hyperdual = "0.5"
+hyperdual = "1.1"
 light-curve-common = "0.1.0"
 plotters = { version = "0.3.1", default-features = false, features = ["errorbar", "line_series", "ttf"] }
 plotters-bitmap = "0.3.1"
