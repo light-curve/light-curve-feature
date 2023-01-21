@@ -1,5 +1,13 @@
 pub(self) mod bounds;
 
+#[cfg(feature = "ceres-source")]
+pub mod ceres;
+#[cfg(feature = "ceres-source")]
+pub use ceres::CeresCurveFit;
+
+#[cfg(any(feature = "gsl", feature = "ceres-source"))]
+pub(self) mod constants;
+
 pub mod curve_fit;
 pub use curve_fit::{CurveFitAlgorithm, CurveFitResult, CurveFitTrait};
 

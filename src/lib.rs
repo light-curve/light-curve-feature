@@ -29,6 +29,8 @@ mod lnerfc;
 
 mod nl_fit;
 pub use nl_fit::evaluator::FitFeatureEvaluatorGettersTrait;
+#[cfg(feature = "ceres-source")]
+pub use nl_fit::CeresCurveFit;
 #[cfg(feature = "gsl")]
 pub use nl_fit::LmsderCurveFit;
 pub use nl_fit::{prior, LnPrior, LnPrior1D};

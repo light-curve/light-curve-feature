@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
---
+- `CeresCurveFit` and optional `ceres-source` Cargo feature to use Ceres Solver for curve fitting
 
 ### Changed
 
