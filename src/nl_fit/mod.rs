@@ -1,3 +1,5 @@
+pub(self) mod bounds;
+
 pub mod curve_fit;
 pub use curve_fit::{CurveFitAlgorithm, CurveFitResult, CurveFitTrait};
 
