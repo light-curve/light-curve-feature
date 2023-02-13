@@ -308,9 +308,9 @@ where
         self.t.sample.len()
     }
 
-    /// Time series length
+    /// Float approximating time series length
     pub fn lenf(&self) -> T {
-        self.lenu().value_as::<T>().unwrap()
+        self.lenu().approx().unwrap()
     }
 
     time_series_getter!(
