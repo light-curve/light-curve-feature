@@ -1,6 +1,6 @@
 use crate::evaluator::*;
 
-use conv::ConvUtil;
+use conv::prelude::*;
 
 macro_const! {
     const DOC: &str = r#"
@@ -109,9 +109,9 @@ where
         let threshold = self.quantile * amplitude;
         let count_under = ts.m.sample.fold(0, |count, &m| {
             let under = T::abs(m - m_median) < threshold;
-            count + u32::from(under)
+            count + usize::from(under)
         });
-        Ok(vec![count_under.value_as::<T>().unwrap() / ts.lenf()])
+        Ok(vec![count_under.approx_as::<T>().unwrap() / ts.lenf()])
     }
 }
 
@@ -190,5 +190,18 @@ mod tests {
                 Token::StructEnd,
             ],
         )
+    }
+
+    #[test]
+    fn no_positive_overflow() {
+        // Minimal size to trigger the overflow
+        const N: usize = (1 << 24) + 1;
+        let t = Array1::linspace(0.0_f32, 1.0, N);
+        let mut ts = TimeSeries::new_without_weight(t.view(), t.view());
+        // Absurdly large quantile just to make feature values equals to 1.0
+        let feature = MedianBufferRangePercentage::new(2.0);
+        // Should not panic
+        let values = feature.eval(&mut ts).unwrap();
+        assert_eq!(values[0], 1.0);
     }
 }
