@@ -136,7 +136,7 @@ where
     pub fn from_t(t: &[T], resolution: f32, max_freq_factor: f32, nyquist: NyquistFreq) -> Self {
         assert!(resolution.is_sign_positive() && resolution.is_finite());
 
-        let sizef = t.len().value_as::<T>().unwrap();
+        let sizef: T = t.len().approx().unwrap();
         let duration = t[t.len() - 1] - t[0];
         let step = T::two() * T::PI() * (sizef - T::one())
             / (sizef * resolution.value_as::<T>().unwrap() * duration);
