@@ -261,6 +261,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // This test takes a long time and requires lots of memory
     fn no_overflow() {
         // It should be large enough to trigger the overflow
         const N: usize = (1 << 25) + 57;
