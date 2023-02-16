@@ -9,11 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Re-export of `ndarray`
+--
 
 ### Changed
 
-- Use `enum_dispatch` 0.3.9 (updated from 0.3.7) crate to implement `LnPriorTrait` for `LnPrior` https://github.com/light-curve/light-curve-feature/pull/6
+--
 
 ### Deprecated
 
@@ -25,12 +25,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Overflows in `DataSample`, `MedianBufferRangePercentage`, `BeyondNStd`, `FreqGrid` and `OtsuSplit` https://github.com/light-curve/light-curve-feature/issues/95 https://github.com/light-curve/light-curve-feature/pull/96
-- `thread_local<1.1.7` because it requires Rust toolchain 1.59
+--
 
 ### Security
 
 --
+
+
+## [0.5.3] 2023 February 16
+
+### Added
+
+- Re-export of `ndarray`
+
+### Changed
+
+- Use `enum_dispatch` 0.3.9 (updated from 0.3.7) crate to implement `LnPriorTrait` for `LnPrior` https://github.com/light-curve/light-curve-feature/pull/6
+
+### Fixed
+
+- Overflows in `DataSample`, `MedianBufferRangePercentage`, `BeyondNStd`, `FreqGrid` and `OtsuSplit` https://github.com/light-curve/light-curve-feature/issues/95 https://github.com/light-curve/light-curve-feature/pull/96
+- `thread_local<1.1.7` because it requires Rust toolchain 1.59
 
 
 ## [0.5.2] 2022 November 10
