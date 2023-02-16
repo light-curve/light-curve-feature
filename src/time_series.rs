@@ -132,7 +132,7 @@ where
         let mean = ds.get_mean();
         ds.sample
             .fold(T::zero(), |sum, &x| sum + (x - mean).powi(2))
-            / (ds.sample.len() - 1).value_as::<T>().unwrap()
+            / (ds.sample.len() - 1).approx().unwrap()
     });
 
     pub fn signal_to_noise(&mut self, value: T) -> T {
@@ -308,9 +308,9 @@ where
         self.t.sample.len()
     }
 
-    /// Time series length
+    /// Float approximating time series length
     pub fn lenf(&self) -> T {
-        self.lenu().value_as::<T>().unwrap()
+        self.lenu().approx().unwrap()
     }
 
     time_series_getter!(
@@ -496,5 +496,16 @@ mod tests {
         let mut ts = TimeSeries::new(&t, &m, &w);
         let desired = [1.3752251301435465];
         all_close(&[ts.get_m_reduced_chi2()], &desired[..], 1e-6);
+    }
+
+    /// https://github.com/light-curve/light-curve-feature/issues/95
+    #[test]
+    fn time_series_std2_overflow() {
+        const N: usize = (1 << 24) + 2;
+        // Such a large integer cannot be represented as a float32
+        let x = Array1::linspace(0.0_f32, 1.0, N);
+        let mut ds = DataSample::new(x.into());
+        // This should not panic
+        let _std2 = ds.get_std2();
     }
 }

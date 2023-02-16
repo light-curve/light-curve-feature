@@ -62,7 +62,7 @@ impl OtsuSplit {
         }
 
         let count = ds.sample.len();
-        let countf = count.value_as::<T>().unwrap();
+        let countf = count.approx().unwrap();
         let sorted = ds.get_sorted();
 
         if sorted.minimum() == sorted.maximum() {
@@ -89,7 +89,7 @@ impl OtsuSplit {
             .collect();
         let cumsum2 = cumsum2.slice(s![0..count - 1; -1]);
 
-        let amounts = Array1::range(T::one(), countf, T::one());
+        let amounts = Array1::linspace(T::one(), (count - 1).approx().unwrap(), count - 1);
         let mean1 = Zip::from(&cumsum1)
             .and(&amounts)
             .map_collect(|&c, &a| c / a);
@@ -158,7 +158,7 @@ where
         let mean_upper = upper.get_mean();
 
         let mean_diff = mean_upper - mean_lower;
-        let lower_to_all = lower.sample.len().value_as::<T>().unwrap() / ts.lenf();
+        let lower_to_all = lower.sample.len().approx_as::<T>().unwrap() / ts.lenf();
 
         Ok(vec![mean_diff, std_lower, std_upper, lower_to_all])
     }
@@ -258,5 +258,20 @@ mod tests {
         ];
         let actual = eval.eval(&mut ts).unwrap();
         assert_relative_eq!(&desired[..], &actual[..], epsilon = 1e-6);
+    }
+
+    #[test]
+    #[ignore] // This test takes a long time and requires lots of memory
+    fn no_overflow() {
+        // It should be large enough to trigger the overflow
+        const N: usize = (1 << 25) + 57;
+        let feature = OtsuSplit::new();
+        let t = Array1::linspace(0.0_f32, 1.0, N);
+        let mut ts = TimeSeries::new_without_weight(t.view(), t.view());
+        // This should not panic
+        let [mean_diff, _std_lower, _std_upper, lower_to_all]: [f32; 4] =
+            feature.eval(&mut ts).unwrap().try_into().unwrap();
+        assert_relative_eq!(mean_diff, 0.5, epsilon = 1e-3);
+        assert_relative_eq!(lower_to_all, 0.5, epsilon = 1e-6);
     }
 }
