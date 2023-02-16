@@ -50,7 +50,7 @@ num-traits = "^0.2"
 schemars = "^0.8"
 serde = { version = "1", features = ["derive"] }
 thiserror = "1"
-thread_local = "^1.1"
+thread_local = "1.1,<1.1.7" # 1.1.7 requires rust 1.59
 unzip3 = "1"
 
 [dev-dependencies]
