@@ -25,7 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
---
+- Overflows in `DataSample`, `MedianBufferRangePercentage`, `BeyondNStd`, `FreqGrid` and `OtsuSplit` https://github.com/light-curve/light-curve-feature/issues/95 https://github.com/light-curve/light-curve-feature/pull/96
+- `thread_local<1.1.7` because it requires Rust toolchain 1.59
 
 ### Security
 
