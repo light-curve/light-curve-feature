@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `CeresCurveFit` and optional `ceres-source` Cargo feature to use Ceres Solver for curve fitting
+- `CeresCurveFit` and optional `ceres-source` Cargo feature to use Ceres Solver for curve fitting https://github.com/light-curve/light-curve-feature/issues/92 https://github.com/light-curve/light-curve-feature/pull/98
 
 ### Changed
 
