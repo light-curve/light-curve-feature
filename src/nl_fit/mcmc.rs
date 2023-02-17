@@ -1,4 +1,5 @@
 use crate::float_trait::Float;
+use crate::nl_fit::bounds::within_bounds;
 use crate::nl_fit::curve_fit::{CurveFitAlgorithm, CurveFitResult, CurveFitTrait};
 use crate::nl_fit::data::Data;
 
@@ -236,14 +237,12 @@ where
     }
 
     fn lnprior(&self, params: &Guess) -> f32 {
-        for (&p, (&lower, &upper)) in params
-            .values
-            .iter()
-            .zip(self.lower.iter().zip(self.upper.iter()))
-        {
-            if p < lower || p > upper {
-                return f32::NEG_INFINITY;
-            }
+        if !within_bounds(
+            (&params.values[..]).try_into().unwrap(),
+            self.lower,
+            self.upper,
+        ) {
+            return f32::NEG_INFINITY;
         }
         (self.ln_prior)(params)
     }

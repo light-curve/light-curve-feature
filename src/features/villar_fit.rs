@@ -593,6 +593,9 @@ impl From<LnPrior<NPARAMS>> for VillarLnPrior {
 #[allow(clippy::excessive_precision)]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "ceres-source")]
+    use crate::nl_fit::CeresCurveFit;
     #[cfg(feature = "gsl")]
     use crate::nl_fit::LnPrior1D;
     use crate::tests::*;
@@ -613,7 +616,7 @@ mod tests {
         [0.0; 11],
     );
 
-    #[cfg(feature = "gsl")]
+    #[cfg(any(feature = "gsl", feature = "ceres-source"))]
     fn villar_fit_noisy(eval: VillarFit) {
         const N: usize = 50;
 
@@ -653,6 +656,29 @@ mod tests {
         );
 
         assert_relative_eq!(&values[..NPARAMS], &desired[..], max_relative = 0.01);
+    }
+
+    // It doesn't converge to the right place
+    // #[cfg(feature = "ceres-source")]
+    // #[test]
+    // fn villar_fit_noisy_ceres() {
+    //     villar_fit_noisy(VillarFit::new(
+    //         CeresCurveFit::new().into(),
+    //         LnPrior::none(),
+    //         VillarInitsBounds::Default,
+    //     ));
+    // }
+
+    #[cfg(feature = "ceres-source")]
+    #[test]
+    fn villar_fit_noizy_mcmc_plus_ceres() {
+        let ceres = CeresCurveFit::default();
+        let mcmc = McmcCurveFit::new(512, Some(ceres.into()));
+        villar_fit_noisy(VillarFit::new(
+            mcmc.into(),
+            LnPrior::none(),
+            VillarInitsBounds::Default,
+        ));
     }
 
     #[cfg(feature = "gsl")]

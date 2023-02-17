@@ -1,5 +1,6 @@
 #[cfg(test)]
 use crate::float_trait::Float;
+use crate::nl_fit::constants::PARAMETER_TOLERANCE;
 use crate::nl_fit::curve_fit::{CurveFitResult, CurveFitTrait};
 use crate::nl_fit::data::Data;
 
@@ -120,8 +121,8 @@ impl NlsProblem {
     fn new(fit_function: MultiFitFunctionFdf) -> Self {
         Self {
             max_iter: Self::default_max_iter(),
-            atol: 0.0,
-            rtol: 1e-4,
+            atol: PARAMETER_TOLERANCE,
+            rtol: PARAMETER_TOLERANCE,
             fit_function,
         }
     }

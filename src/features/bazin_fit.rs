@@ -42,9 +42,10 @@ impl BazinFit {
     /// New [BazinFit] instance
     ///
     /// `algorithm` specifies which optimization method is used, it is an instance of the
-    /// [CurveFitAlgorithm], currently supported algorithms are [MCMC](McmcCurveFit) and
+    /// [CurveFitAlgorithm], currently supported algorithms are [MCMC](McmcCurveFit),
     /// [LMSDER](crate::nl_fit::LmsderCurveFit) (a Levenberg–Marquard algorithm modification,
-    /// requires `gsl` Cargo feature).
+    /// requires `gsl` Cargo feature), and [Ceres](crate::nl_fit::CeresCurveFit) (trust-region
+    /// algorithm, requires `ceres` Cargo feature).
     ///
     /// `ln_prior` is an instance of [BazinLnPrior] and specifies the natural logarithm of the prior
     /// to use. Some curve-fit algorithms doesn't support this and ignores the prior
@@ -405,6 +406,8 @@ mod tests {
     use super::*;
     use crate::nl_fit::LnPrior1D;
     use crate::tests::*;
+    #[cfg(feature = "ceres-source")]
+    use crate::CeresCurveFit;
     #[cfg(feature = "gsl")]
     use crate::LmsderCurveFit;
     use crate::TimeSeries;
@@ -454,6 +457,61 @@ mod tests {
 
         let values = eval.eval(&mut ts).unwrap();
         assert_relative_eq!(&values[..5], &desired[..], max_relative = 0.01);
+    }
+
+    #[cfg(feature = "ceres-source")]
+    #[test]
+    fn bazin_fit_noisy_ceres() {
+        bazin_fit_noisy(BazinFit::new(
+            CeresCurveFit::default().into(),
+            LnPrior::none(),
+            BazinInitsBounds::Default,
+        ));
+    }
+
+    #[cfg(feature = "ceres-source")]
+    #[test]
+    fn bazin_fit_noizy_mcmc_plus_ceres() {
+        let ceres = CeresCurveFit::default();
+        let mcmc = McmcCurveFit::new(512, Some(ceres.into()));
+        bazin_fit_noisy(BazinFit::new(
+            mcmc.into(),
+            LnPrior::none(),
+            BazinInitsBounds::Default,
+        ));
+    }
+
+    // Currently fails, we need better support of bounds from ceres-solver Rust crate
+    // #[cfg(feature = "ceres-source")]
+    // #[test]
+    // fn bazin_fit_noizy_ceres_with_bounds() {
+    //     let lmsder = CeresCurveFit::new();
+    //     let mcmc = McmcCurveFit::new(512, Some(lmsder.into()));
+    //     bazin_fit_noisy(BazinFit::new(
+    //         CeresCurveFit::new().into(),
+    //         LnPrior::none(),
+    //         BazinInitsBounds::option_arrays(
+    //             [None; 5],
+    //             [None; 5],
+    //             [None, None, Some(50.0), Some(50.0), Some(50.0)],
+    //         ),
+    //     ));
+    // }
+
+    #[cfg(feature = "ceres-source")]
+    #[test]
+    fn bazin_fit_noizy_mcmc_plus_ceres_and_bounds() {
+        let ceres = CeresCurveFit::default();
+        let mcmc = McmcCurveFit::new(10, Some(ceres.into()));
+        bazin_fit_noisy(BazinFit::new(
+            mcmc.into(),
+            LnPrior::none(),
+            BazinInitsBounds::option_arrays(
+                [None; 5],
+                [None; 5],
+                [None, None, Some(50.0), Some(50.0), Some(50.0)],
+            ),
+        ));
     }
 
     #[cfg(feature = "gsl")]
