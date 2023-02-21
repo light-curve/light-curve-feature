@@ -594,7 +594,7 @@ impl From<LnPrior<NPARAMS>> for VillarLnPrior {
 mod tests {
     use super::*;
 
-    #[cfg(feature = "ceres-source")]
+    #[cfg(any(feature = "ceres-source", feature = "ceres-system"))]
     use crate::nl_fit::CeresCurveFit;
     #[cfg(feature = "gsl")]
     use crate::nl_fit::LnPrior1D;
@@ -616,7 +616,10 @@ mod tests {
         [0.0; 11],
     );
 
-    #[cfg(any(feature = "gsl", feature = "ceres-source"))]
+    #[cfg(any(
+        feature = "gsl",
+        any(feature = "ceres-source", feature = "ceres-system")
+    ))]
     fn villar_fit_noisy(eval: VillarFit) {
         const N: usize = 50;
 
@@ -659,7 +662,7 @@ mod tests {
     }
 
     // It doesn't converge to the right place
-    // #[cfg(feature = "ceres-source")]
+    // #[cfg(any(feature = "ceres-source", feature = "ceres-system"))]
     // #[test]
     // fn villar_fit_noisy_ceres() {
     //     villar_fit_noisy(VillarFit::new(
@@ -669,7 +672,7 @@ mod tests {
     //     ));
     // }
 
-    #[cfg(feature = "ceres-source")]
+    #[cfg(any(feature = "ceres-source", feature = "ceres-system"))]
     #[test]
     fn villar_fit_noizy_mcmc_plus_ceres() {
         let ceres = CeresCurveFit::default();
