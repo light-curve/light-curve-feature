@@ -1,4 +1,4 @@
-#[cfg(feature = "ceres-source")]
+#[cfg(any(feature = "ceres-source", feature = "ceres-system"))]
 use crate::nl_fit::ceres::CeresCurveFit;
 use crate::nl_fit::data::Data;
 #[cfg(feature = "gsl")]
@@ -41,7 +41,7 @@ pub trait CurveFitTrait: Clone + Debug + Serialize + DeserializeOwned {
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[non_exhaustive]
 pub enum CurveFitAlgorithm {
-    #[cfg(feature = "ceres-source")]
+    #[cfg(any(feature = "ceres-source", feature = "ceres-system"))]
     Ceres(CeresCurveFit),
     #[cfg(feature = "gsl")]
     Lmsder(LmsderCurveFit),

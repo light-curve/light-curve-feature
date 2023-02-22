@@ -16,6 +16,7 @@ bench = false
 
 [features]
 default = ["fftw-source"]
+ceres-system = ["ceres-solver/system"]
 ceres-source = ["ceres-solver/source"]
 fftw-system = ["fftw/system"]
 fftw-source = ["fftw/source"]

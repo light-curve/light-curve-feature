@@ -60,6 +60,15 @@ println!("{:?}", result);
 # Ok::<(), EvaluatorError>(())
 ```
 
+### Cargo features
+
+The crate is configured with the following Cargo features:
+- `ceres-system` and `ceres-source` - enable [Ceres Solver](http://ceres-solver.org) support for non-linear fitting. The former
+  uses system-wide installation of Ceres, the latter builds Ceres from source and links it statically. The latter overrides the former. See [`ceres-solver-rs` crate](https://github.com/light-curve/ceres-solver-rs) for details
+- `fftw-system`, `fftw-source` (enabled by default) and `fftw-mkl` - enable [FFTW](http://www.fftw.org) support for Fourier transforms needed by `Periodogram`. The
+  first uses system-wide installation of FFTW, the second builds FFTW from source and links it statically, the last downloads and links statically Intel MKL instead of FFTW.
+- `gsl` - enables [GNU Scientific Library](https://www.gnu.org/software/gsl/) support for non-linear fitting.
+- `default` - enables `fftw-source` feature only, has no side effects.
 
 ### Citation
 

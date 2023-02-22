@@ -406,7 +406,7 @@ mod tests {
     use super::*;
     use crate::nl_fit::LnPrior1D;
     use crate::tests::*;
-    #[cfg(feature = "ceres-source")]
+    #[cfg(any(feature = "ceres-source", feature = "ceres-system"))]
     use crate::CeresCurveFit;
     #[cfg(feature = "gsl")]
     use crate::LmsderCurveFit;
@@ -459,7 +459,7 @@ mod tests {
         assert_relative_eq!(&values[..5], &desired[..], max_relative = 0.01);
     }
 
-    #[cfg(feature = "ceres-source")]
+    #[cfg(any(feature = "ceres-source", feature = "ceres-system"))]
     #[test]
     fn bazin_fit_noisy_ceres() {
         bazin_fit_noisy(BazinFit::new(
@@ -469,7 +469,7 @@ mod tests {
         ));
     }
 
-    #[cfg(feature = "ceres-source")]
+    #[cfg(any(feature = "ceres-source", feature = "ceres-system"))]
     #[test]
     fn bazin_fit_noizy_mcmc_plus_ceres() {
         let ceres = CeresCurveFit::default();
@@ -482,7 +482,7 @@ mod tests {
     }
 
     // Currently fails, we need better support of bounds from ceres-solver Rust crate
-    // #[cfg(feature = "ceres-source")]
+    // #[cfg(any(feature = "ceres-source", feature = "ceres-system"))]
     // #[test]
     // fn bazin_fit_noizy_ceres_with_bounds() {
     //     let lmsder = CeresCurveFit::new();
@@ -498,7 +498,7 @@ mod tests {
     //     ));
     // }
 
-    #[cfg(feature = "ceres-source")]
+    #[cfg(any(feature = "ceres-source", feature = "ceres-system"))]
     #[test]
     fn bazin_fit_noizy_mcmc_plus_ceres_and_bounds() {
         let ceres = CeresCurveFit::default();

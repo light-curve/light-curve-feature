@@ -29,7 +29,7 @@ mod lnerfc;
 
 mod nl_fit;
 pub use nl_fit::evaluator::FitFeatureEvaluatorGettersTrait;
-#[cfg(feature = "ceres-source")]
+#[cfg(any(feature = "ceres-source", feature = "ceres-system"))]
 pub use nl_fit::CeresCurveFit;
 #[cfg(feature = "gsl")]
 pub use nl_fit::LmsderCurveFit;

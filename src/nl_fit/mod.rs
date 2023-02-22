@@ -1,11 +1,14 @@
 pub(self) mod bounds;
 
-#[cfg(feature = "ceres-source")]
+#[cfg(any(feature = "ceres-source", feature = "ceres-system"))]
 pub mod ceres;
-#[cfg(feature = "ceres-source")]
+#[cfg(any(feature = "ceres-source", feature = "ceres-system"))]
 pub use ceres::CeresCurveFit;
 
-#[cfg(any(feature = "gsl", feature = "ceres-source"))]
+#[cfg(any(
+    feature = "gsl",
+    any(feature = "ceres-source", feature = "ceres-system")
+))]
 pub(self) mod constants;
 
 pub mod curve_fit;
