@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `CeresCurveFit` and optional `ceres-source` and `ceres-system` Cargo features to use Ceres Solver for curve fitting https://github.com/light-curve/light-curve-feature/issues/92 https://github.com/light-curve/light-curve-feature/pull/98 https://github.com/light-curve/light-curve-feature/pull/100
+--
 
 ### Changed
 
@@ -30,6 +30,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 --
+
+
+## [0.5.4] 2023 March 15
+
+### Added
+
+- `CeresCurveFit` and optional `ceres-source` and `ceres-system` Cargo features to use Ceres Solver for curve fitting https://github.com/light-curve/light-curve-feature/issues/92 https://github.com/light-curve/light-curve-feature/pull/98 https://github.com/light-curve/light-curve-feature/pull/100
 
 
 ## [0.5.3] 2023 February 16
