@@ -128,6 +128,29 @@ jobs:
           submodules: true
       - run: cargo clippy --all-targets -- -D warnings
 
+  coverage:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+      - name: Generate code coverage
+        run: |
+          cargo llvm-cov --no-report --no-default-features --features=ceres-source,fftw-source,gsl
+          cargo llvm-cov run --example=plot_snia_curve_fits --no-report --no-default-features --features=ceres-source,fftw-source,gsl -- -n=1
+          cargo llvm-cov report --lcov --output-path lcov.info
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: lcov.info
+          fail_ci_if_error: true
+
   arm:
     runs-on: [self-hosted, linux, ARM64]
 
