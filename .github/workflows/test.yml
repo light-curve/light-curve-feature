@@ -133,6 +133,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+        with:
+          submodules: true
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
@@ -148,7 +150,6 @@ jobs:
         with:
           files: lcov.info
           fail_ci_if_error: true
-
 
   arm:
     runs-on: [self-hosted, linux, ARM64]
