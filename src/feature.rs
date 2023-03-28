@@ -3,6 +3,7 @@ use crate::extractor::FeatureExtractor;
 use crate::features::*;
 use crate::float_trait::Float;
 use crate::time_series::TimeSeries;
+use crate::transformers::Transformer;
 
 use enum_dispatch::enum_dispatch;
 use std::fmt::Debug;
@@ -56,6 +57,7 @@ where
     StetsonK,
     TimeMean,
     TimeStandardDeviation,
+    Transformed(Transformed<T, Self, Transformer<T>>),
     VillarFit,
     WeightedMean,
 }

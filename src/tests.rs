@@ -267,13 +267,13 @@ fn eval_info_sorting_required_test(
 
 #[macro_export]
 macro_rules! serialization_name_test {
-    ($feature: ty) => {
+    ($feature_type: ty, $feature_expr: expr) => {
         #[test]
         fn serialization_name() {
-            let feature = <$feature>::default();
+            let feature = $feature_expr;
             let actual_name = serde_type_name::type_name(&feature).unwrap();
 
-            let str_type = stringify!($feature);
+            let str_type = stringify!($feature_type);
             let desired_name = match str_type.split_once('<') {
                 Some((name, _)) => name,
                 None => str_type,
@@ -281,6 +281,9 @@ macro_rules! serialization_name_test {
 
             assert_eq!(actual_name, desired_name);
         }
+    };
+    ($feature_type: ty) => {
+        serialization_name_test!($feature_type, <$feature_type>::default());
     };
 }
 
@@ -366,6 +369,63 @@ macro_rules! check_feature {
         serde_json_test!(ser_json_de, $feature, <$feature>::default());
         check_doc_static_method!(doc_static_method, $feature);
         check_finite!(check_values_finite, <$feature>::default());
+    };
+}
+
+#[macro_export]
+macro_rules! transformer_check_doc_static_method {
+    ($name: ident, $transformer: ty) => {
+        #[test]
+        fn $name() {
+            let doc = <$transformer>::doc();
+            assert!(doc.len() > 10);
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! transformer_check_size_hint {
+    ($name: ident, $transformer: expr, $type: ty) => {
+        #[test]
+        fn $name() {
+            let transformer = $transformer;
+            const SIZE_RANGE: std::ops::RangeInclusive<usize> = 0..=20;
+            let valid_sizes_count = SIZE_RANGE
+                .filter(|&feature_size| transformer.is_size_valid(feature_size))
+                .map(|feature_size| {
+                    let transformer_size_hint = transformer.size_hint(feature_size);
+
+                    // Check output size
+                    let input = vec![1.0; feature_size];
+                    let output = transformer.transform(input);
+                    assert_eq!(output.len(), transformer_size_hint);
+
+                    // Check names size
+                    let input_names = vec!["XXX"; feature_size];
+                    let output_names = transformer.names(&input_names);
+                    assert_eq!(output_names.len(), transformer_size_hint);
+
+                    // Check descriptions size
+                    let input_descriptions = vec!["XXX ###"; feature_size];
+                    let output_descriptions = transformer.descriptions(&input_descriptions);
+                    assert_eq!(output_descriptions.len(), transformer_size_hint);
+                })
+                .count();
+            assert!(
+                valid_sizes_count > 0,
+                "No valid sizes for transformer {} in range {:?}",
+                stringify!($type),
+                SIZE_RANGE
+            );
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! check_transformer {
+    ($transformer: ty) => {
+        transformer_check_doc_static_method!(check_doc_static_method, $transformer);
+        transformer_check_size_hint!(check_size_hint, <$transformer>::default(), $transformer);
     };
 }
 

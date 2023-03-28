@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
---
+- Feature transformations and `Transformed` feature. New `Transformer` enum and structs implementing new `TransformerTrait` are added to represent various useful transformations of features. `Transformed` feature is a wrapper around a feature and a transformer. It implements `FeatureEvaluator` trait and applies the transformer to the feature value. https://github.com/light-curve/light-curve-feature/issues/107 https://github.com/light-curve/light-curve-feature/pull/108
 
 ### Changed
 
