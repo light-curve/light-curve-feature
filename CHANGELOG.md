@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
---
+- `Bins::min_ts_length()` always returned 1. For this feature this value is always a lower limit, because binning could reduce number of observations to 1. However, now Bins updates this value according to underlying features to give a more reasonable lower limit. https://github.com/light-curve/light-curve-feature/pull/109
 
 ### Security
 
