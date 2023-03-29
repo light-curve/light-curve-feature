@@ -48,12 +48,19 @@ macro_rules! eval_info_test {
     ($name: ident, $eval: expr $(,)?) => {
         #[test]
         fn $name() {
-            eval_info_tests($eval.into());
+            eval_info_tests($eval.into(), true, true, true, true, true);
         }
     };
 }
 
-pub fn eval_info_tests(eval: Feature<f64>) {
+pub fn eval_info_tests(
+    eval: Feature<f64>,
+    test_ts_length: bool,
+    test_t_required: bool,
+    test_m_required: bool,
+    test_w_required: bool,
+    test_sorting_required: bool,
+) {
     const N: usize = 128;
 
     let mut rng = StdRng::seed_from_u64(0);
@@ -81,27 +88,37 @@ pub fn eval_info_tests(eval: Feature<f64>) {
     let baseline = eval.eval(&mut TimeSeries::new(&t_sorted, &m, &w)).unwrap();
     check_size(&baseline);
 
-    for n in 0..10 {
-        eval_info_ts_length_test(&eval, &t_sorted, &m, &w, n)
+    if test_ts_length {
+        for n in 0..10 {
+            eval_info_ts_length_test(&eval, &t_sorted, &m, &w, n)
+                .as_ref()
+                .map(check_size);
+        }
+    }
+
+    if test_t_required {
+        check_size(&eval_info_t_required_test(
+            &eval, &baseline, &t_sorted, &m, &w, &mut rng,
+        ));
+    }
+
+    if test_m_required {
+        check_size(&eval_info_m_required_test(
+            &eval, &baseline, &t_sorted, &m, &w, &mut rng,
+        ));
+    }
+
+    if test_w_required {
+        check_size(&eval_info_w_required_test(
+            &eval, &baseline, &t_sorted, &m, &w, &mut rng,
+        ));
+    }
+
+    if test_sorting_required {
+        eval_info_sorting_required_test(&eval, &baseline, &t, &m, &w)
             .as_ref()
             .map(check_size);
     }
-
-    check_size(&eval_info_t_required_test(
-        &eval, &baseline, &t_sorted, &m, &w, &mut rng,
-    ));
-
-    check_size(&eval_info_m_required_test(
-        &eval, &baseline, &t_sorted, &m, &w, &mut rng,
-    ));
-
-    check_size(&eval_info_w_required_test(
-        &eval, &baseline, &t_sorted, &m, &w, &mut rng,
-    ));
-
-    eval_info_sorting_required_test(&eval, &baseline, &t, &m, &w)
-        .as_ref()
-        .map(check_size);
 }
 
 fn eval_info_ts_length_test(
