@@ -92,6 +92,8 @@ where
         let window = self.window;
         let offset = self.offset;
         self.properties.info.size += feature.size_hint();
+        self.properties.info.min_ts_length =
+            usize::max(self.properties.info.min_ts_length, feature.min_ts_length());
         self.properties.names.extend(
             feature
                 .get_names()
@@ -264,7 +266,7 @@ where
 #[allow(clippy::excessive_precision)]
 mod tests {
     use super::*;
-    use crate::features::Amplitude;
+    use crate::features::{Amplitude, EtaE, LinearFit};
     use crate::tests::*;
 
     serialization_name_test!(Bins<f64, Feature<f64>>);
@@ -285,7 +287,52 @@ mod tests {
         bins
     });
 
+    #[test]
+    fn bins_with_eta_e_info() {
+        let eval = {
+            let mut bins = Bins::new(1e-100, 0.0);
+            bins.add_feature(EtaE::default().into());
+            bins.into()
+        };
+        // Bins are tiny, so no actual binning happens and min_ts_length must be right
+        // Wrong times must give wrong answer, so t_required must be checked
+        eval_info_tests(
+            eval,  // feature
+            true,  // test_min_ts_length. Bins are tiny, so no actual binning happens
+            true, // test_t_required. Times are essential for EtaE, wrong times must give wrong answers
+            true, // m_required. EtaE needs magnitudes
+            false, // test_w_required. EtaE doesn't need weights and no binning happens, so they are not used and test would fail
+            true,  // test_sorting_required. Sorting is essential for binning
+        );
+    }
+
+    #[test]
+    fn bins_with_linear_fit_info() {
+        let eval = {
+            let mut bins = Bins::new(1.0, 0.0);
+            bins.add_feature(LinearFit::default().into());
+            bins.into()
+        };
+        // Bins are tiny, so no actual binning happens and min_ts_length must be right
+        // Wrong times must give wrong answer, so t_required must be checked
+        eval_info_tests(
+            eval,  // feature
+            false, // test_min_ts_length. Bins has significant size, so actual binning happens and min_ts_length must be lower limit
+            true, // test_t_required. Times are essential for EtaE, wrong times must give wrong answers
+            true, // m_required. EtaE needs magnitudes
+            true, // test_w_required. EtaE doesn't need weights and no binning happens, so they are not used and test would fail
+            true, // test_sorting_required. Sorting is essential for binning
+        );
+    }
+
     check_doc_static_method!(bins_doc_static_method, Bins<f64, Feature<f64>>);
+
+    check_finite!(check_values_finite, {
+        let mut bins: Bins<_, Feature<_>> = Bins::default();
+        bins.add_feature(Amplitude::default().into());
+        bins.add_feature(EtaE::default().into());
+        bins
+    });
 
     #[test]
     fn bins() {
