@@ -71,7 +71,7 @@ where
 }
 
 impl<T> MedianBufferRangePercentage<T> {
-    pub fn doc() -> &'static str {
+    pub const fn doc() -> &'static str {
         DOC
     }
 }

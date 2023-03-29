@@ -66,7 +66,7 @@ impl InterPercentileRange {
         0.25
     }
 
-    pub fn doc() -> &'static str {
+    pub const fn doc() -> &'static str {
         DOC
     }
 }

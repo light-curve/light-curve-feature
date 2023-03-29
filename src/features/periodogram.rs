@@ -86,7 +86,7 @@ impl PeriodogramPeaks {
         1
     }
 
-    pub fn doc() -> &'static str {
+    pub const fn doc() -> &'static str {
         PERIODOGRAM_PEAK_DOC
     }
 }
@@ -347,7 +347,7 @@ impl<T, F> Periodogram<T, F>
 where
     T: Float,
 {
-    pub fn doc() -> &'static str {
+    pub const fn doc() -> &'static str {
         DOC
     }
 }

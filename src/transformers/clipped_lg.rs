@@ -27,7 +27,7 @@ where
         f64::MIN_POSITIVE.log10().approx().unwrap()
     }
 
-    pub fn doc() -> &'static str {
+    pub const fn doc() -> &'static str {
         DOC
     }
 

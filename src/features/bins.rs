@@ -130,7 +130,7 @@ where
     T: Float,
     F: FeatureEvaluator<T>,
 {
-    pub fn doc() -> &'static str {
+    pub const fn doc() -> &'static str {
         DOC
     }
 
