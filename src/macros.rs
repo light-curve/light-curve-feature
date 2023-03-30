@@ -114,7 +114,7 @@ macro_rules! json_schema {
     };
 }
 
-/// Helper implemnting *Fit feature evaluators
+/// Helper implementing *Fit feature evaluators
 /// You must:
 /// - implement all traits of [nl_fit::evaluator]
 /// - satisfy all [FeatureEvaluator] trait constraints

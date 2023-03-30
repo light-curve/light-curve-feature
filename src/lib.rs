@@ -52,6 +52,9 @@ mod straight_line_fit;
 #[doc(hidden)]
 pub use straight_line_fit::fit_straight_line;
 
+pub mod transformers;
+pub use transformers::{Transformer, TransformerTrait};
+
 mod peak_indices;
 #[doc(hidden)]
 pub use peak_indices::peak_indices;

@@ -103,6 +103,9 @@ pub use time_mean::TimeMean;
 mod time_standard_deviation;
 pub use time_standard_deviation::TimeStandardDeviation;
 
+mod transformed;
+pub use transformed::Transformed;
+
 mod villar_fit;
 pub use villar_fit::{VillarFit, VillarInitsBounds, VillarLnPrior};
 
