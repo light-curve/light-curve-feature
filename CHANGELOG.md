@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Feature transformations and `Transformed` feature. New `Transformer` enum and structs implementing new `TransformerTrait` are added to represent various useful transformations of features. `Transformed` feature is a wrapper around a feature and a transformer. It implements `FeatureEvaluator` trait and applies the transformer to the feature value. https://github.com/light-curve/light-curve-feature/issues/107 https://github.com/light-curve/light-curve-feature/pull/108
+--
 
 ### Changed
 
@@ -25,11 +25,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- `Bins::min_ts_length()` always returned 1. For this feature this value is always a lower limit, because binning could reduce number of observations to 1. However, now Bins updates this value according to underlying features to give a more reasonable lower limit. https://github.com/light-curve/light-curve-feature/pull/109
+--
 
 ### Security
 
 --
+
+
+# [0.5.5] 2023 March 30
+
+### Added
+
+- Feature transformations and `Transformed` feature. New `Transformer` enum and structs implementing new `TransformerTrait` are added to represent various useful transformations of features. `Transformed` feature is a wrapper around a feature and a transformer. It implements `FeatureEvaluator` trait and applies the transformer to the feature value. https://github.com/light-curve/light-curve-feature/issues/107 https://github.com/light-curve/light-curve-feature/pull/108
+
+### Fixed
+
+- `Bins::min_ts_length()` always returned 1. For this feature this value is always a lower limit, because binning could reduce number of observations to 1. However, now Bins updates this value according to underlying features to give a more reasonable lower limit. https://github.com/light-curve/light-curve-feature/pull/109
 
 
 ## [0.5.4] 2023 March 15
