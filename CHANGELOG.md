@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **Breaking:** {Bazin,Villar}Fit requires variability now and do not accept flat time series anymore https://github.com/light-curve/light-curve-feature/issues/112
+- **Breaking:** {Bazin,Villar}Fit requires variability now and do not accept flat time series anymore https://github.com/light-curve/light-curve-feature/issues/112 https://github.com/light-curve/light-curve-feature/pull/113
 
 ### Security
 

@@ -426,6 +426,7 @@ mod tests {
         linspace(0.0, 1e-100, 11), // make it a bit non-flat
     );
 
+    #[test]
     fn bazin_fit_plateau() {
         let fe = BazinFit::default();
         let t = linspace(0.0, 10.0, 11);
