@@ -7,6 +7,7 @@ pub use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::fmt::Debug;
 
+/// A passband specified by a single wavelength.
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct MonochromePassband<'a, T> {
     pub name: &'a str,
@@ -17,6 +18,11 @@ impl<'a, T> MonochromePassband<'a, T>
 where
     T: Float,
 {
+    /// Create a new `MonochromePassband`.
+    ///
+    /// # Arguments
+    /// - `wavelength`: The wavelength of the passband, panic if it is not a positive normal number.
+    /// - `name`: The name of the passband.
     pub fn new(wavelength: T, name: &'a str) -> Self {
         assert!(
             wavelength.is_normal(),
@@ -65,5 +71,17 @@ where
 {
     fn name(&self) -> &str {
         self.name
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_monochrome_passband() {
+        let passband = MonochromePassband::new(1.0, "test");
+        assert_eq!(passband.name(), "test");
+        assert_eq!(passband.wavelength, 1.0);
     }
 }

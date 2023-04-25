@@ -11,6 +11,10 @@ pub use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 use std::fmt::Debug;
 
+/// Difference of minimum magnitudes of two passbands
+///
+/// Note that minimum is calculated for each passband separately, and maximum has mathematical
+/// meaning, not "magnitudial" (astronomical) one.
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(bound(deserialize = "P: PassbandTrait + Deserialize<'de>"))]
 pub struct ColorOfMinimum<P>
@@ -27,6 +31,10 @@ impl<P> ColorOfMinimum<P>
 where
     P: PassbandTrait,
 {
+    /// Create new [ColorOfMinimum] evaluator
+    ///
+    /// # Arguments
+    /// - `passbands` - two passbands
     pub fn new(passbands: [P; 2]) -> Self {
         let set: BTreeSet<_> = passbands.clone().into();
         Self {

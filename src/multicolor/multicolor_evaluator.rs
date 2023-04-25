@@ -16,14 +16,20 @@ pub use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 use std::fmt::Debug;
 
+/// Trait for getting alphabetically sorted passbands
 #[enum_dispatch]
 pub trait MultiColorPassbandSetTrait<P>
 where
     P: PassbandTrait,
 {
+    /// Get passband set for this evaluator
     fn get_passband_set(&self) -> &PassbandSet<P>;
 }
 
+/// Enum for passband set, which can be either fixed set or all available passbands.
+/// This is used for [MultiColorEvaluator]s, which can be evaluated on all available passbands
+/// (for example [MultiColorPeriodogram](super::features::MultiColorPeriodogram)) or on fixed set of
+/// passbands (for example [ColorOfMaximum](super::ColorOfMaximum)).
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(bound(deserialize = "P: PassbandTrait + Deserialize<'de>"))]
 #[non_exhaustive]
@@ -31,7 +37,9 @@ pub enum PassbandSet<P>
 where
     P: Ord,
 {
+    /// Fixed set of passbands
     FixedSet(BTreeSet<P>),
+    /// All available passbands
     AllAvailable,
 }
 
@@ -44,6 +52,7 @@ where
     }
 }
 
+/// Helper error for [MultiColorEvaluator]
 enum InternalMctsError {
     MultiColorEvaluatorError(MultiColorEvaluatorError),
     InternalWrongPassbandSet,
@@ -78,6 +87,7 @@ impl InternalMctsError {
     }
 }
 
+/// Trait for multi-color feature evaluators
 #[enum_dispatch]
 pub trait MultiColorEvaluator<P, T>:
     FeatureNamesDescriptionsTrait

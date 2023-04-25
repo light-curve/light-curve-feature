@@ -4,7 +4,6 @@ use crate::evaluator::TmArrays;
 use crate::evaluator::{
     EvaluatorInfo, EvaluatorInfoTrait, FeatureEvaluator, FeatureNamesDescriptionsTrait, OwnedArrays,
 };
-
 use crate::features::{Periodogram, PeriodogramPeaks};
 use crate::float_trait::Float;
 use crate::multicolor::multicolor_evaluator::*;
@@ -12,9 +11,9 @@ use crate::multicolor::{PassbandSet, PassbandTrait};
 use crate::periodogram::{self, NyquistFreq, PeriodogramPower};
 
 use ndarray::Array1;
-
 use std::fmt::Debug;
 
+/// Multi-passband periodogram
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(
     bound = "T: Float, F: FeatureEvaluator<T> + From<PeriodogramPeaks> + TryInto<PeriodogramPeaks>, <F as TryInto<PeriodogramPeaks>>::Error: Debug,"
