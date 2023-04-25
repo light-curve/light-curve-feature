@@ -21,6 +21,7 @@ where
     pub m: DataSample<'a, T>,
     pub w: DataSample<'a, T>,
     m_weighted_mean: Option<T>,
+    m_chi2: Option<T>,
     m_reduced_chi2: Option<T>,
     t_max_m: Option<T>,
     t_min_m: Option<T>,
@@ -84,6 +85,7 @@ where
             m,
             w,
             m_weighted_mean: None,
+            m_chi2: None,
             m_reduced_chi2: None,
             t_max_m: None,
             t_min_m: None,
@@ -116,6 +118,7 @@ where
             m,
             w,
             m_weighted_mean: None,
+            m_chi2: None,
             m_reduced_chi2: None,
             t_max_m: None,
             t_min_m: None,
@@ -140,20 +143,23 @@ where
         |ts: &mut TimeSeries<T>| { ts.m.sample.weighted_mean(&ts.w.sample).unwrap() }
     );
 
-    time_series_getter!(m_reduced_chi2, get_m_reduced_chi2, |ts: &mut TimeSeries<
-        T,
-    >| {
+    time_series_getter!(m_chi2, get_m_chi2, |ts: &mut TimeSeries<T>| {
         let m_weighed_mean = ts.get_m_weighted_mean();
-        let m_reduced_chi2 = Zip::from(&ts.m.sample)
+        let m_chi2 = Zip::from(&ts.m.sample)
             .and(&ts.w.sample)
             .fold(T::zero(), |chi2, &m, &w| {
                 chi2 + (m - m_weighed_mean).powi(2) * w
-            })
-            / (ts.lenf() - T::one());
-        if m_reduced_chi2.is_zero() {
+            });
+        if m_chi2.is_zero() {
             ts.plateau = Some(true);
         }
-        m_reduced_chi2
+        m_chi2
+    });
+
+    time_series_getter!(m_reduced_chi2, get_m_reduced_chi2, |ts: &mut TimeSeries<
+        T,
+    >| {
+        ts.get_m_chi2() / (ts.lenf() - T::one())
     });
 
     time_series_getter!(bool, plateau, is_plateau, |ts: &mut TimeSeries<T>| {

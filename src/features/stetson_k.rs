@@ -62,12 +62,11 @@ where
     T: Float,
 {
     fn eval_no_ts_check(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
-        let chi2 = ts.get_m_reduced_chi2() * (ts.lenf() - T::one());
         let mean = ts.get_m_weighted_mean();
         let value = Zip::from(&ts.m.sample)
             .and(&ts.w.sample)
             .fold(T::zero(), |acc, &y, &w| acc + T::abs(y - mean) * T::sqrt(w))
-            / T::sqrt(ts.lenf() * chi2);
+            / T::sqrt(ts.lenf() * ts.get_m_chi2());
         Ok(vec![value])
     }
 }
