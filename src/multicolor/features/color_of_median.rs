@@ -1,8 +1,6 @@
 use crate::data::MultiColorTimeSeries;
 use crate::error::MultiColorEvaluatorError;
-use crate::evaluator::{
-    EvaluatorInfo, EvaluatorInfoTrait, FeatureEvaluator, FeatureNamesDescriptionsTrait,
-};
+use crate::evaluator::{EvaluatorInfoTrait, FeatureEvaluator, FeatureNamesDescriptionsTrait};
 use crate::features::Median;
 use crate::float_trait::Float;
 use crate::multicolor::multicolor_evaluator::*;
@@ -10,7 +8,7 @@ use crate::multicolor::{PassbandSet, PassbandTrait};
 
 pub use lazy_static::lazy_static;
 pub use schemars::JsonSchema;
-pub use serde::{Deserialize, Serialize};
+pub use serde::Serialize;
 use std::collections::BTreeSet;
 use std::fmt::Debug;
 

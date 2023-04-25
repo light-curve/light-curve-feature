@@ -1,16 +1,14 @@
 use crate::data::{MultiColorTimeSeries, TimeSeries};
 use crate::error::MultiColorEvaluatorError;
-use crate::evaluator::{EvaluatorInfo, EvaluatorInfoTrait, FeatureNamesDescriptionsTrait};
-use crate::feature::Feature;
+use crate::evaluator::{EvaluatorInfoTrait, FeatureNamesDescriptionsTrait};
 use crate::float_trait::Float;
 use crate::multicolor::features::{ColorOfMaximum, ColorOfMedian, ColorOfMinimum};
 use crate::multicolor::multicolor_evaluator::*;
 use crate::multicolor::{MonochromeFeature, MultiColorExtractor};
 
 use enum_dispatch::enum_dispatch;
-pub use lazy_static::lazy_static;
 pub use schemars::JsonSchema;
-pub use serde::{Deserialize, Serialize};
+pub use serde::Serialize;
 use std::collections::BTreeSet;
 use std::fmt::Debug;
 

@@ -123,7 +123,7 @@ impl OtsuSplit {
             return Err(EvaluatorError::FlatTimeSeries);
         }
 
-        return Ok(Self::threshold_no_ds_check(ds));
+        Ok(Self::threshold_no_ds_check(ds))
     }
 }
 

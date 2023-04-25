@@ -295,9 +295,11 @@ fn eval_info_variability_required_test(
         //         v
         //     ))
         //     .is_err()),
-        (Ok(result), false) => assert!(result
-            .map(|v| assert!(v.into_iter().all(f64::is_finite)))
-            .is_ok()),
+        (Ok(result), false) => assert!(
+            result
+                .map(|v| assert!(v.into_iter().all(f64::is_finite)))
+                .is_ok()
+        ),
         (Err(_err), true) => {}
         (Err(err), false) => panic!("{:?}", err),
     }

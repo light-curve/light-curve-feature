@@ -1,13 +1,12 @@
 use crate::data::MultiColorTimeSeries;
 use crate::error::MultiColorEvaluatorError;
-use crate::evaluator::{EvaluatorInfo, EvaluatorInfoTrait, FeatureNamesDescriptionsTrait};
+use crate::evaluator::{EvaluatorInfoTrait, FeatureNamesDescriptionsTrait};
 use crate::float_trait::Float;
 use crate::multicolor::multicolor_evaluator::*;
 
 use itertools::Itertools;
-pub use lazy_static::lazy_static;
 pub use schemars::JsonSchema;
-pub use serde::{Deserialize, Serialize};
+pub use serde::Serialize;
 use std::collections::BTreeSet;
 use std::fmt::Debug;
 use std::marker::PhantomData;

@@ -3,7 +3,7 @@ use crate::float_trait::Float;
 use crate::types::CowArray1;
 
 use conv::prelude::*;
-use ndarray::{s, Array1, ArrayView1, Zip};
+use ndarray::{Array1, ArrayView1, Zip, s};
 
 /// A [`TimeSeries`] component
 #[derive(Clone, Debug)]
@@ -291,7 +291,9 @@ mod tests {
         data_sample_median_even,
         get_median,
         5.655794743124782,
-        [9.47981408, 3.86815751, 9.90299294, -2.986894, 7.44343197, 1.52751816],
+        [
+            9.47981408, 3.86815751, 9.90299294, -2.986894, 7.44343197, 1.52751816
+        ],
     );
 
     data_sample_test!(

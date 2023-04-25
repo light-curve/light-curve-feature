@@ -1,7 +1,7 @@
 pub use crate::data::MultiColorTimeSeries;
 pub use crate::error::MultiColorEvaluatorError;
 pub use crate::evaluator::{
-    EvaluatorError, EvaluatorInfo, EvaluatorInfoTrait, EvaluatorProperties, FeatureEvaluator,
+    EvaluatorError, EvaluatorInfo, EvaluatorInfoTrait, FeatureEvaluator,
     FeatureNamesDescriptionsTrait,
 };
 pub use crate::feature::Feature;
@@ -10,7 +10,6 @@ pub use crate::multicolor::PassbandTrait;
 
 use enum_dispatch::enum_dispatch;
 use itertools::Itertools;
-pub use lazy_static::lazy_static;
 pub use schemars::JsonSchema;
 pub use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
@@ -168,6 +167,7 @@ mod tests {
     use super::*;
     use crate::data::TimeSeries;
     use crate::multicolor::MonochromePassband;
+    use lazy_static::lazy_static;
 
     use std::collections::BTreeMap;
 

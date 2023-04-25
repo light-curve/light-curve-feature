@@ -1,7 +1,6 @@
 use crate::float_trait::Float;
 use crate::multicolor::PassbandTrait;
 
-pub use lazy_static::lazy_static;
 pub use schemars::JsonSchema;
 pub use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
@@ -46,7 +45,7 @@ where
     T: Float,
 {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        (self.wavelength).partial_cmp(&other.wavelength)
+        Some(self.cmp(other))
     }
 }
 

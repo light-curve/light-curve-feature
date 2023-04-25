@@ -18,9 +18,9 @@ pub enum MultiColorTimeSeries<'a, P: PassbandTrait, T: Float> {
     },
 }
 
-impl<'a, 'p, P, T> MultiColorTimeSeries<'a, P, T>
+impl<'a, P, T> MultiColorTimeSeries<'a, P, T>
 where
-    P: PassbandTrait + 'p,
+    P: PassbandTrait,
     T: Float,
 {
     pub fn from_map(map: impl Into<BTreeMap<P, TimeSeries<'a, T>>>) -> Self {
@@ -96,7 +96,7 @@ where
         &'slf self,
     ) -> Either<
         std::collections::btree_map::Keys<'slf, P, TimeSeries<'a, T>>,
-        std::collections::btree_set::Iter<P>,
+        std::collections::btree_set::Iter<'slf, P>,
     >
     where
         'a: 'slf,
@@ -130,7 +130,7 @@ where
             flat.w.as_slice().iter(),
             flat.passbands.iter(),
         ))
-        .group_by(|(_t, _m, _w, p)| (*p).clone());
+        .chunk_by(|(_t, _m, _w, p)| (*p).clone());
         for (p, group) in &groups {
             let (t_vec, m_vec, w_vec) = map
                 .entry(p.clone())
@@ -160,7 +160,7 @@ where
     pub fn iter_passband_set<'slf, 'ps>(
         &'slf self,
         passband_set: &'ps PassbandSet<P>,
-    ) -> impl Iterator<Item = (&P, Option<&TimeSeries<'a, T>>)> + 'slf
+    ) -> impl Iterator<Item = (&'slf P, Option<&'slf TimeSeries<'a, T>>)> + 'slf
     where
         'a: 'slf,
         'ps: 'a,
@@ -174,7 +174,7 @@ where
     pub fn iter_passband_set_mut<'slf, 'ps>(
         &'slf mut self,
         passband_set: &'ps PassbandSet<P>,
-    ) -> impl Iterator<Item = (&P, Option<&mut TimeSeries<'a, T>>)> + 'slf
+    ) -> impl Iterator<Item = (&'slf P, Option<&'slf mut TimeSeries<'a, T>>)> + 'slf
     where
         'a: 'slf,
         'ps: 'a,

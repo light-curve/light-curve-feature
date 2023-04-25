@@ -1,5 +1,5 @@
-use crate::periodogram::PeriodogramPowerError;
 use crate::PassbandTrait;
+use crate::periodogram::PeriodogramPowerError;
 
 use std::collections::BTreeSet;
 
