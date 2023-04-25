@@ -108,8 +108,8 @@ lazy_info!(
     t_required: true,
     m_required: true,
     w_required: true,
-    sorting_required: true, // improve reproducibility
-    variability_required: false,
+    sorting_required: true, // improves reproducibility
+    variability_required: true,
 );
 
 struct Params<'a, T> {
@@ -419,12 +419,21 @@ mod tests {
     check_feature!(BazinFit);
 
     feature_test!(
-        bazin_fit_plateau,
+        bazin_fit_almost_plateau,
         [BazinFit::default()],
         [0.0, 0.0, 10.0, 5.0, 5.0, 0.0], // initial model parameters and zero chi2
         linspace(0.0, 10.0, 11),
-        [0.0; 11],
+        linspace(0.0, 1e-100, 11), // make it a bit non-flat
     );
+
+    #[test]
+    fn bazin_fit_plateau() {
+        let fe = BazinFit::default();
+        let t = linspace(0.0, 10.0, 11);
+        let f = [0.0; 11];
+        let mut ts = TimeSeries::new_without_weight(&t, &f);
+        assert!(fe.eval(&mut ts).is_err());
+    }
 
     fn bazin_fit_noisy(eval: BazinFit) {
         const N: usize = 50;

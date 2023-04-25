@@ -126,8 +126,8 @@ lazy_info!(
     t_required: true,
     m_required: true,
     w_required: true,
-    sorting_required: true, // improve reproducibility
-    variability_required: false,
+    sorting_required: true, // improves reproducibility
+    variability_required: true,
 );
 
 impl<T, U> FitModelTrait<T, U, NPARAMS> for VillarFit
@@ -610,12 +610,21 @@ mod tests {
     check_feature!(VillarFit);
 
     feature_test!(
-        villar_fit_plateau,
+        villar_fit_almost_plateau,
         [VillarFit::default()],
         [0.0, 0.0, 10.0, 5.0, 5.0, 0.0, 1.0, 0.0], // initial model parameters and zero chi2
         linspace(0.0, 10.0, 11),
-        [0.0; 11],
+        linspace(0.0, 1e-100, 11), // make it a bit non-flat
     );
+
+    #[test]
+    fn villar_fit_plateau() {
+        let fe = VillarFit::default();
+        let t = linspace(0.0, 10.0, 11);
+        let f = [0.0; 11];
+        let mut ts = TimeSeries::new_without_weight(&t, &f);
+        assert!(fe.eval(&mut ts).is_err());
+    }
 
     #[cfg(any(
         feature = "gsl",
