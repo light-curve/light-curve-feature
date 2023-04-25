@@ -12,6 +12,10 @@ use std::iter;
 macro_const! {
     const PERIODOGRAM_PEAKS_DOC: &'static str = r#"
 Peak evaluator for [Periodogram]
+
+- Depends on: **time**, **magnitude** (which have meaning of frequency and spectral density)
+- Minimum number of observations: **1**
+- Number of features: **2 * npeaks**
 "#;
 }
 
@@ -148,4 +152,12 @@ impl From<PeriodogramPeaksParameters> for PeriodogramPeaks {
 
 impl JsonSchema for PeriodogramPeaks {
     json_schema!(PeriodogramPeaksParameters, false);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tests::*;
+
+    check_feature!(PeriodogramPeaks);
 }
