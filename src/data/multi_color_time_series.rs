@@ -10,6 +10,7 @@ use itertools::Itertools;
 use std::collections::{BTreeMap, BTreeSet};
 use std::ops::{Deref, DerefMut};
 
+#[derive(Clone, Debug)]
 pub enum MultiColorTimeSeries<'a, P: PassbandTrait, T: Float> {
     Mapping(MappedMultiColorTimeSeries<'a, P, T>),
     Flat(FlatMultiColorTimeSeries<'a, P, T>),
@@ -40,6 +41,15 @@ where
         }
     }
 
+    pub fn passband_count(&self) -> usize {
+        match self {
+            Self::Mapping(mapping) => mapping.passband_count(),
+            Self::Flat(flat) => flat.passband_count(),
+            // Both flat and mapping have the same number of passbands and should be equally fast
+            Self::MappingFlat { flat, .. } => flat.passband_count(),
+        }
+    }
+
     pub fn from_map(map: impl Into<BTreeMap<P, TimeSeries<'a, T>>>) -> Self {
         Self::Mapping(MappedMultiColorTimeSeries::new(map))
     }
@@ -53,21 +63,43 @@ where
         Self::Flat(FlatMultiColorTimeSeries::new(t, m, w, passbands))
     }
 
-    pub fn mapping_mut(&mut self) -> &mut MappedMultiColorTimeSeries<'a, P, T> {
+    fn ensure_mapping(&mut self) -> &mut Self {
         if matches!(self, MultiColorTimeSeries::Flat(_)) {
-            let dummy_self = Self::Mapping(MappedMultiColorTimeSeries::new(BTreeMap::new()));
-            *self = match std::mem::replace(self, dummy_self) {
+            take_mut::take(self, |slf| match slf {
                 Self::Flat(mut flat) => {
                     let mapping = MappedMultiColorTimeSeries::from_flat(&mut flat);
                     Self::MappingFlat { mapping, flat }
                 }
-                _ => unreachable!(),
+                _ => unreachable!("We just checked that we are in ::Flat variant"),
+            });
+        }
+        self
+    }
+
+    fn enforce_mapping(&mut self) -> &mut Self {
+        match self {
+            Self::Mapping(_) => {}
+            Self::Flat(_flat) => take_mut::take(self, |slf| match slf {
+                Self::Flat(flat) => Self::Mapping(flat.into()),
+                _ => unreachable!("We just checked that we are in ::Flat variant"),
+            }),
+            Self::MappingFlat { .. } => {
+                take_mut::take(self, |slf| match slf {
+                    Self::MappingFlat { mapping, .. } => Self::Mapping(mapping),
+                    _ => unreachable!("We just checked that we are in ::MappingFlat variant"),
+                });
             }
         }
-        match self {
+        self
+    }
+
+    pub fn mapping_mut(&mut self) -> &mut MappedMultiColorTimeSeries<'a, P, T> {
+        match self.ensure_mapping() {
             Self::Mapping(mapping) => mapping,
             Self::Flat(_flat) => {
-                unreachable!("::Flat variant is already transofrmed to ::MappingFlat")
+                unreachable!(
+                    "::Flat variant is already transformed to ::MappingFlat in ensure_mapping"
+                )
             }
             Self::MappingFlat { mapping, .. } => mapping,
         }
@@ -81,20 +113,25 @@ where
         }
     }
 
-    pub fn flat_mut(&mut self) -> &mut FlatMultiColorTimeSeries<'a, P, T> {
+    fn ensure_flat(&mut self) -> &mut Self {
         if matches!(self, MultiColorTimeSeries::Mapping(_)) {
-            let dummy_self = Self::Mapping(MappedMultiColorTimeSeries::new(BTreeMap::new()));
-            *self = match std::mem::replace(self, dummy_self) {
+            take_mut::take(self, |slf| match slf {
                 Self::Mapping(mut mapping) => {
                     let flat = FlatMultiColorTimeSeries::from_mapping(&mut mapping);
                     Self::MappingFlat { mapping, flat }
                 }
-                _ => unreachable!(),
-            }
+                _ => unreachable!("We just checked that we are in ::Mapping variant"),
+            });
         }
-        match self {
+        self
+    }
+
+    pub fn flat_mut(&mut self) -> &mut FlatMultiColorTimeSeries<'a, P, T> {
+        match self.ensure_flat() {
             Self::Mapping(_mapping) => {
-                unreachable!("::Mapping veriant is already transformed to ::MappingFlat")
+                unreachable!(
+                    "::Mapping variant is already transformed to ::MappingFlat in ensure_flat"
+                )
             }
             Self::Flat(flat) => flat,
             Self::MappingFlat { flat, .. } => flat,
@@ -124,11 +161,44 @@ where
             Self::MappingFlat { mapping, .. } => Either::Left(mapping.passbands()),
         }
     }
+
+    /// Inserts new pair of passband and time series into the multicolor time series.
+    ///
+    /// It always converts [MultiColorTimeSeries] to [MultiColorTimeSeries::Mapping] variant.
+    /// Also it replaces existing time series if passband is already present, and returns old time
+    /// series.
+    pub fn insert(&mut self, passband: P, ts: TimeSeries<'a, T>) -> Option<TimeSeries<'a, T>> {
+        match self.enforce_mapping() {
+            Self::Mapping(mapping) => mapping.0.insert(passband, ts),
+            _ => unreachable!("We just converted self to ::Mapping variant"),
+        }
+    }
 }
 
+impl<'a, P, T> Default for MultiColorTimeSeries<'a, P, T>
+where
+    P: PassbandTrait,
+    T: Float,
+{
+    fn default() -> Self {
+        Self::Mapping(MappedMultiColorTimeSeries::new(BTreeMap::new()))
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct MappedMultiColorTimeSeries<'a, P: PassbandTrait, T: Float>(
     BTreeMap<P, TimeSeries<'a, T>>,
 );
+
+impl<'a, P, T> PartialEq for MappedMultiColorTimeSeries<'a, P, T>
+where
+    P: PassbandTrait,
+    T: Float,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.0.eq(&other.0)
+    }
+}
 
 impl<'a, 'p, P, T> MappedMultiColorTimeSeries<'a, P, T>
 where
@@ -171,6 +241,10 @@ where
 
     pub fn total_lenf(&self) -> T {
         self.total_lenu().value_as::<T>().unwrap()
+    }
+
+    pub fn passband_count(&self) -> usize {
+        self.0.len()
     }
 
     pub fn passbands<'slf>(
@@ -267,12 +341,26 @@ impl<'a, P: PassbandTrait, T: Float> DerefMut for MappedMultiColorTimeSeries<'a,
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct FlatMultiColorTimeSeries<'a, P: PassbandTrait, T: Float> {
     pub t: DataSample<'a, T>,
     pub m: DataSample<'a, T>,
     pub w: DataSample<'a, T>,
     pub passbands: Vec<P>,
     passband_set: BTreeSet<P>,
+}
+
+impl<'a, P, T> PartialEq for FlatMultiColorTimeSeries<'a, P, T>
+where
+    P: PassbandTrait,
+    T: Float,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.t == other.t
+            && self.m == other.m
+            && self.w == other.w
+            && self.passbands == other.passbands
+    }
 }
 
 impl<'a, P, T> FlatMultiColorTimeSeries<'a, P, T>
@@ -346,5 +434,128 @@ where
 
     pub fn total_lenf(&self) -> T {
         self.t.sample.len().value_as::<T>().unwrap()
+    }
+
+    pub fn passband_count(&self) -> usize {
+        self.passband_set.len()
+    }
+}
+
+impl<'a, P, T> From<FlatMultiColorTimeSeries<'a, P, T>> for MappedMultiColorTimeSeries<'a, P, T>
+where
+    P: PassbandTrait,
+    T: Float,
+{
+    fn from(mut flat: FlatMultiColorTimeSeries<'a, P, T>) -> Self {
+        Self::from_flat(&mut flat)
+    }
+}
+
+impl<'a, P, T> From<MappedMultiColorTimeSeries<'a, P, T>> for FlatMultiColorTimeSeries<'a, P, T>
+where
+    P: PassbandTrait,
+    T: Float,
+{
+    fn from(mut mapped: MappedMultiColorTimeSeries<'a, P, T>) -> Self {
+        Self::from_mapping(&mut mapped.0)
+    }
+}
+
+impl<'a, P, T> From<FlatMultiColorTimeSeries<'a, P, T>> for MultiColorTimeSeries<'a, P, T>
+where
+    P: PassbandTrait,
+    T: Float,
+{
+    fn from(flat: FlatMultiColorTimeSeries<'a, P, T>) -> Self {
+        Self::Flat(flat)
+    }
+}
+
+impl<'a, P, T> From<MappedMultiColorTimeSeries<'a, P, T>> for MultiColorTimeSeries<'a, P, T>
+where
+    P: PassbandTrait,
+    T: Float,
+{
+    fn from(mapped: MappedMultiColorTimeSeries<'a, P, T>) -> Self {
+        Self::Mapping(mapped)
+    }
+}
+
+impl<'a, P, T> From<MultiColorTimeSeries<'a, P, T>> for FlatMultiColorTimeSeries<'a, P, T>
+where
+    P: PassbandTrait,
+    T: Float,
+{
+    fn from(mcts: MultiColorTimeSeries<'a, P, T>) -> Self {
+        match mcts {
+            MultiColorTimeSeries::Flat(flat) => flat,
+            MultiColorTimeSeries::Mapping(mapped) => mapped.into(),
+            MultiColorTimeSeries::MappingFlat { flat, .. } => flat,
+        }
+    }
+}
+
+impl<'a, P, T> From<MultiColorTimeSeries<'a, P, T>> for MappedMultiColorTimeSeries<'a, P, T>
+where
+    P: PassbandTrait,
+    T: Float,
+{
+    fn from(mcts: MultiColorTimeSeries<'a, P, T>) -> Self {
+        match mcts {
+            MultiColorTimeSeries::Flat(flat) => flat.into(),
+            MultiColorTimeSeries::Mapping(mapping) => mapping,
+            MultiColorTimeSeries::MappingFlat { mapping, .. } => mapping,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::MonochromePassband;
+
+    use ndarray::Array1;
+
+    #[test]
+    fn multi_color_ts_insert() {
+        let mut mcts = MultiColorTimeSeries::default();
+        mcts.insert(
+            MonochromePassband::new(4700.0, "g"),
+            TimeSeries::new_without_weight(Array1::linspace(0.0, 1.0, 11), Array1::zeros(11)),
+        );
+        assert_eq!(mcts.passband_count(), 1);
+        assert_eq!(mcts.total_lenu(), 11);
+        mcts.insert(
+            MonochromePassband::new(6200.0, "r"),
+            TimeSeries::new_without_weight(Array1::linspace(0.0, 1.0, 6), Array1::zeros(6)),
+        );
+        assert_eq!(mcts.passband_count(), 2);
+        assert_eq!(mcts.total_lenu(), 17);
+    }
+
+    fn compare_variants<P: PassbandTrait, T: Float>(mcts: MultiColorTimeSeries<P, T>) {
+        let flat: FlatMultiColorTimeSeries<_, _> = mcts.clone().into();
+        let mapped: MappedMultiColorTimeSeries<_, _> = mcts.clone().into();
+        let mapped_from_flat: MappedMultiColorTimeSeries<_, _> = flat.clone().into();
+        let flat_from_mapped: FlatMultiColorTimeSeries<_, _> = mapped.clone().into();
+        assert_eq!(mapped, mapped_from_flat);
+        assert_eq!(flat, flat_from_mapped);
+    }
+
+    #[test]
+    fn convert_between_variants() {
+        let mut mcts = MultiColorTimeSeries::default();
+        compare_variants(mcts.clone());
+        mcts.insert(
+            MonochromePassband::new(4700.0, "g"),
+            TimeSeries::new_without_weight(Array1::linspace(0.0, 1.0, 11), Array1::zeros(11)),
+        );
+        compare_variants(mcts.clone());
+        mcts.insert(
+            MonochromePassband::new(6200.0, "r"),
+            TimeSeries::new_without_weight(Array1::linspace(0.0, 1.0, 6), Array1::zeros(6)),
+        );
+        compare_variants(mcts.clone());
     }
 }

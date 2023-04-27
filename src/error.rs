@@ -39,6 +39,9 @@ pub enum MultiColorEvaluatorError {
 
     #[error(r#"Underlying feature caused an error: "{0:?}""#)]
     UnderlyingEvaluatorError(#[from] EvaluatorError),
+
+    #[error("All time-series are flat")]
+    AllTimeSeriesAreFlat,
 }
 
 impl MultiColorEvaluatorError {
