@@ -28,6 +28,15 @@ where
     plateau: Option<bool>,
 }
 
+impl<'a, T> PartialEq for TimeSeries<'a, T>
+where
+    T: Float,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.t == other.t && self.m == other.m && self.w == other.w
+    }
+}
+
 macro_rules! time_series_getter {
     ($t: ty, $attr: ident, $getter: ident, $func: expr) => {
         // This lint is false-positive in macros
