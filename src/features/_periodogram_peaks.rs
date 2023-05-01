@@ -50,13 +50,13 @@ impl PeriodogramPeaks {
             .flat_map(|i| {
                 vec![
                     format!(
-                        "period of the {}{} highest peak of periodogram",
+                        "period of the {}{} highest peak",
                         i + 1,
                         number_ending(i + 1),
                     ),
                     format!(
                         "Spectral density to spectral density standard deviation ratio of \
-                            the {}{} highest peak of periodogram",
+                            the {}{} highest peak",
                         i + 1,
                         number_ending(i + 1)
                     ),

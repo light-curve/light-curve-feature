@@ -45,6 +45,10 @@ where
     max_freq_factor: f32,
     nyquist: NyquistFreq,
     pub(crate) feature_extractor: FeatureExtractor<T, F>,
+    // In can be re-defined in MultiColorPeriodogram
+    pub(crate) name_prefix: String,
+    // In can be re-defined in MultiColorPeriodogram
+    pub(crate) description_suffix: String,
     periodogram_algorithm: PeriodogramPower<T>,
     properties: Box<EvaluatorProperties>,
 }
@@ -100,13 +104,13 @@ where
             feature
                 .get_names()
                 .iter()
-                .map(|name| "periodogram_".to_owned() + name),
+                .map(|name| format!("{}_{}", self.name_prefix, name)),
         );
         self.properties.descriptions.extend(
             feature
                 .get_descriptions()
                 .into_iter()
-                .map(|desc| format!("{} of periodogram", desc)),
+                .map(|desc| format!("{} {}", desc, self.description_suffix)),
         );
         self.feature_extractor.add_feature(feature);
         self
@@ -149,41 +153,44 @@ where
 {
     /// New [Periodogram] that finds given number of peaks
     pub fn new(peaks: usize) -> Self {
-        let peaks = PeriodogramPeaks::new(peaks);
-        let peak_names = peaks
-            .get_names()
-            .into_iter()
-            .map(ToOwned::to_owned)
-            .collect();
-        let peak_descriptions = peaks
-            .get_descriptions()
-            .into_iter()
-            .map(ToOwned::to_owned)
-            .collect();
-        let peaks_size_hint = peaks.size_hint();
-        let peaks_min_ts_length = peaks.min_ts_length();
+        Self::with_name_description(
+            peaks,
+            "periodogram",
+            "of periodogram (interpreting frequency as time, power as magnitude)",
+        )
+    }
+
+    pub(crate) fn with_name_description(
+        peaks: usize,
+        name_prefix: impl ToString,
+        description_suffix: impl ToString,
+    ) -> Self {
         let info = EvaluatorInfo {
-            size: peaks_size_hint,
-            min_ts_length: usize::max(peaks_min_ts_length, 2),
+            size: 0,
+            min_ts_length: 2,
             t_required: true,
             m_required: true,
             w_required: false,
             sorting_required: true,
             variability_required: false,
         };
-        Self {
+        let mut slf = Self {
             properties: EvaluatorProperties {
                 info,
-                names: peak_names,
-                descriptions: peak_descriptions,
+                names: vec![],
+                descriptions: vec![],
             }
             .into(),
             resolution: Self::default_resolution(),
+            name_prefix: name_prefix.to_string(),
+            description_suffix: description_suffix.to_string(),
             max_freq_factor: Self::default_max_freq_factor(),
             nyquist: AverageNyquistFreq.into(),
-            feature_extractor: FeatureExtractor::new(vec![peaks.into()]),
+            feature_extractor: FeatureExtractor::new(vec![]),
             periodogram_algorithm: PeriodogramPowerFft::new().into(),
-        }
+        };
+        slf.add_feature(PeriodogramPeaks::new(peaks).into());
+        slf
     }
 }
 
@@ -286,7 +293,7 @@ where
             nyquist,
             feature_extractor,
             periodogram_algorithm,
-            properties: _,
+            ..
         } = f;
 
         let mut features = feature_extractor.into_vec();

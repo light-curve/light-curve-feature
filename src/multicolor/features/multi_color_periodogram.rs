@@ -13,6 +13,20 @@ use crate::periodogram::{self, NyquistFreq, PeriodogramPower};
 use ndarray::Array1;
 use std::fmt::Debug;
 
+/// Normalisation of periodogram across passbands
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+pub enum MultiColorPeriodogramNormalisation {
+    /// Weight individual periodograms by the number of observations in each passband.
+    /// Useful if no weight is given to observations
+    Count,
+    /// Weight individual periodograms by $\chi^2 = \sum \left(\frac{m_i - \bar{m}}{\delta_i}\right)^2$
+    ///
+    /// Be aware that if no weight are given to observations
+    /// (i.e. via [TimeSeries::new_without_weight]) unity weights are assumed and this is NOT
+    /// equivalent to [::Count], but weighting by magnitude variance.
+    Chi2,
+}
+
 /// Multi-passband periodogram
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(
@@ -25,14 +39,26 @@ where
 {
     // We use it to not reimplement some internals
     monochrome: Periodogram<T, F>,
-    properties: Box<EvaluatorProperties>,
+    normalization: MultiColorPeriodogramNormalisation,
 }
 
 impl<T, F> MultiColorPeriodogram<T, F>
 where
     T: Float,
-    F: FeatureEvaluator<T>,
+    F: FeatureEvaluator<T> + From<PeriodogramPeaks>,
 {
+    pub fn new(peaks: usize, normalization: MultiColorPeriodogramNormalisation) -> Self {
+        let monochrome = Periodogram::with_name_description(
+            peaks,
+            "multicolor_periodogram",
+            "of multi-color periodogram (interpreting frequency as time, power as magnitude)",
+        );
+        Self {
+            monochrome,
+            normalization,
+        }
+    }
+
     #[inline]
     pub fn default_peaks() -> usize {
         PeriodogramPeaks::default_peaks()
@@ -103,19 +129,53 @@ where
         'a: 'mcts,
         P: PassbandTrait,
     {
-        let unnormed_power = mcts
-            .mapping_mut()
+        let ts_weights = {
+            let mut a: Array1<_> = match self.normalization {
+                MultiColorPeriodogramNormalisation::Count => {
+                    mcts.mapping_mut().values().map(|ts| ts.lenf()).collect()
+                }
+                MultiColorPeriodogramNormalisation::Chi2 => mcts
+                    .mapping_mut()
+                    .values_mut()
+                    .map(|ts| ts.get_m_chi2())
+                    .collect(),
+            };
+            let norm = a.sum();
+            if norm.is_zero() {
+                match self.normalization {
+                    MultiColorPeriodogramNormalisation::Count => {
+                        return Err(MultiColorEvaluatorError::all_time_series_short(
+                            mcts.mapping_mut(),
+                            self.min_ts_length(),
+                        ));
+                    }
+                    MultiColorPeriodogramNormalisation::Chi2 => {
+                        return Err(MultiColorEvaluatorError::AllTimeSeriesAreFlat);
+                    }
+                }
+            }
+            a /= norm;
+            a
+        };
+        mcts.mapping_mut()
             .values_mut()
-            .filter(|ts| self.monochrome.check_ts_length(ts).is_ok())
-            .map(|ts| p.power(ts) * ts.lenf())
-            .reduce(|acc, x| acc + x)
+            .zip(ts_weights.iter())
+            .filter(|(ts, _ts_weight)| self.monochrome.check_ts_length(ts).is_ok())
+            .map(|(ts, &ts_weight)| {
+                let mut power = p.power(ts);
+                power *= ts_weight;
+                power
+            })
+            .reduce(|mut acc, power| {
+                acc += &power;
+                acc
+            })
             .ok_or_else(|| {
                 MultiColorEvaluatorError::all_time_series_short(
                     mcts.mapping_mut(),
-                    self.monochrome.min_ts_length(),
+                    self.min_ts_length(),
                 )
-            })?;
-        Ok(unnormed_power / mcts.total_lenf())
+            })
     }
 
     pub fn power<'slf, 'a, 'mcts, P>(
@@ -174,7 +234,7 @@ where
     <F as TryInto<PeriodogramPeaks>>::Error: Debug,
 {
     fn get_info(&self) -> &EvaluatorInfo {
-        &self.properties.info
+        self.monochrome.get_info()
     }
 }
 
@@ -185,15 +245,11 @@ where
     <F as TryInto<PeriodogramPeaks>>::Error: Debug,
 {
     fn get_names(&self) -> Vec<&str> {
-        self.properties.names.iter().map(String::as_str).collect()
+        self.monochrome.get_names()
     }
 
     fn get_descriptions(&self) -> Vec<&str> {
-        self.properties
-            .descriptions
-            .iter()
-            .map(String::as_str)
-            .collect()
+        self.monochrome.get_descriptions()
     }
 }
 
