@@ -94,7 +94,8 @@ mod tests {
     /// See [Issue #3](https://github.com/hombit/light-curve/issues/3)
     fn linear_trend_finite(path: &str) {
         let eval = LinearTrend::default();
-        let (t, m, _) = light_curve_feature_test_util::issue_light_curve_mag::<f32, _>(path, None);
+        let (t, m, _) =
+            light_curve_feature_test_util::issue_light_curve_mag::<f32, _>(path).into_triple(None);
         let mut ts = TimeSeries::new_without_weight(t, m);
         let actual = eval.eval(&mut ts).unwrap();
         assert!(actual.iter().all(|x| x.is_finite()));

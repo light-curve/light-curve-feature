@@ -117,8 +117,8 @@ mod tests {
     #[test]
     fn eta_e_finite() {
         let eval = EtaE::default();
-        let (t, m, _) =
-            light_curve_feature_test_util::issue_light_curve_mag("light-curve-2/1.csv", None);
+        let (t, m, _) = light_curve_feature_test_util::issue_light_curve_mag("light-curve-2/1.csv")
+            .into_triple(None);
         let mut ts = TimeSeries::new_without_weight(t, m);
         let actual: f32 = eval.eval(&mut ts).unwrap()[0];
         assert!(actual.is_finite());
