@@ -70,6 +70,60 @@ The crate is configured with the following Cargo features:
 - `gsl` - enables [GNU Scientific Library](https://www.gnu.org/software/gsl/) support for non-linear fitting.
 - `default` - enables `fftw-source` feature only, has no side effects.
 
+### Development
+
+**Setting up**
+
+Install Rust toolchain, the preferred way is [rustup](https://rustup.rs).
+
+Clone the repository recursively and run tests with default features:
+```bash
+git clone --recursive https://github.com/light-curve/light-curve-feature
+cd light-curve-feature
+cargo test
+```
+
+Install the required system libraries (Ceres Solver, FFTW, GSL)
+```bash
+# On macOS:
+brew install ceres-solver fftw gsl
+# On Debian-like:
+apt install libceres-dev libfftw3-dev libgsl-dev
+```
+
+Run tests with these native libraries.
+Note that Ceres could require manual `CPATH` specification, like `CPATH=/opt/homebrew/include`:
+```bash
+cargo test --no-default-features --features ceres-system,fftw-system,gsl
+```
+
+You may also run benchmarks, but be patient
+```bash
+cargo bench --no-default-features --features ceres-system,fftw-system,gsl
+```
+
+See `examples`, `.github/workflows` and tests for examples of the code usage.
+
+**Formatting and linting**
+
+We format and check the code with the standard Rust tools: `cargo fmt` and `cargo clippy`.
+Please use clippy's `#[allow]` as precise as possible and leave code comments if it is not obvious why its usage is required.
+
+We use [pre-commit](https://pre-commit.com) for running some linters locally before commiting.
+Please consider installing it and initializing in the repo with `pre-commit init`.
+However pre-commit.ci and GitHub Actions will varify `cargo fmt` and `cargo clippy` for PRs.
+
+Generally, we are aimed to test all user-level code, add unit-tests to your non-trivial PRs.
+Currently we have no `unsafe` code in this repo and we are aimed to avoid it in the future.
+
+**Implementing a new feature evaluator**
+
+Your new feature evaluator code should go to at least three files:
+
+1. New file inside `src/features` directory
+2. Publically import the new struct inside `src/features/mod.rs`
+3. Add it as a new variant of `Feature` enum inside `src/feature.rs`
+
 ### Citation
 
 If you found this project useful for your research please cite [Malanchev et al., 2021](https://ui.adsabs.harvard.edu/abs/2021MNRAS.502.5147M/abstract)
