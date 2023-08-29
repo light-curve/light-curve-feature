@@ -76,23 +76,24 @@ The crate is configured with the following Cargo features:
 
 Install Rust toolchain, the preferred way is [rustup](https://rustup.rs).
 
-Clone the repository recursively and run tests with default features:
+Install the required system libraries.
+For main project you need Ceres Solver, FFTW and GSL, as well as C++ compiler and CMake.
+The example script plots some stuff so it requires fontconfig.
+```bash
+# On macOS:
+brew install ceres-solver cmake fftw gsl fontconfig
+# On Debian-like:
+apt install build-essential cmake libceres-dev libfftw3-dev libgsl-dev libfontconfig-dev
+```
+
+Clone the repository with submodules and run compiler checks:
 ```bash
 git clone --recursive https://github.com/light-curve/light-curve-feature
 cd light-curve-feature
-cargo test
 ```
 
-Install the required system libraries (Ceres Solver, FFTW, GSL)
-```bash
-# On macOS:
-brew install ceres-solver fftw gsl
-# On Debian-like:
-apt install libceres-dev libfftw3-dev libgsl-dev
-```
-
-Run tests with these native libraries.
-Note that Ceres could require manual `CPATH` specification, like `CPATH=/opt/homebrew/include`:
+Run tests with native libraries.
+Note that Ceres could require manual `CPATH` specification on some systems, like `CPATH=/opt/homebrew/include` on ARM macOS:
 ```bash
 cargo test --no-default-features --features ceres-system,fftw-system,gsl
 ```
