@@ -79,7 +79,7 @@ where
 }
 
 impl<T, F> FeatureExtractor<T, F> {
-    pub fn doc() -> &'static str {
+    pub const fn doc() -> &'static str {
         DOC
     }
 }

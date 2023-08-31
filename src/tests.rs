@@ -323,10 +323,10 @@ macro_rules! check_doc_static_method {
     ($name: ident, $feature: ty) => {
         #[test]
         fn $name() {
-            let doc = <$feature>::doc();
-            assert!(doc.contains("Depends on: "));
-            assert!(doc.contains("Minimum number of observations: "));
-            assert!(doc.contains("Number of features: "));
+            const DOC: &'static str = <$feature>::doc();
+            assert!(DOC.contains("Depends on: "));
+            assert!(DOC.contains("Minimum number of observations: "));
+            assert!(DOC.contains("Number of features: "));
         }
     };
 }

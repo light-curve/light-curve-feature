@@ -41,7 +41,7 @@ where
         8.9_f32.value_into().unwrap()
     }
 
-    pub fn doc() -> &'static str {
+    pub const fn doc() -> &'static str {
         DOC
     }
 }
