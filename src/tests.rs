@@ -346,6 +346,12 @@ macro_rules! check_finite {
                         .map(|(name, mclc)| (name, mclc.clone().into_triple(Some("g"))))
                         .take(10),
                 )
+                .chain(
+                    light_curve_feature_test_util::RRLYR_LIGHT_CURVES_MAG_F64
+                        .iter()
+                        .map(|(name, mclc)| (name, mclc.clone().into_triple(Some("r"))))
+                        .take(10),
+                )
             {
                 let mut ts: TimeSeries<f64> = triple.into();
                 let result = eval.eval(&mut ts);
