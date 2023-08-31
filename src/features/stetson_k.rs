@@ -3,7 +3,7 @@ use crate::evaluator::*;
 use ndarray::Zip;
 
 macro_const! {
-    const DOC: &str = r#"
+    const DOC: &str = r"
 Stetson $K$ coefficient described light curve shape
 
 $$
@@ -18,7 +18,7 @@ and $\chi^2 = \sum_i\left(\frac{m_i - \langle m \rangle}{\delta\_i}\right)^2$.
 - Number of features: **1**
 
 P. B. Stetson, 1996. [DOI:10.1086/133808](https://doi.org/10.1086/133808)
-"#;
+";
 }
 
 #[doc = DOC!()]

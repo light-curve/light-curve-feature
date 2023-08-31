@@ -5,7 +5,7 @@ use itertools::Itertools;
 use unzip3::Unzip3;
 
 macro_const! {
-    const DOC: &str = r#"
+    const DOC: &str = r"
 Sampled time series meta-feature
 
 Binning time series to bins with width $\mathrm{window}$ with respect to some $\mathrm{offset}$.
@@ -27,7 +27,7 @@ considering bin. Bins takes any other feature evaluators to extract features fro
 - Depends on: **time**, **magnitude**, **magnitude error**
 - Minimum number of observations: as required by sub-features, but at least **1**
 - Number of features: as provided by sub-features
-"#;
+";
 }
 
 #[doc = DOC!()]

@@ -2,7 +2,7 @@ use crate::evaluator::*;
 use itertools::Itertools;
 
 macro_const! {
-    const DOC: &str = r#"
+    const DOC: &str = r"
 Minimum time interval between consequent observations
 
 $$
@@ -14,7 +14,7 @@ Note: highly cadence-dependent feature.
 - Depends on: **time**
 - Minimum number of observations: **2**
 - Number of features: **1**
-"#;
+";
 }
 
 #[doc = DOC!()]

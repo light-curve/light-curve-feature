@@ -250,7 +250,7 @@ mod tests {
             None,
         )
         .into();
-        let desired = vec![
+        let desired = [
             3.0221021243981205,
             0.8847146372743603,
             0.8826366394647659,

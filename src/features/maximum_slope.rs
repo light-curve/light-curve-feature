@@ -2,7 +2,7 @@ use crate::evaluator::*;
 use itertools::Itertools;
 
 macro_const! {
-    const DOC: &'static str = r#"
+    const DOC: &'static str = r"
 Maximum slope between two sub-sequential observations
 
 $$
@@ -17,7 +17,7 @@ In this case consider to use this feature with [Bins](crate::Bins).
 - Number of features: **1**
 
 D’Isanto et al. 2016 [DOI:10.1093/mnras/stw157](https://doi.org/10.1093/mnras/stw157)
-"#;
+";
 }
 
 #[doc = DOC!()]

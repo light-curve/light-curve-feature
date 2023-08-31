@@ -2,7 +2,7 @@ use crate::evaluator::*;
 use crate::straight_line_fit::fit_straight_line;
 
 macro_const! {
-    const DOC: &str = r#"
+    const DOC: &str = r"
 The slope, its error and noise level of the light curve in the linear fit
 
 Least squares fit of the linear stochastic model with constant Gaussian noise $\Sigma$ assuming
@@ -17,7 +17,7 @@ $\sigma_\mathrm{slope}$ and $\Sigma$ are returned.
 - Depends on: **time**, **magnitude**
 - Minimum number of observations: **3**
 - Number of features: **3**
-"#;
+";
 }
 
 #[doc = DOC!()]

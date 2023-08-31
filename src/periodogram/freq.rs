@@ -10,11 +10,11 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
 macro_const! {
-    const NYQUIST_FREQ_DOC: &'static str = r#"Derive Nyquist frequency from time series
+    const NYQUIST_FREQ_DOC: &'static str = r"Derive Nyquist frequency from time series
 
 Nyquist frequency for unevenly time series is not well-defined. Here we define it as
 $\pi / \delta t$, where $\delta t$ is some typical interval between consequent observations
-"#;
+";
 }
 
 #[doc = NYQUIST_FREQ_DOC!()]
