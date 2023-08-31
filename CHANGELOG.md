@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
---
+- **Build breaking** Minimum supported Rust version (MSRV) 1.57 -> 1.65 (released 2022-11-03)
 
 ### Deprecated
 
