@@ -162,11 +162,11 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::features::{Amplitude, BazinFit, Cusum, Kurtosis, ReducedChi2};
+    use crate::features::{Amplitude, BazinFit, Cusum, Kurtosis, LinexpFit, ReducedChi2};
     use crate::tests::*;
     use crate::transformers::{
         arcsinh::ArcsinhTransformer, bazin_fit::BazinFitTransformer, identity::IdentityTransformer,
-        lg::LgTransformer, ln1p::Ln1pTransformer, Transformer,
+        lg::LgTransformer, linexp_fit::LinexpFitTransformer, ln1p::Ln1pTransformer, Transformer,
     };
 
     eval_info_test!(
@@ -179,6 +179,15 @@ mod tests {
         Transformed::new(
             BazinFit::default().into(),
             BazinFitTransformer::default().into()
+        )
+        .unwrap()
+    );
+    
+    eval_info_test!(
+        info_default_transformed_linexp_fit,
+        Transformed::new(
+            LinexpFit::default().into(),
+            LinexpFitTransformer::default().into()
         )
         .unwrap()
     );

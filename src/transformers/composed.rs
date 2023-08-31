@@ -125,6 +125,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::transformers::linexp_fit::LinexpFitTransformer;
     use crate::transformers::bazin_fit::BazinFitTransformer;
     use crate::transformers::clipped_lg::ClippedLgTransformer;
     use crate::transformers::identity::IdentityTransformer;
@@ -139,6 +140,7 @@ mod tests {
             (IdentityTransformer::new().into(), 3),
             (ClippedLgTransformer::default().into(), 2),
             (BazinFitTransformer::default().into(), 6),
+            (LinexpFitTransformer::default().into(), 5),
         ])
         .unwrap(),
         ComposedTransformer::<Transformer<f32>>
@@ -163,6 +165,7 @@ mod tests {
         let result = ComposedTransformer::<Transformer<f32>>::from_transformers([
             IdentityTransformer::new().into(),
             BazinFitTransformer::default().into(), // requires more than one feature
+            LinexpFitTransformer::default().into(), // requires more than one feature
         ]);
         assert!(result.is_err());
     }
@@ -172,13 +175,15 @@ mod tests {
         let tr = ComposedTransformer::<Transformer<f32>>::new([
             (IdentityTransformer::new().into(), 2),
             (BazinFitTransformer::default().into(), 6),
+            (LinexpFitTransformer::default().into(), 5),
         ])
         .unwrap();
-        assert_eq!(tr.transformers.len(), 2);
-        assert_eq!(tr.input_size, 8);
-        assert_eq!(tr.size_hint, 7);
+        assert_eq!(tr.transformers.len(), 3);
+        assert_eq!(tr.input_size, 13);
+        assert_eq!(tr.size_hint, 11);
         assert_eq!(tr.transformers[0].1, 2);
         assert_eq!(tr.transformers[1].1, 6);
+        assert_eq!(tr.transformers[2].1, 5);
     }
 
     #[test]
@@ -186,6 +191,7 @@ mod tests {
         let result = ComposedTransformer::<Transformer<f32>>::new([
             (IdentityTransformer::new().into(), 3),
             (BazinFitTransformer::default().into(), 3), // requires six features
+            (LinexpFitTransformer::default().into(), 3), // requires five features
         ]);
         assert!(result.is_err());
     }

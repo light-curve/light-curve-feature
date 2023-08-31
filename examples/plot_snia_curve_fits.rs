@@ -1,10 +1,10 @@
 use clap::Parser;
 use light_curve_feature::{
-    features::VillarLnPrior, prelude::*, BazinFit, Feature, FeatureEvaluator, McmcCurveFit,
+    features::VillarLnPrior, prelude::*, BazinFit, LinexpFit, Feature, FeatureEvaluator, McmcCurveFit,
     TimeSeries, VillarFit,
 };
-#[cfg(all(feature = "ceres-source", feature = "gsl"))]
-use light_curve_feature::{CeresCurveFit, LmsderCurveFit, LnPrior};
+
+use light_curve_feature::{LmsderCurveFit, LnPrior};
 use light_curve_feature_test_util::iter_sn1a_flux_ts;
 use ndarray::{Array1, ArrayView1};
 use plotters::prelude::*;
@@ -20,81 +20,7 @@ fn main() {
     #[allow(clippy::vec_init_then_push)]
     let features = {
         let mut features: Vec<(&str, Feature<_>)> = vec![];
-        #[cfg(all(feature = "gsl", feature = "ceres-source"))]
-        {
-            features.push((
-                "BazinFit LMSDER",
-                BazinFit::new(
-                    LmsderCurveFit::default().into(),
-                    LnPrior::none(),
-                    BazinFit::default_inits_bounds(),
-                )
-                .into(),
-            ));
-            features.push((
-                "BazinFit MCMC+LMSDER",
-                BazinFit::new(
-                    McmcCurveFit::new(1024, Some(LmsderCurveFit::default().into())).into(),
-                    LnPrior::none(),
-                    BazinFit::default_inits_bounds(),
-                )
-                .into(),
-            ));
-            features.push((
-                "BazinFit Ceres",
-                BazinFit::new(
-                    CeresCurveFit::default().into(),
-                    LnPrior::none(),
-                    BazinFit::default_inits_bounds(),
-                )
-                .into(),
-            ));
-            features.push((
-                "BazinFit MCMC+Ceres",
-                BazinFit::new(
-                    McmcCurveFit::new(1024, Some(CeresCurveFit::default().into())).into(),
-                    LnPrior::none(),
-                    BazinFit::default_inits_bounds(),
-                )
-                .into(),
-            ));
-            features.push((
-                "VillarFit LMSDER",
-                VillarFit::new(
-                    LmsderCurveFit::default().into(),
-                    LnPrior::none(),
-                    VillarFit::default_inits_bounds(),
-                )
-                .into(),
-            ));
-            features.push((
-                "VillarFit MCMC+LMSDER",
-                VillarFit::new(
-                    McmcCurveFit::new(1024, Some(LmsderCurveFit::default().into())).into(),
-                    LnPrior::none(),
-                    VillarFit::default_inits_bounds(),
-                )
-                .into(),
-            ));
-            features.push((
-                "VillarFit Ceres",
-                VillarFit::new(
-                    CeresCurveFit::default().into(),
-                    LnPrior::none(),
-                    VillarFit::default_inits_bounds(),
-                )
-                .into(),
-            ));
-            features.push((
-                "VillarFit MCMC+Ceres",
-                VillarFit::new(
-                    McmcCurveFit::new(1024, Some(CeresCurveFit::default().into())).into(),
-                    LnPrior::none(),
-                    VillarFit::default_inits_bounds(),
-                )
-                .into(),
-            ));
-        }
+        
         features.push((
             "VillarFit MCMC+prior",
             VillarFit::new(
@@ -136,6 +62,24 @@ fn main() {
             )
             .into(),
         ));
+	features.push((
+		"BazinFit LMSDER",
+		BazinFit::new(
+		    LmsderCurveFit::default().into(),
+		    LnPrior::none(),
+		    BazinFit::default_inits_bounds(),
+		)
+		.into()
+        ));
+        features.push((
+		"LinexpFit LMSDER",
+		LinexpFit::new(
+		    LmsderCurveFit::default().into(),
+		    LnPrior::none(),
+		    LinexpFit::default_inits_bounds(),
+		)
+		.into()
+        ));
         features
     };
     iter_sn1a_flux_ts()
@@ -171,6 +115,7 @@ fn fitted_model(
     let reduced_chi2 = values[values.len() - 1];
     let model: BoxedModel = match feature {
         Feature::BazinFit(..) => Box::new(BazinFit::f),
+        Feature::LinexpFit(..) => Box::new(LinexpFit::f),
         Feature::VillarFit(..) => Box::new(VillarFit::f),
         _ => panic!("Unknown *Fit variant"),
     };

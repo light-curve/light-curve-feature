@@ -6,6 +6,7 @@ use paste::paste;
 pub mod bazin_fit;
 pub mod clipped_lg;
 pub mod composed;
+pub mod linexp_fit;
 pub mod transformer;
 pub mod villar_fit;
 
