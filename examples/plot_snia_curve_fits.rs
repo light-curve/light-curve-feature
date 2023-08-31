@@ -20,7 +20,7 @@ fn main() {
     #[allow(clippy::vec_init_then_push)]
     let features = {
         let mut features: Vec<(&str, Feature<_>)> = vec![];
-        
+
         features.push((
             "VillarFit MCMC+prior",
             VillarFit::new(
