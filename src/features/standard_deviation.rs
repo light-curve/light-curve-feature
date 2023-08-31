@@ -1,7 +1,7 @@
 use crate::evaluator::*;
 
 macro_const! {
-    const DOC: &'static str = r#"
+    const DOC: &'static str = r"
 Standard deviation of magnitude $\sigma_m$
 
 $$
@@ -16,7 +16,7 @@ and $\langle m \rangle$ is the mean magnitude.
 - Number of features: **1**
 
 [Wikipedia](https://en.wikipedia.org/wiki/Standard_deviation)
-"#;
+";
 }
 
 #[doc = DOC!()]

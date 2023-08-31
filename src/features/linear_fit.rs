@@ -2,7 +2,7 @@ use crate::evaluator::*;
 use crate::straight_line_fit::fit_straight_line;
 
 macro_const! {
-    const DOC: &str = r#"
+    const DOC: &str = r"
 Slope, its error and reduced $\chi^2$ of the light curve in the linear fit
 
 Least squares fit of the linear stochastic model with Gaussian noise described by observation
@@ -19,7 +19,7 @@ $\frac{\sum{((m_i - c - \mathrm{slope} t_i) / \delta_i)^2}}{N - 2}$.
 - Depends on: **time**, **magnitude**, **magnitude error**
 - Minimum number of observations: **3**
 - Number of features: **3**
-"#;
+";
 }
 
 #[doc = DOC!()]

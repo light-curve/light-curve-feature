@@ -1,7 +1,7 @@
 use crate::evaluator::*;
 
 macro_const! {
-    const DOC: &str = r#"
+    const DOC: &str = r"
 Median magnitude
 
 $$
@@ -11,7 +11,7 @@ $$
 - Depends on: **magnitude**
 - Minimum number of observations: **1**
 - Number of features: **1**
-"#;
+";
 }
 
 #[doc = DOC!()]

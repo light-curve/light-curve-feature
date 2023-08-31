@@ -2,7 +2,7 @@ use crate::evaluator::*;
 use itertools::Itertools;
 
 macro_const! {
-    const DOC: &'static str = r#"
+    const DOC: &'static str = r"
 $\eta^e$ — modification of [Eta](crate::Eta) for unevenly time series
 
 $$
@@ -21,7 +21,7 @@ lags. In this case consider to use this feature with [Bins](crate::Bins).
 - Number of features: **1**
 
 Kim et al. 2014, [DOI:10.1051/0004-6361/201323252](https://doi.org/10.1051/0004-6361/201323252)
-"#;
+";
 }
 
 #[doc = DOC!()]
