@@ -119,7 +119,9 @@ where
     }
 
     {
-        let mut real_data: Vec<_> = iter_sn1a_flux_ts::<T>().map(|(_ztf_id, ts)| ts).collect();
+        let mut real_data: Vec<_> = iter_sn1a_flux_ts::<T>(Some("g"))
+            .map(|(_ztf_id, ts)| ts)
+            .collect();
         #[allow(clippy::vec_init_then_push)]
         let curve_fits: Vec<CurveFitAlgorithm> = {
             let mut curve_fits = vec![];

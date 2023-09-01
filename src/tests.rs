@@ -339,9 +339,17 @@ macro_rules! check_finite {
             let eval = $feature_expr;
             for (path, triple) in light_curve_feature_test_util::ISSUE_LIGHT_CURVES_ALL_F64
                 .iter()
+                .map(|(name, mclc)| (name, mclc.clone().into_triple(None)))
                 .chain(
                     light_curve_feature_test_util::SNIA_LIGHT_CURVES_FLUX_F64
                         .iter()
+                        .map(|(name, mclc)| (name, mclc.clone().into_triple(Some("g"))))
+                        .take(10),
+                )
+                .chain(
+                    light_curve_feature_test_util::RRLYR_LIGHT_CURVES_MAG_F64
+                        .iter()
+                        .map(|(name, mclc)| (name, mclc.clone().into_triple(Some("r"))))
                         .take(10),
                 )
             {

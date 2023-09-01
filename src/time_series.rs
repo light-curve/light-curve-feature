@@ -383,7 +383,7 @@ where
     }
 }
 
-// We really don't want it to be public, it is a private helper for test-data functions
+// We really don't want it to be public, it is a private helper for test-util functions
 #[cfg(test)]
 impl<'a, T, D> From<(D, D, D)> for TimeSeries<'a, T>
 where

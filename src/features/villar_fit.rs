@@ -771,8 +771,8 @@ mod tests {
     fn villar_fit_issue48() {
         let mut ts = light_curve_feature_test_util::issue_light_curve_flux::<f32, _>(
             "light-curve-feature-48/1.csv",
-            None,
         )
+        .into_triple(None)
         .into();
         let lmsder = LmsderCurveFit::new(20);
         let mcmc = McmcCurveFit::new(1 << 13, Some(lmsder.into()));
