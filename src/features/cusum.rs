@@ -1,7 +1,7 @@
 use crate::evaluator::*;
 
 macro_const! {
-    const DOC: &str = r#"
+    const DOC: &str = r"
 Cusum — a range of cumulative sums
 
 $$
@@ -20,7 +20,7 @@ and $\sigma_m = \sqrt{\sum_i (m_i - \langle m \rangle)^2 / (N-1)}$ is the magnit
 - Number of features: **1**
 
 Kim et al. 2014, [DOI:10.1051/0004-6361/201323252](https://doi.org/10.1051/0004-6361/201323252)
-"#;
+";
 }
 
 #[doc = DOC!()]
@@ -32,7 +32,7 @@ impl Cusum {
         Self {}
     }
 
-    pub fn doc() -> &'static str {
+    pub const fn doc() -> &'static str {
         DOC
     }
 }

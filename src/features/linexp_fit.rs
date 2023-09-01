@@ -19,7 +19,7 @@ $$
 f(t) = A(t-t_0) \times \mathrm{e}^{-\tau_\mathrm{fall} \times (t-t_0)} + B.
 $$
 
-Note, that the Linexp function is developed to be used with fluxes, not magnitudes. 
+Note, that the Linexp function is developed to be used with fluxes, not magnitudes.
 
 - Depends on: **time**, **flux**, **flux error**
 - Minimum number of observations: **6**
@@ -137,7 +137,7 @@ where
     fn tau_fall(&self) -> T {
         self.external[2]
     }
-    
+
     #[inline]
     fn b(&self) -> T {
         self.external[3]
@@ -328,7 +328,7 @@ impl LinexpInitsBounds {
 
         let fall_init = 0.05;
         let (fall_lower, fall_upper) = (0.0, 2.0);
-        
+
         let b_init = 0.0;
         let (b_lower, b_upper) = (-1000.0, 1000.0);
 
@@ -605,4 +605,3 @@ mod tests {
     }
 }
 */
-

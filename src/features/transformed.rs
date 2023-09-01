@@ -69,7 +69,7 @@ where
         })
     }
 
-    pub fn doc() -> &'static str {
+    pub const fn doc() -> &'static str {
         DOC!()
     }
 }
@@ -182,7 +182,7 @@ mod tests {
         )
         .unwrap()
     );
-    
+
     eval_info_test!(
         info_default_transformed_linexp_fit,
         Transformed::new(

@@ -3,7 +3,7 @@ use crate::evaluator::*;
 use conv::prelude::*;
 
 macro_const! {
-    const DOC: &str = r#"
+    const DOC: &str = r"
 Fraction of observations inside $\mathrm{Median}(m) \pm q \times (\max(m) - \min(m)) / 2$ interval
 
 - Depends on: **magnitude**
@@ -11,7 +11,7 @@ Fraction of observations inside $\mathrm{Median}(m) \pm q \times (\max(m) - \min
 - Number of features: **1**
 
 D’Isanto et al. 2016 [DOI:10.1093/mnras/stw157](https://doi.org/10.1093/mnras/stw157)
-"#;
+";
 }
 
 #[doc = DOC!()]
@@ -71,7 +71,7 @@ where
 }
 
 impl<T> MedianBufferRangePercentage<T> {
-    pub fn doc() -> &'static str {
+    pub const fn doc() -> &'static str {
         DOC
     }
 }

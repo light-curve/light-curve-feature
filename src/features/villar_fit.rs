@@ -9,7 +9,7 @@ use conv::ConvUtil;
 const NPARAMS: usize = 7;
 
 macro_const! {
-    const DOC: &str = r#"
+    const DOC: &str = r"
 Villar function fit
 
 Seven fit parameters and goodness of fit (reduced $\chi^2$) of the Villar function developed for
@@ -32,7 +32,7 @@ Note, that the Villar function is developed to be used with fluxes, not magnitud
 - Number of features: **8**
 
 Villar et al. 2019 [DOI:10.3847/1538-4357/ab418c](https://doi.org/10.3847/1538-4357/ab418c)
-"#;
+";
 }
 
 #[doc = DOC!()]
@@ -89,7 +89,7 @@ impl VillarFit {
         VillarInitsBounds::Default
     }
 
-    pub fn doc() -> &'static str {
+    pub const fn doc() -> &'static str {
         DOC
     }
 
@@ -771,8 +771,8 @@ mod tests {
     fn villar_fit_issue48() {
         let mut ts = light_curve_feature_test_util::issue_light_curve_flux::<f32, _>(
             "light-curve-feature-48/1.csv",
-            None,
         )
+        .into_triple(None)
         .into();
         let lmsder = LmsderCurveFit::new(20);
         let mcmc = McmcCurveFit::new(1 << 13, Some(lmsder.into()));

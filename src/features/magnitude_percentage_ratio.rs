@@ -1,7 +1,7 @@
 use crate::evaluator::*;
 
 macro_const! {
-    const DOC: &str = r#"
+    const DOC: &str = r"
 Magnitude percentage ratio
 
 $$
@@ -15,7 +15,7 @@ distribution.
 - Number of features: **1**
 
 D’Isanto et al. 2016 [DOI:10.1093/mnras/stw157](https://doi.org/10.1093/mnras/stw157)
-"#;
+";
 }
 
 #[doc = DOC!()]
@@ -85,7 +85,7 @@ impl MagnitudePercentageRatio {
         0.05
     }
 
-    pub fn doc() -> &'static str {
+    pub const fn doc() -> &'static str {
         DOC
     }
 }

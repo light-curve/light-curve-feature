@@ -2,7 +2,7 @@ use crate::evaluator::*;
 use crate::straight_line_fit::fit_straight_line;
 
 macro_const! {
-    const DOC: &str = r#"
+    const DOC: &str = r"
 The slope, its error and noise level of the light curve in the linear fit
 
 Least squares fit of the linear stochastic model with constant Gaussian noise $\Sigma$ assuming
@@ -17,7 +17,7 @@ $\sigma_\mathrm{slope}$ and $\Sigma$ are returned.
 - Depends on: **time**, **magnitude**
 - Minimum number of observations: **3**
 - Number of features: **3**
-"#;
+";
 }
 
 #[doc = DOC!()]
@@ -29,7 +29,7 @@ impl LinearTrend {
         Self {}
     }
 
-    pub fn doc() -> &'static str {
+    pub const fn doc() -> &'static str {
         DOC
     }
 }
@@ -94,7 +94,8 @@ mod tests {
     /// See [Issue #3](https://github.com/hombit/light-curve/issues/3)
     fn linear_trend_finite(path: &str) {
         let eval = LinearTrend::default();
-        let (t, m, _) = light_curve_feature_test_util::issue_light_curve_mag::<f32, _>(path, None);
+        let (t, m, _) =
+            light_curve_feature_test_util::issue_light_curve_mag::<f32, _>(path).into_triple(None);
         let mut ts = TimeSeries::new_without_weight(t, m);
         let actual = eval.eval(&mut ts).unwrap();
         assert!(actual.iter().all(|x| x.is_finite()));

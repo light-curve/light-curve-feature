@@ -2,7 +2,7 @@ use crate::evaluator::*;
 use crate::sorted_array::SortedArray;
 
 macro_const! {
-    const DOC: &'static str = r#"
+    const DOC: &'static str = r"
 Median of the absolute value of the difference between magnitude and its median
 
 $$
@@ -14,7 +14,7 @@ $$
 - Number of features: **1**
 
 D’Isanto et al. 2016 [DOI:10.1093/mnras/stw157](https://doi.org/10.1093/mnras/stw157)
-"#;
+";
 }
 
 #[doc = DOC!()]
@@ -37,7 +37,7 @@ impl MedianAbsoluteDeviation {
         Self {}
     }
 
-    pub fn doc() -> &'static str {
+    pub const fn doc() -> &'static str {
         DOC
     }
 }

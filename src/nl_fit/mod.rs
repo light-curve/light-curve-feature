@@ -1,4 +1,4 @@
-pub(self) mod bounds;
+mod bounds;
 
 #[cfg(any(feature = "ceres-source", feature = "ceres-system"))]
 pub mod ceres;
@@ -9,7 +9,7 @@ pub use ceres::CeresCurveFit;
     feature = "gsl",
     any(feature = "ceres-source", feature = "ceres-system")
 ))]
-pub(self) mod constants;
+mod constants;
 
 pub mod curve_fit;
 pub use curve_fit::{CurveFitAlgorithm, CurveFitResult, CurveFitTrait};

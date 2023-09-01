@@ -1,7 +1,7 @@
 use crate::evaluator::*;
 
 macro_const! {
-    const DOC: &'static str = r#"
+    const DOC: &'static str = r"
 Standard deviation of time moments
 
 $$
@@ -13,7 +13,7 @@ Note: highly cadence-dependent feature.
 - Depends on: **time**
 - Minimum number of observations: **2**
 - Number of features: **1**
-"#;
+";
 }
 
 #[doc = DOC!()]
@@ -25,7 +25,7 @@ impl TimeStandardDeviation {
         Self {}
     }
 
-    pub fn doc() -> &'static str {
+    pub const fn doc() -> &'static str {
         DOC
     }
 }
