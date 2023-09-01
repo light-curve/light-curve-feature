@@ -2,7 +2,7 @@ use crate::evaluator::*;
 use itertools::Itertools;
 
 macro_const! {
-    const DOC: &'static str = r#"
+    const DOC: &'static str = r"
 $\eta^e$ — modification of [Eta](crate::Eta) for unevenly time series
 
 $$
@@ -21,7 +21,7 @@ lags. In this case consider to use this feature with [Bins](crate::Bins).
 - Number of features: **1**
 
 Kim et al. 2014, [DOI:10.1051/0004-6361/201323252](https://doi.org/10.1051/0004-6361/201323252)
-"#;
+";
 }
 
 #[doc = DOC!()]
@@ -33,7 +33,7 @@ impl EtaE {
         Self {}
     }
 
-    pub fn doc() -> &'static str {
+    pub const fn doc() -> &'static str {
         DOC
     }
 }
@@ -117,8 +117,8 @@ mod tests {
     #[test]
     fn eta_e_finite() {
         let eval = EtaE::default();
-        let (t, m, _) =
-            light_curve_feature_test_util::issue_light_curve_mag("light-curve-2/1.csv", None);
+        let (t, m, _) = light_curve_feature_test_util::issue_light_curve_mag("light-curve-2/1.csv")
+            .into_triple(None);
         let mut ts = TimeSeries::new_without_weight(t, m);
         let actual: f32 = eval.eval(&mut ts).unwrap()[0];
         assert!(actual.is_finite());

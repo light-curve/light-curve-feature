@@ -4,7 +4,7 @@ use crate::lnerfc::ln_erfc;
 use conv::ConvUtil;
 
 macro_const! {
-    const DOC: &str = r#"
+    const DOC: &str = r"
 Unbiased Anderson–Darling normality test statistic
 
 $$
@@ -20,7 +20,7 @@ and $\sigma_m = \sqrt{\sum_i (m_i - \langle m \rangle)^2 / (N-1)}$ is the magnit
 - Number of features: **1**
 
 [Wikipedia](https://en.wikipedia.org/wiki/Anderson–Darling_test)
-"#;
+";
 }
 
 #[doc = DOC!()]
@@ -32,7 +32,7 @@ impl AndersonDarlingNormal {
         Self {}
     }
 
-    pub fn doc() -> &'static str {
+    pub const fn doc() -> &'static str {
         DOC
     }
 }

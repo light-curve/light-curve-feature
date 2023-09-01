@@ -1,7 +1,7 @@
 use crate::evaluator::*;
 
 macro_const! {
-    const DOC: &str = r#"
+    const DOC: &str = r"
 Standard deviation to mean ratio
 
 $$
@@ -11,7 +11,7 @@ $$
 - Depends on: **magnitude**
 - Minimum number of observations: **2**
 - Number of features: **1**
-"#;
+";
 }
 
 #[doc = DOC!()]
@@ -34,7 +34,7 @@ impl MeanVariance {
         Self {}
     }
 
-    pub fn doc() -> &'static str {
+    pub const fn doc() -> &'static str {
         DOC
     }
 }

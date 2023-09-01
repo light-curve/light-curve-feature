@@ -1,7 +1,7 @@
 use crate::evaluator::*;
 
 macro_const! {
-    const DOC: &str = r#"
+    const DOC: &str = r"
 Measure of the variability amplitude
 
 $$
@@ -16,7 +16,7 @@ standard deviation. Note that this definition differs from
 - Number of features: **1**
 
 Sánchez et al. 2017 [DOI:10.3847/1538-4357/aa9188](https://doi.org/10.3847/1538-4357/aa9188)
-"#;
+";
 }
 
 #[doc = DOC!()]
@@ -39,7 +39,7 @@ impl ExcessVariance {
         Self {}
     }
 
-    pub fn doc() -> &'static str {
+    pub const fn doc() -> &'static str {
         DOC
     }
 }

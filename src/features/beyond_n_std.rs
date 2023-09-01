@@ -3,7 +3,7 @@ use crate::evaluator::*;
 use conv::ConvUtil;
 
 macro_const! {
-    const DOC: &str = r#"
+    const DOC: &str = r"
 Fraction of observations beyond $n\,\sigma\_m$ from the mean magnitude $\langle m \rangle$
 
 $$
@@ -19,7 +19,7 @@ and $\sigma_m = \sqrt{\sum_i (m_i - \langle m \rangle)^2 / (N-1)}$ is the magnit
 - Number of features: **1**
 
 D’Isanto et al. 2016 [DOI:10.1093/mnras/stw157](https://doi.org/10.1093/mnras/stw157)
-"#;
+";
 }
 
 #[doc = DOC!()]
@@ -79,7 +79,7 @@ where
 }
 
 impl<T> BeyondNStd<T> {
-    pub fn doc() -> &'static str {
+    pub const fn doc() -> &'static str {
         DOC
     }
 }

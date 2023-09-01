@@ -43,7 +43,7 @@ impl OtsuSplit {
         Self {}
     }
 
-    pub fn doc() -> &'static str {
+    pub const fn doc() -> &'static str {
         DOC
     }
 
@@ -247,10 +247,10 @@ mod tests {
         let eval = OtsuSplit::new();
         let mut ts = light_curve_feature_test_util::issue_light_curve_mag::<f32, _>(
             "light-curve-feature-72/1.csv",
-            None,
         )
+        .into_triple(None)
         .into();
-        let desired = vec![
+        let desired = [
             3.0221021243981205,
             0.8847146372743603,
             0.8826366394647659,

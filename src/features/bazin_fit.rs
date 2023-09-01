@@ -85,7 +85,7 @@ impl BazinFit {
         BazinInitsBounds::Default
     }
 
-    pub fn doc() -> &'static str {
+    pub const fn doc() -> &'static str {
         DOC
     }
 }
@@ -592,10 +592,9 @@ mod tests {
     fn bazin_fit_different_flux_scale() {
         const MAG_ERR: f64 = 0.01;
 
-        let (t, m, _) = light_curve_feature_test_util::issue_light_curve_mag(
-            "light-curve-feature-29/1.csv",
-            None,
-        );
+        let (t, m, _) =
+            light_curve_feature_test_util::issue_light_curve_mag("light-curve-feature-29/1.csv")
+                .into_triple(None);
 
         let f0 = [3.63e-20f64, 1.0];
         let m_models: Vec<_> = f0
@@ -643,8 +642,8 @@ mod tests {
     fn bazin_fit_nan_lnprior() {
         let mut ts = light_curve_feature_test_util::issue_light_curve_flux::<f64, _>(
             "light-curve-feature-51/1.csv",
-            None,
         )
+        .into_triple(None)
         .into();
         let bazin = BazinFit::new(
             McmcCurveFit::new(1 << 14, None).into(),

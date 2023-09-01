@@ -1,7 +1,7 @@
 use crate::evaluator::*;
 
 macro_const! {
-    const DOC: &'static str = r#"
+    const DOC: &'static str = r"
 Half amplitude of magnitude
 
 $$
@@ -11,7 +11,7 @@ $$
 - Depends on: **magnitude**
 - Minimum number of observations: **1**
 - Number of features: **1**
-"#;
+";
 }
 
 #[doc = DOC!()]
@@ -33,7 +33,7 @@ impl Amplitude {
         Self {}
     }
 
-    pub fn doc() -> &'static str {
+    pub const fn doc() -> &'static str {
         DOC
     }
 }

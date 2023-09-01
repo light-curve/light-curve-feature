@@ -1,7 +1,7 @@
 use crate::evaluator::*;
 
 macro_const! {
-    const DOC: &str = r#"
+    const DOC: &str = r"
 Skewness of magnitude $G_1$
 
 $$
@@ -16,7 +16,7 @@ $\sigma_m = \sqrt{\sum_i (m_i - \langle m \rangle)^2 / (N-1)}$ is the magnitude 
 - Number of features: **1**
 
 [Wikipedia](https://en.wikipedia.org/wiki/Skewness#Sample_skewness)
-"#;
+";
 }
 
 #[doc = DOC!()]
@@ -39,7 +39,7 @@ impl Skew {
         Self {}
     }
 
-    pub fn doc() -> &'static str {
+    pub const fn doc() -> &'static str {
         DOC
     }
 }

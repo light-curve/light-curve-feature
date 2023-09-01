@@ -1,7 +1,7 @@
 use crate::evaluator::*;
 
 macro_const! {
-    const DOC: &str = r#"
+    const DOC: &str = r"
 Mean magnitude
 
 $$
@@ -12,7 +12,7 @@ This is non-weighted mean, see [WeightedMean](crate::WeightedMean) for weighted 
 - Depends on: **magnitude**
 - Minimum number of observations: **1**
 - Number of features: **1**
-"#;
+";
 }
 
 #[doc = DOC!()]
@@ -35,7 +35,7 @@ impl Mean {
         Self {}
     }
 
-    pub fn doc() -> &'static str {
+    pub const fn doc() -> &'static str {
         DOC
     }
 }

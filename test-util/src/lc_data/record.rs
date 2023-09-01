@@ -3,9 +3,10 @@ use light_curve_feature::Float;
 use serde::de::DeserializeOwned;
 use serde::Deserialize;
 
-pub(super) trait Record<T>: DeserializeOwned {
+pub(super) trait Record<T, B>: DeserializeOwned {
     fn into_triple(self) -> (T, T, T);
-    fn band(&self) -> char;
+    fn into_quadruple(self) -> (T, T, T, B);
+    fn band(&self) -> B;
 }
 
 #[derive(Deserialize)]
@@ -13,10 +14,10 @@ pub(super) struct MagLightCurveRecord {
     time: f64,
     mag: f64,
     magerr: f64,
-    band: char,
+    band: String,
 }
 
-impl<T> Record<T> for MagLightCurveRecord
+impl<T> Record<T, String> for MagLightCurveRecord
 where
     T: Float,
 {
@@ -28,8 +29,17 @@ where
         )
     }
 
-    fn band(&self) -> char {
-        self.band
+    fn into_quadruple(self) -> (T, T, T, String) {
+        (
+            self.time.approx_as().unwrap(),
+            self.mag.approx_as().unwrap(),
+            self.magerr.approx_as().unwrap(),
+            self.band.clone(),
+        )
+    }
+
+    fn band(&self) -> String {
+        self.band.clone()
     }
 }
 
@@ -38,10 +48,10 @@ pub(super) struct FluxLightCurveRecord {
     time: f64,
     flux: f64,
     fluxerr: f64,
-    band: char,
+    band: String,
 }
 
-impl<T> Record<T> for FluxLightCurveRecord
+impl<T> Record<T, String> for FluxLightCurveRecord
 where
     T: Float,
 {
@@ -53,7 +63,16 @@ where
         )
     }
 
-    fn band(&self) -> char {
-        self.band
+    fn into_quadruple(self) -> (T, T, T, String) {
+        (
+            self.time.approx_as().unwrap(),
+            self.flux.approx_as().unwrap(),
+            self.fluxerr.approx_as().unwrap(),
+            self.band.clone(),
+        )
+    }
+
+    fn band(&self) -> String {
+        self.band.clone()
     }
 }

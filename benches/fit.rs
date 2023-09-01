@@ -31,7 +31,10 @@ pub fn bench_fit_straight_line(c: &mut Criterion) {
 
 pub fn bench_fit_snia(c: &mut Criterion) {
     const N: usize = 100;
-    let mut ts_: Vec<_> = iter_sn1a_flux_ts::<f64>().take(N).map(|ts| ts.1).collect();
+    let mut ts_: Vec<_> = iter_sn1a_flux_ts::<f64>(Some("g"))
+        .take(N)
+        .map(|ts| ts.1)
+        .collect();
 
     let curve_fitters: Vec<(_, CurveFitAlgorithm)> = vec![
         // (

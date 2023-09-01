@@ -82,7 +82,7 @@ fn main() {
         ));
         features
     };
-    iter_sn1a_flux_ts()
+    iter_sn1a_flux_ts(Some("g"))
         .take(n)
         .par_bridge()
         .for_each(|(ztf_id, mut ts)| {
@@ -92,7 +92,7 @@ fn main() {
                 path.push(filename);
                 path
             };
-            fit_and_plot(&mut ts, &features, ztf_id, path);
+            fit_and_plot(&mut ts, &features, &ztf_id, path);
         });
 }
 
