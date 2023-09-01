@@ -183,7 +183,7 @@ where
         // t0
         jac[1] = x.a() * exp_fall * (x.tau_fall() * minus_dt - T::one());
         // tau_fall
-        jac[2] = x.a() * t * minus_dt * exp_fall;
+        jac[2] = -x.a() * minus_dt * minus_dt * exp_fall;
         // b
         jac[3] = T::one();
     }
@@ -318,21 +318,19 @@ impl LinexpInitsBounds {
 
     fn default_from_ts<T: Float>(ts: &mut TimeSeries<T>) -> FitInitsBoundsArrays<NPARAMS> {
         let t_peak: f64 = ts.get_t_max_m().value_into().unwrap();
-        let m_min: f64 = ts.m.get_min().value_into().unwrap();
         let m_max: f64 = ts.m.get_max().value_into().unwrap();
-        let m_amplitude = m_max - m_min;
 
-        let a_init = 0.015 * m_amplitude;
-        let (a_lower, a_upper) = (0.0, 2.0 * m_amplitude);
+        let a_init = m_max / 6.0;
+        let (a_lower, a_upper) = (m_max / 100.0, m_max * 100.0);
 
         let t0_init = t_peak - 15.0;
         let (t0_lower, t0_upper) = (t_peak - 300.0, t_peak + 300.0);
 
-        let fall_init = 0.005;
+        let fall_init = 0.05;
         let (fall_lower, fall_upper) = (0.0, 2.0);
         
-        let b_init = m_min;
-        let (b_lower, b_upper) = (m_min - 100.0 * m_amplitude, m_max + 100.0 * m_amplitude);
+        let b_init = 0.0;
+        let (b_lower, b_upper) = (-1000.0, 1000.0);
 
         FitInitsBoundsArrays {
             init: [a_init, t0_init, fall_init, b_init].into(),
