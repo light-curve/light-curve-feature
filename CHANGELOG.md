@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Build breaking** Minimum supported Rust version (MSRV) 1.57 -> 1.65 (released 2022-11-03)
 - Feature's `doc()` static method is `const` now
-- Bump `itertools` from ^0.10 to ^0.11 
+- Bump `itertools` from ^0.10 to ^0.11
 
 ### Deprecated
 
