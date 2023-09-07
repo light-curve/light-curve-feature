@@ -12,6 +12,7 @@ use std::collections::BTreeSet;
 use std::fmt::Debug;
 use std::marker::PhantomData;
 
+/// Bulk feature evaluator.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(
     into = "MultiColorExtractorParameters<MCF>",
@@ -37,6 +38,10 @@ where
     T: Float,
     MCF: MultiColorEvaluator<P, T>,
 {
+    /// Create a new [MultiColorExtractor]
+    ///
+    /// # Arguments
+    /// `features` - A vector of multi-color features to be evaluated
     pub fn new(features: Vec<MCF>) -> Self {
         let passband_set = {
             let set: BTreeSet<_> = features

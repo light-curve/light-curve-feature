@@ -1,3 +1,5 @@
+use crate::data::multi_color_time_series::MappedMultiColorTimeSeries;
+use crate::float_trait::Float;
 use crate::PassbandTrait;
 
 use std::collections::BTreeSet;
@@ -28,6 +30,18 @@ pub enum MultiColorEvaluatorError {
         actual: BTreeSet<String>,
         desired: BTreeSet<String>,
     },
+
+    #[error("No time-series long enough: maximum length found is {maximum_actual}, while minimum required is {minimum_required}")]
+    AllTimeSeriesAreShort {
+        maximum_actual: usize,
+        minimum_required: usize,
+    },
+
+    #[error(r#"Underlying feature caused an error: "{0:?}""#)]
+    UnderlyingEvaluatorError(#[from] EvaluatorError),
+
+    #[error("All time-series are flat")]
+    AllTimeSeriesAreFlat,
 }
 
 impl MultiColorEvaluatorError {
@@ -41,6 +55,20 @@ impl MultiColorEvaluatorError {
         Self::WrongPassbandsError {
             actual: actual.map(|p| p.name().into()).collect(),
             desired: desired.map(|p| p.name().into()).collect(),
+        }
+    }
+
+    pub fn all_time_series_short<P, T>(
+        mapped: &MappedMultiColorTimeSeries<P, T>,
+        minimum_required: usize,
+    ) -> Self
+    where
+        P: PassbandTrait,
+        T: Float,
+    {
+        Self::AllTimeSeriesAreShort {
+            maximum_actual: mapped.iter_ts().map(|ts| ts.lenu()).max().unwrap_or(0),
+            minimum_required,
         }
     }
 }

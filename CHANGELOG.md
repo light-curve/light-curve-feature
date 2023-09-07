@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
---
+- `m_chi2` attribute and `get_m_chi2` method for `TimeSeries`
+- `take_mut` dependency
 
 ### Changed
 

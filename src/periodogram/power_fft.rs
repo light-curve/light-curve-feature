@@ -5,6 +5,7 @@ use crate::periodogram::freq::FreqGrid;
 use crate::periodogram::power_trait::*;
 
 use conv::{ConvAsUtil, RoundToNearest};
+use ndarray::Array1;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
@@ -73,11 +74,11 @@ impl<T> PeriodogramPowerTrait<T> for PeriodogramPowerFft<T>
 where
     T: Float,
 {
-    fn power(&self, freq: &FreqGrid<T>, ts: &mut TimeSeries<T>) -> Vec<T> {
+    fn power(&self, freq: &FreqGrid<T>, ts: &mut TimeSeries<T>) -> Array1<T> {
         let m_std2 = ts.m.get_std2();
 
         if m_std2.is_zero() {
-            return vec![T::zero(); freq.size.next_power_of_two()];
+            return Array1::zeros(freq.size.next_power_of_two());
         }
 
         let grid = TimeGrid::from_freq_grid(freq);

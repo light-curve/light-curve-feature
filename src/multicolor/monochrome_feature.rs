@@ -15,6 +15,7 @@ use std::collections::BTreeSet;
 use std::fmt::Debug;
 use std::marker::PhantomData;
 
+/// Multi-color feature which evaluates non-color dependent feature for each passband.
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(bound(
     deserialize = "P: PassbandTrait + Deserialize<'de>, T: Float, F: FeatureEvaluator<T>"
@@ -35,6 +36,11 @@ where
     T: Float,
     F: FeatureEvaluator<T>,
 {
+    /// Creates a new instance of `MonochromeFeature`.
+    ///
+    /// # Arguments
+    /// - `feature` - non-multi-color feature to evaluate for each passband.
+    /// - `passband_set` - set of passbands to evaluate the feature for.
     pub fn new(feature: F, passband_set: BTreeSet<P>) -> Self {
         let names = passband_set
             .iter()
@@ -128,5 +134,34 @@ where
             }
             PassbandSet::AllAvailable => panic!("passband_set must be FixedSet variant here"),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::features::Mean;
+    use crate::multicolor::passband::MonochromePassband;
+    use crate::Feature;
+
+    #[test]
+    fn test_monochrome_feature() {
+        let feature: MonochromeFeature<MonochromePassband<_>, f64, Feature<_>> =
+            MonochromeFeature::new(
+                Mean::default().into(),
+                [
+                    MonochromePassband::new(4700e-8, "g"),
+                    MonochromePassband::new(6200e-8, "r"),
+                ]
+                .into_iter()
+                .collect(),
+            );
+        assert_eq!(feature.get_names(), vec!["mean_g", "mean_r"]);
+        assert_eq!(
+            feature.get_descriptions(),
+            vec!["mean magnitude, passband g", "mean magnitude, passband r"]
+        );
+        assert_eq!(feature.get_info().size, 2);
     }
 }

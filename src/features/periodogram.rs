@@ -1,162 +1,12 @@
 use crate::evaluator::*;
 use crate::extractor::FeatureExtractor;
-use crate::peak_indices::peak_indices_reverse_sorted;
+use crate::features::_periodogram_peaks::PeriodogramPeaks;
 use crate::periodogram;
 use crate::periodogram::{AverageNyquistFreq, NyquistFreq, PeriodogramPower, PeriodogramPowerFft};
 
+use ndarray::Array1;
 use std::convert::TryInto;
 use std::fmt::Debug;
-use std::iter;
-
-fn number_ending(i: usize) -> &'static str {
-    #[allow(clippy::match_same_arms)]
-    match (i % 10, i % 100) {
-        (1, 11) => "th",
-        (1, _) => "st",
-        (2, 12) => "th",
-        (2, _) => "nd",
-        (3, 13) => "th",
-        (3, _) => "rd",
-        (_, _) => "th",
-    }
-}
-
-macro_const! {
-    const PERIODOGRAM_PEAK_DOC: &'static str = r#"
-Peak evaluator for [Periodogram]
-"#;
-}
-
-#[doc(hidden)]
-#[doc = PERIODOGRAM_PEAK_DOC!()]
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(
-    from = "PeriodogramPeaksParameters",
-    into = "PeriodogramPeaksParameters"
-)]
-pub struct PeriodogramPeaks {
-    peaks: usize,
-    properties: Box<EvaluatorProperties>,
-}
-
-impl PeriodogramPeaks {
-    pub fn new(peaks: usize) -> Self {
-        assert!(peaks > 0, "Number of peaks should be at least one");
-        let info = EvaluatorInfo {
-            size: 2 * peaks,
-            min_ts_length: 1,
-            t_required: true,
-            m_required: true,
-            w_required: false,
-            sorting_required: true,
-            variability_required: false,
-        };
-        let names = (0..peaks)
-            .flat_map(|i| vec![format!("period_{}", i), format!("period_s_to_n_{}", i)])
-            .collect();
-        let descriptions = (0..peaks)
-            .flat_map(|i| {
-                vec![
-                    format!(
-                        "period of the {}{} highest peak of periodogram",
-                        i + 1,
-                        number_ending(i + 1),
-                    ),
-                    format!(
-                        "Spectral density to spectral density standard deviation ratio of \
-                            the {}{} highest peak of periodogram",
-                        i + 1,
-                        number_ending(i + 1)
-                    ),
-                ]
-            })
-            .collect();
-        Self {
-            properties: EvaluatorProperties {
-                info,
-                names,
-                descriptions,
-            }
-            .into(),
-            peaks,
-        }
-    }
-
-    #[inline]
-    pub fn default_peaks() -> usize {
-        1
-    }
-
-    pub const fn doc() -> &'static str {
-        PERIODOGRAM_PEAK_DOC
-    }
-}
-
-impl Default for PeriodogramPeaks {
-    fn default() -> Self {
-        Self::new(Self::default_peaks())
-    }
-}
-
-impl EvaluatorInfoTrait for PeriodogramPeaks {
-    fn get_info(&self) -> &EvaluatorInfo {
-        &self.properties.info
-    }
-}
-
-impl FeatureNamesDescriptionsTrait for PeriodogramPeaks {
-    fn get_names(&self) -> Vec<&str> {
-        self.properties.names.iter().map(String::as_str).collect()
-    }
-
-    fn get_descriptions(&self) -> Vec<&str> {
-        self.properties
-            .descriptions
-            .iter()
-            .map(String::as_str)
-            .collect()
-    }
-}
-
-impl<T> FeatureEvaluator<T> for PeriodogramPeaks
-where
-    T: Float,
-{
-    fn eval_no_ts_check(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
-        let peak_indices = peak_indices_reverse_sorted(&ts.m.sample);
-        Ok(peak_indices
-            .iter()
-            .flat_map(|&i| {
-                iter::once(T::two() * T::PI() / ts.t.sample[i])
-                    .chain(iter::once(ts.m.signal_to_noise(ts.m.sample[i])))
-            })
-            .chain(iter::repeat(T::zero()))
-            .take(2 * self.peaks)
-            .collect())
-    }
-}
-
-#[derive(Serialize, Deserialize, JsonSchema)]
-#[serde(rename = "PeriodogramPeaks")]
-struct PeriodogramPeaksParameters {
-    peaks: usize,
-}
-
-impl From<PeriodogramPeaks> for PeriodogramPeaksParameters {
-    fn from(f: PeriodogramPeaks) -> Self {
-        Self { peaks: f.peaks }
-    }
-}
-
-impl From<PeriodogramPeaksParameters> for PeriodogramPeaks {
-    fn from(p: PeriodogramPeaksParameters) -> Self {
-        Self::new(p.peaks)
-    }
-}
-
-impl JsonSchema for PeriodogramPeaks {
-    json_schema!(PeriodogramPeaksParameters, false);
-}
 
 macro_const! {
     const DOC: &str = r#"
@@ -183,7 +33,7 @@ series without observation errors (unity weights are used if required). You can 
 #[doc = DOC!()]
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(
-    bound = "T: Float, F: FeatureEvaluator<T> + From<PeriodogramPeaks> + TryInto<PeriodogramPeaks>, <F as std::convert::TryInto<PeriodogramPeaks>>::Error: Debug,",
+    bound = "T: Float, F: FeatureEvaluator<T> + From<PeriodogramPeaks> + TryInto<PeriodogramPeaks>, <F as TryInto<PeriodogramPeaks>>::Error: Debug,",
     from = "PeriodogramParameters<T, F>",
     into = "PeriodogramParameters<T, F>"
 )]
@@ -194,7 +44,11 @@ where
     resolution: f32,
     max_freq_factor: f32,
     nyquist: NyquistFreq,
-    feature_extractor: FeatureExtractor<T, F>,
+    pub(crate) feature_extractor: FeatureExtractor<T, F>,
+    // In can be re-defined in MultiColorPeriodogram
+    pub(crate) name_prefix: String,
+    // In can be re-defined in MultiColorPeriodogram
+    pub(crate) description_suffix: String,
     periodogram_algorithm: PeriodogramPower<T>,
     properties: Box<EvaluatorProperties>,
 }
@@ -250,13 +104,13 @@ where
             feature
                 .get_names()
                 .iter()
-                .map(|name| "periodogram_".to_owned() + name),
+                .map(|name| format!("{}_{}", self.name_prefix, name)),
         );
         self.properties.descriptions.extend(
             feature
                 .get_descriptions()
                 .into_iter()
-                .map(|desc| format!("{} of periodogram", desc)),
+                .map(|desc| format!("{} {}", desc, self.description_suffix)),
         );
         self.feature_extractor.add_feature(feature);
         self
@@ -270,24 +124,24 @@ where
         self
     }
 
-    fn periodogram(&self, ts: &mut TimeSeries<T>) -> periodogram::Periodogram<T> {
+    pub(crate) fn periodogram(&self, t: &[T]) -> periodogram::Periodogram<T> {
         periodogram::Periodogram::from_t(
             self.periodogram_algorithm.clone(),
-            ts.t.as_slice(),
+            t,
             self.resolution,
             self.max_freq_factor,
             self.nyquist.clone(),
         )
     }
 
-    pub fn power(&self, ts: &mut TimeSeries<T>) -> Vec<T> {
-        self.periodogram(ts).power(ts)
+    pub fn power(&self, ts: &mut TimeSeries<T>) -> Array1<T> {
+        self.periodogram(ts.t.as_slice()).power(ts)
     }
 
-    pub fn freq_power(&self, ts: &mut TimeSeries<T>) -> (Vec<T>, Vec<T>) {
-        let p = self.periodogram(ts);
+    pub fn freq_power(&self, ts: &mut TimeSeries<T>) -> (Array1<T>, Array1<T>) {
+        let p = self.periodogram(ts.t.as_slice());
         let power = p.power(ts);
-        let freq = (0..power.len()).map(|i| p.freq(i)).collect::<Vec<_>>();
+        let freq = (0..power.len()).map(|i| p.freq_by_index(i)).collect();
         (freq, power)
     }
 }
@@ -299,33 +153,44 @@ where
 {
     /// New [Periodogram] that finds given number of peaks
     pub fn new(peaks: usize) -> Self {
-        let peaks = PeriodogramPeaks::new(peaks);
-        let peak_names = peaks.properties.names.clone();
-        let peak_descriptions = peaks.properties.descriptions.clone();
-        let peaks_size_hint = peaks.size_hint();
-        let peaks_min_ts_length = peaks.min_ts_length();
+        Self::with_name_description(
+            peaks,
+            "periodogram",
+            "of periodogram (interpreting frequency as time, power as magnitude)",
+        )
+    }
+
+    pub(crate) fn with_name_description(
+        peaks: usize,
+        name_prefix: impl ToString,
+        description_suffix: impl ToString,
+    ) -> Self {
         let info = EvaluatorInfo {
-            size: peaks_size_hint,
-            min_ts_length: usize::max(peaks_min_ts_length, 2),
+            size: 0,
+            min_ts_length: 2,
             t_required: true,
             m_required: true,
             w_required: false,
             sorting_required: true,
             variability_required: false,
         };
-        Self {
+        let mut slf = Self {
             properties: EvaluatorProperties {
                 info,
-                names: peak_names,
-                descriptions: peak_descriptions,
+                names: vec![],
+                descriptions: vec![],
             }
             .into(),
             resolution: Self::default_resolution(),
+            name_prefix: name_prefix.to_string(),
+            description_suffix: description_suffix.to_string(),
             max_freq_factor: Self::default_max_freq_factor(),
             nyquist: AverageNyquistFreq.into(),
-            feature_extractor: FeatureExtractor::new(vec![peaks.into()]),
+            feature_extractor: FeatureExtractor::new(vec![]),
             periodogram_algorithm: PeriodogramPowerFft::new().into(),
-        }
+        };
+        slf.add_feature(PeriodogramPeaks::new(peaks).into());
+        slf
     }
 }
 
@@ -333,15 +198,12 @@ impl<T, F> Periodogram<T, F>
 where
     T: Float,
     F: FeatureEvaluator<T> + From<PeriodogramPeaks> + TryInto<PeriodogramPeaks>,
-    <F as std::convert::TryInto<PeriodogramPeaks>>::Error: Debug,
+    <F as TryInto<PeriodogramPeaks>>::Error: Debug,
 {
     fn transform_ts(&self, ts: &mut TimeSeries<T>) -> Result<TmArrays<T>, EvaluatorError> {
-        self.check_ts_length(ts)?;
+        self.check_ts(ts)?;
         let (freq, power) = self.freq_power(ts);
-        Ok(TmArrays {
-            t: freq.into(),
-            m: power.into(),
-        })
+        Ok(TmArrays { t: freq, m: power })
     }
 }
 
@@ -368,7 +230,7 @@ impl<T, F> EvaluatorInfoTrait for Periodogram<T, F>
 where
     T: Float,
     F: FeatureEvaluator<T> + From<PeriodogramPeaks> + TryInto<PeriodogramPeaks>,
-    <F as std::convert::TryInto<PeriodogramPeaks>>::Error: Debug,
+    <F as TryInto<PeriodogramPeaks>>::Error: Debug,
 {
     fn get_info(&self) -> &EvaluatorInfo {
         &self.properties.info
@@ -379,7 +241,7 @@ impl<T, F> FeatureNamesDescriptionsTrait for Periodogram<T, F>
 where
     T: Float,
     F: FeatureEvaluator<T> + From<PeriodogramPeaks> + TryInto<PeriodogramPeaks>,
-    <F as std::convert::TryInto<PeriodogramPeaks>>::Error: Debug,
+    <F as TryInto<PeriodogramPeaks>>::Error: Debug,
 {
     fn get_names(&self) -> Vec<&str> {
         self.properties.names.iter().map(String::as_str).collect()
@@ -398,7 +260,7 @@ impl<T, F> FeatureEvaluator<T> for Periodogram<T, F>
 where
     T: Float,
     F: FeatureEvaluator<T> + From<PeriodogramPeaks> + TryInto<PeriodogramPeaks>,
-    <F as std::convert::TryInto<PeriodogramPeaks>>::Error: Debug,
+    <F as TryInto<PeriodogramPeaks>>::Error: Debug,
 {
     transformer_eval!();
 }
@@ -422,7 +284,7 @@ impl<T, F> From<Periodogram<T, F>> for PeriodogramParameters<T, F>
 where
     T: Float,
     F: FeatureEvaluator<T> + From<PeriodogramPeaks> + TryInto<PeriodogramPeaks>,
-    <F as std::convert::TryInto<PeriodogramPeaks>>::Error: Debug,
+    <F as TryInto<PeriodogramPeaks>>::Error: Debug,
 {
     fn from(f: Periodogram<T, F>) -> Self {
         let Periodogram {
@@ -431,13 +293,13 @@ where
             nyquist,
             feature_extractor,
             periodogram_algorithm,
-            properties: _,
+            ..
         } = f;
 
         let mut features = feature_extractor.into_vec();
         let rest_of_features = features.split_off(1);
         let periodogram_peaks: PeriodogramPeaks = features.pop().unwrap().try_into().unwrap();
-        let peaks = periodogram_peaks.peaks;
+        let peaks = periodogram_peaks.get_peaks();
 
         Self {
             resolution,
