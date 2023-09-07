@@ -134,12 +134,14 @@ where
     Plan<T, FftwComplex<T>, T::Plan>: R2CPlan<Real = T, Complex = FftwComplex<T>>,
 {
     fn new(n: &[usize]) -> Self {
-        let mut flags = Flag::PATIENT;
-        flags.insert(Flag::DESTROYINPUT);
         Self {
             r2cplan: n
                 .iter()
-                .map(|&i| (i, R2CPlan::aligned(&[i], flags).unwrap()))
+                .map(|&i| {
+                    let mut flags = Flag::PATIENT;
+                    flags.insert(Flag::DESTROYINPUT);
+                    (i, R2CPlan::aligned(&[i], flags).unwrap())
+                })
                 .collect(),
             x: n.iter().map(|&i| (i, AlignedVec::new(i))).collect(),
             y: n.iter().map(|&i| (i, AlignedVec::new(i / 2 + 1))).collect(),
