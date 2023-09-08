@@ -327,7 +327,7 @@ impl LinexpInitsBounds {
 
         let a_init = m_max * 0.15;
         let (a_lower, a_upper) = (m_max * 0.01, m_max * 1.0);
-        
+
         let t0_init = t_peak - 15.0;
         let (t0_lower, t0_upper) = (t_peak - 300.0, t_peak + 300.0);
 
