@@ -16,7 +16,7 @@ Four fit parameters and goodness of fit (reduced $\chi^2$) of the Linexp functio
 core-collapsed supernovae:
 
 $$
-f(t) = A(t-t_0) \times \mathrm{e}^{-\tau_\mathrm{fall} \times (t-t_0)} + B.
+f(t) = A(t-t_0) \times \mathrm{e}^{-(t-t_0) / \tau_\mathrm{fall}} + B.
 $$
 
 Note, that the Linexp function is developed to be used with fluxes, not magnitudes.
@@ -139,6 +139,11 @@ where
     }
 
     #[inline]
+    fn sgn_tau_fall(&self) -> T {
+        self.internal[2].signum()
+    }
+
+    #[inline]
     fn b(&self) -> T {
         self.external[3]
     }
@@ -159,8 +164,8 @@ where
             internal: param,
             external: Self::internal_to_dimensionless(param),
         };
-        let minus_dt = t - x.t0();
-        x.b() + (x.a() * minus_dt) * U::exp(-x.tau_fall() * minus_dt)
+        let dt = t - x.t0();
+        x.b() + x.a() * dt * U::exp(-dt / x.tau_fall())
     }
 }
 
@@ -175,15 +180,15 @@ where
             internal: param,
             external: Self::internal_to_dimensionless(param),
         };
-        let minus_dt = t - x.t0();
-        let exp_fall = T::exp(-x.tau_fall() * minus_dt);
+        let dt = t - x.t0();
+        let exp_fall = T::exp(-dt / x.tau_fall());
 
         // a
-        jac[0] = x.sgn_a() * minus_dt * exp_fall;
+        jac[0] = x.sgn_a() * dt * exp_fall;
         // t0
-        jac[1] = x.a() * exp_fall * (x.tau_fall() * minus_dt - T::one());
+        jac[1] = x.a() * exp_fall * (dt / x.tau_fall() - T::one());
         // tau_fall
-        jac[2] = -x.a() * minus_dt.powi(2) * exp_fall;
+        jac[2] = x.a() * dt.powi(2) * exp_fall * x.sgn_tau_fall() / x.tau_fall().powi(2);
         // b
         jac[3] = T::one();
     }
@@ -239,12 +244,7 @@ where
     }
 
     fn internal_to_dimensionless(params: &[U; NPARAMS]) -> [U; NPARAMS] {
-        [
-            params[0].abs(),
-            params[1],
-            params[2].abs(),
-            params[3],
-        ]
+        [params[0].abs(), params[1], params[2].abs(), params[3]]
     }
 }
 
@@ -317,7 +317,7 @@ impl LinexpInitsBounds {
     }
 
     fn default_from_ts<T: Float>(ts: &mut TimeSeries<T>) -> FitInitsBoundsArrays<NPARAMS> {
-    	let t_min: f64 = ts.t.get_min().value_into().unwrap();
+        let t_min: f64 = ts.t.get_min().value_into().unwrap();
         let t_max: f64 = ts.t.get_max().value_into().unwrap();
         let t_amplitude = t_max - t_min;
         let t_peak: f64 = ts.get_t_max_m().value_into().unwrap();
@@ -326,21 +326,22 @@ impl LinexpInitsBounds {
         let m_amplitude = m_max - m_min;
 
         let a_init = m_max * 0.15;
-        let (a_lower, a_upper) = (m_max * 0.01, m_max * 1.0);
+        let (a_lower, a_upper) = (0.0, 100.0 * m_max);
 
-        let t0_init = t_peak - 15.0;
-        let (t0_lower, t0_upper) = (t_peak - 300.0, t_peak + 300.0);
+        let tau_fall_init = 0.1 * t_amplitude;
+        let (tau_fall_lower, tau_fall_upper) = (0.0, 10.0 * t_amplitude);
 
-        let fall_init = t_amplitude * 0.001;
-        let (fall_lower, fall_upper) = (0.0, 0.01 * t_amplitude);
+        // From analytical solution of the Linexp function peak
+        let t0_init = t_peak - tau_fall_init;
+        let (t0_lower, t0_upper) = (t_min - 10.0 * t_amplitude, t_max + 10.0 * t_amplitude);
 
         let b_init = m_min;
         let (b_lower, b_upper) = (m_min - 100.0 * m_amplitude, m_max + 100.0 * m_amplitude);
 
         FitInitsBoundsArrays {
-            init: [a_init, t0_init, fall_init, b_init].into(),
-            lower: [a_lower, t0_lower, fall_lower, b_lower].into(),
-            upper: [a_upper, t0_upper, fall_upper, b_upper].into(),
+            init: [a_init, t0_init, tau_fall_init, b_init].into(),
+            lower: [a_lower, t0_lower, tau_fall_lower, b_lower].into(),
+            upper: [a_upper, t0_upper, tau_fall_upper, b_upper].into(),
         }
     }
 }
@@ -369,8 +370,6 @@ impl From<LnPrior<NPARAMS>> for LinexpLnPrior {
     }
 }
 
-/*
-
 #[cfg(test)]
 #[allow(clippy::unreadable_literal)]
 #[allow(clippy::excessive_precision)]
@@ -389,6 +388,9 @@ mod tests {
 
     check_feature!(LinexpFit);
 
+    check_fit_model_derivatives!(LinexpFit);
+
+    /*
     feature_test!(
         linexp_fit_plateau,
         [LinexpFit::default()],
@@ -396,7 +398,9 @@ mod tests {
         linspace(0.0, 10.0, 11),
         [0.0; 11],
     );
+    */
 
+    /*
     fn linexp_fit_noisy(eval: LinexpFit) {
         const N: usize = 50;
 
@@ -503,110 +507,5 @@ mod tests {
         let mcmc = McmcCurveFit::new(1024, None);
         linexp_fit_noisy(LinexpFit::new(mcmc.into(), prior, LinexpInitsBounds::Default));
     }
-
-    #[test]
-    fn linexp_fit_derivatives() {
-        const REPEAT: usize = 10;
-
-        let mut rng = StdRng::seed_from_u64(0);
-        for _ in 0..REPEAT {
-            let t = 10.0 * rng.gen::<f64>();
-
-            let param = {
-                let mut param = [0.0; NPARAMS];
-                for x in param.iter_mut() {
-                    *x = rng.gen::<f64>() - 0.5;
-                }
-                param
-            };
-            let actual = {
-                let mut jac = [0.0; NPARAMS];
-                LinexpFit::derivatives(t, &param, &mut jac);
-                jac
-            };
-
-            let desired: Vec<_> = {
-                let hyper_param = {
-                    let mut hyper = [Hyperdual::<f64, { NPARAMS + 1 }>::from_real(0.0); NPARAMS];
-                    for (i, (x, h)) in param.iter().zip(hyper.iter_mut()).enumerate() {
-                        h[0] = *x;
-                        h[i + 1] = 1.0;
-                    }
-                    hyper
-                };
-                let result = LinexpFit::model(t, &hyper_param);
-                (1..=NPARAMS).map(|i| result[i]).collect()
-            };
-
-            assert_relative_eq!(&actual[..], &desired[..], epsilon = 1e-9);
-        }
-    }
-
-    /// https://github.com/light-curve/light-curve-feature/issues/29
-    #[test]
-    fn linexp_fit_different_flux_scale() {
-        const MAG_ERR: f64 = 0.01;
-
-        let (t, m, _) = light_curve_feature_test_util::issue_light_curve_mag(
-            "light-curve-feature-29/1.csv",
-            None,
-        );
-
-        let f0 = [3.63e-20f64, 1.0];
-        let m_models: Vec<_> = f0
-            .iter()
-            .map(|&f0| {
-                let flux: Vec<_> = m.iter().map(|&y| f0 * f64::powf(10.0, -0.4 * y)).collect();
-                let w: Vec<_> = flux
-                    .iter()
-                    .map(|y| (0.4 * f64::ln(10.0) * y * MAG_ERR).powi(-2)) // 1 / sigma^2
-                    .collect();
-
-                let mut ts = TimeSeries::new(t.view(), &flux, &w);
-                let linexp = LinexpFit::new(
-                    McmcCurveFit::new(1_000, None).into(),
-                    LnPrior::none(),
-                    LinexpInitsBounds::option_arrays(
-                        [None; 5],
-                        [
-                            None,
-                            Some(f0 * f64::powf(10.0, -0.4 * 22.0)),
-                            None,
-                            None,
-                            None,
-                        ],
-                        [None; 5],
-                    ),
-                );
-                let result = linexp.eval(&mut ts).unwrap();
-
-                let t_model = Array1::ace(t[0] - 1.0, t[t.len() - 1] + 1.0, 100);
-                let flux_model =
-                    t_model.mapv(|x| LinexpFit::model(x, &result[..NPARAMS].try_into().unwrap()));
-                flux_model.mapv(|y| -2.5 * f64::log10(y / f0))
-            })
-            .collect();
-        assert_relative_eq!(
-            m_models[0].as_slice().unwrap(),
-            m_models[1].as_slice().unwrap(),
-            epsilon = 1e-9,
-        );
-    }
-
-    /// https://github.com/light-curve/light-curve-feature/issues/51
-    #[test]
-    fn linexp_fit_nan_lnprior() {
-        let mut ts = light_curve_feature_test_util::issue_light_curve_flux::<f64, _>(
-            "light-curve-feature-51/1.csv",
-            None,
-        )
-        .into();
-        let linexp = LinexpFit::new(
-            McmcCurveFit::new(1 << 14, None).into(),
-            LnPrior::none(),
-            LinexpInitsBounds::Default,
-        );
-        let _result = linexp.eval(&mut ts).unwrap();
-    }
+    */
 }
-*/

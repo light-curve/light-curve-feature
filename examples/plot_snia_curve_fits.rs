@@ -1,7 +1,7 @@
 use clap::Parser;
 use light_curve_feature::{
-    features::VillarLnPrior, prelude::*, BazinFit, LinexpFit, Feature, FeatureEvaluator, McmcCurveFit,
-    TimeSeries, VillarFit,
+    features::VillarLnPrior, prelude::*, BazinFit, CeresCurveFit, Feature, FeatureEvaluator,
+    LinexpFit, McmcCurveFit, TimeSeries, VillarFit,
 };
 
 use light_curve_feature::{LmsderCurveFit, LnPrior};
@@ -62,23 +62,23 @@ fn main() {
             )
             .into(),
         ));
-	features.push((
-		"BazinFit LMSDER",
-		BazinFit::new(
-		    LmsderCurveFit::default().into(),
-		    LnPrior::none(),
-		    BazinFit::default_inits_bounds(),
-		)
-		.into()
+        features.push((
+            "BazinFit LMSDER",
+            BazinFit::new(
+                LmsderCurveFit::default().into(),
+                LnPrior::none(),
+                BazinFit::default_inits_bounds(),
+            )
+            .into(),
         ));
         features.push((
-		"LinexpFit LMSDER",
-		LinexpFit::new(
-		    LmsderCurveFit::default().into(),
-		    LnPrior::none(),
-		    LinexpFit::default_inits_bounds(),
-		)
-		.into()
+            "LinexpFit Ceres",
+            LinexpFit::new(
+                CeresCurveFit::default().into(),
+                LnPrior::none(),
+                LinexpFit::default_inits_bounds(),
+            )
+            .into(),
         ));
         features
     };

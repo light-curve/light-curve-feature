@@ -125,10 +125,10 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::transformers::linexp_fit::LinexpFitTransformer;
     use crate::transformers::bazin_fit::BazinFitTransformer;
     use crate::transformers::clipped_lg::ClippedLgTransformer;
     use crate::transformers::identity::IdentityTransformer;
+    use crate::transformers::linexp_fit::LinexpFitTransformer;
 
     transformer_check_doc_static_method!(
         check_doc_static_method,

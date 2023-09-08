@@ -104,12 +104,7 @@ where
         };
         let mag_amplitude = self.mag_zp - T::half() * T::five() * T::log10(T::two() * amplitude);
         let lnp1p_reduced_chi2 = reduced_chi2.ln_1p();
-        vec![
-            mag_amplitude,
-            fall_slope,
-            baseline,
-            lnp1p_reduced_chi2,
-        ]
+        vec![mag_amplitude, fall_slope, baseline, lnp1p_reduced_chi2]
     }
 }
 
