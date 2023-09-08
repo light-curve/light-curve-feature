@@ -9,7 +9,7 @@ use conv::ConvUtil;
 const NPARAMS: usize = 4;
 
 macro_const! {
-    const DOC: &str = r#"
+    const DOC: &str = r"
 Linexp function fit
 
 Four fit parameters and goodness of fit (reduced $\chi^2$) of the Linexp function developed for
@@ -25,7 +25,7 @@ Note, that the Linexp function is developed to be used with fluxes, not magnitud
 - Minimum number of observations: **6**
 - Number of features: **5**
 
-"#;
+";
 }
 
 #[doc = DOC!()]
@@ -83,7 +83,7 @@ impl LinexpFit {
         LinexpInitsBounds::Default
     }
 
-    pub fn doc() -> &'static str {
+    pub const fn doc() -> &'static str {
         DOC
     }
 }
