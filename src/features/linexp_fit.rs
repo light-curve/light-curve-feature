@@ -16,7 +16,7 @@ Four fit parameters and goodness of fit (reduced $\chi^2$) of the Linexp functio
 core-collapsed supernovae:
 
 $$
-f(t) = A(t-t_0) \times \mathrm{e}^{-(t-t_0) / \tau_\mathrm{fall}} + B.
+f(t) = A \frac{(t-t_0)}{\tau} \times \exp{\left(\frac{(t-t_0)}{\tau}\right)} + B.
 $$
 
 Note, that the Linexp function is developed to be used with fluxes, not magnitudes.
@@ -134,12 +134,12 @@ where
     }
 
     #[inline]
-    fn tau_fall(&self) -> T {
+    fn tau(&self) -> T {
         self.external[2]
     }
 
     #[inline]
-    fn sgn_tau_fall(&self) -> T {
+    fn sgn_tau(&self) -> T {
         self.internal[2].signum()
     }
 
@@ -164,8 +164,8 @@ where
             internal: param,
             external: Self::internal_to_dimensionless(param),
         };
-        let dt = t - x.t0();
-        x.b() + x.a() * dt * U::exp(-dt / x.tau_fall())
+        let dt = (t - x.t0()) / x.tau();
+        x.b() + x.a() * dt * U::exp(-dt)
     }
 }
 
@@ -180,15 +180,15 @@ where
             internal: param,
             external: Self::internal_to_dimensionless(param),
         };
-        let dt = t - x.t0();
-        let exp_fall = T::exp(-dt / x.tau_fall());
+        let dt = (t - x.t0()) / x.tau();
+        let exp = T::exp(-dt);
 
         // a
-        jac[0] = x.sgn_a() * dt * exp_fall;
+        jac[0] = x.sgn_a() * dt * exp;
         // t0
-        jac[1] = x.a() * exp_fall * (dt / x.tau_fall() - T::one());
-        // tau_fall
-        jac[2] = x.a() * dt.powi(2) * exp_fall * x.sgn_tau_fall() / x.tau_fall().powi(2);
+        jac[1] = x.a() * exp / x.tau() * (dt - T::one());
+        // tau
+        jac[2] = jac[1] * x.sgn_tau() * dt;
         // b
         jac[3] = T::one();
     }
@@ -217,7 +217,7 @@ impl FitParametersOriginalDimLessTrait<NPARAMS> for LinexpFit {
         [
             norm_data.m_to_norm_scale(orig[0]), // A amplitude
             norm_data.t_to_norm(orig[1]),       // t_0 reference_time
-            norm_data.t_to_norm_scale(orig[2]), // tau_fall fall slope
+            norm_data.t_to_norm_scale(orig[2]), // tau fall time
             norm_data.m_to_norm(orig[3]),       // b baseline
         ]
     }
@@ -229,7 +229,7 @@ impl FitParametersOriginalDimLessTrait<NPARAMS> for LinexpFit {
         [
             norm_data.m_to_orig_scale(norm[0]), // A amplitude
             norm_data.t_to_orig(norm[1]),       // t_0 reference_time
-            norm_data.t_to_orig_scale(norm[2]), // tau_fall fall slope
+            norm_data.t_to_orig_scale(norm[2]), // tau fall time
             norm_data.m_to_orig(norm[3]),       // b baseline
         ]
     }
@@ -265,7 +265,7 @@ impl FeatureNamesDescriptionsTrait for LinexpFit {
         vec![
             "linexp_fit_amplitude",
             "linexp_fit_reference_time",
-            "linexp_fit_fall_slope",
+            "linexp_fit_fall_time",
             "linexp_fit_baseline",
             "linexp_fit_reduced_chi2",
         ]
@@ -275,7 +275,7 @@ impl FeatureNamesDescriptionsTrait for LinexpFit {
         vec![
             "Amplitude of the Linexp function (A)",
             "reference time of the Linexp fit (t0)",
-            "fall slope of the Linexp function (tau_fall)",
+            "fall time of the Linexp function (tau)",
             "baseline of the Linexp function (B)",
             "Linexp fit quality (reduced chi2)",
         ]
@@ -328,20 +328,20 @@ impl LinexpInitsBounds {
         let a_init = m_max * 0.15;
         let (a_lower, a_upper) = (0.0, 100.0 * m_max);
 
-        let tau_fall_init = 0.1 * t_amplitude;
-        let (tau_fall_lower, tau_fall_upper) = (0.0, 10.0 * t_amplitude);
+        let tau_init = 0.1 * t_amplitude;
+        let (tau_lower, tau_upper) = (0.0, 10.0 * t_amplitude);
 
         // From analytical solution of the Linexp function peak
-        let t0_init = t_peak - tau_fall_init;
+        let t0_init = t_peak - tau_init;
         let (t0_lower, t0_upper) = (t_min - 10.0 * t_amplitude, t_max + 10.0 * t_amplitude);
 
         let b_init = m_min;
         let (b_lower, b_upper) = (m_min - 100.0 * m_amplitude, m_max + 100.0 * m_amplitude);
 
         FitInitsBoundsArrays {
-            init: [a_init, t0_init, tau_fall_init, b_init].into(),
-            lower: [a_lower, t0_lower, tau_fall_lower, b_lower].into(),
-            upper: [a_upper, t0_upper, tau_fall_upper, b_upper].into(),
+            init: [a_init, t0_init, tau_init, b_init].into(),
+            lower: [a_lower, t0_lower, tau_lower, b_lower].into(),
+            upper: [a_upper, t0_upper, tau_upper, b_upper].into(),
         }
     }
 }
