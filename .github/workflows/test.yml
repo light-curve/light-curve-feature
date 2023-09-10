@@ -19,7 +19,7 @@ jobs:
         toolchain: stable
     - uses: Swatinem/rust-cache@v2
       with:
-        key: "stable"
+        shared-key: "stable"
     - name: Install FFTW and GSL
       run: |
         sudo apt-get update
@@ -50,7 +50,7 @@ jobs:
         toolchain: ${{ steps.get_msrv.outputs.msrv }}
     - uses: Swatinem/rust-cache@v2
       with:
-        key: "msrv"
+        shared-key: "msrv"
     # Build "normal" target only, see https://github.com/light-curve/light-curve-feature/issues/74
     - run: cargo +${{ steps.get_msrv.outputs.msrv }} build --no-default-features --features ceres-source,fftw-source,gsl
 
@@ -70,7 +70,7 @@ jobs:
         toolchain: stable
     - uses: Swatinem/rust-cache@v2
       with:
-        key: "stable"
+        shared-key: "stable"
     - run: cargo test --no-default-features --features=ceres-source,fftw-source,gsl
 
   test-release:
@@ -89,7 +89,7 @@ jobs:
         toolchain: stable
     - uses: Swatinem/rust-cache@v2
       with:
-        key: "stable"
+        shared-key: "stable"
     - run: cargo test --profile=release-with-debug --no-default-features --features=ceres-source,fftw-source,gsl
 
   examples:
@@ -108,7 +108,7 @@ jobs:
         toolchain: stable
     - uses: Swatinem/rust-cache@v2
       with:
-        key: "stable"
+        shared-key: "stable"
     - run: cargo run --example plot_snia_curve_fits --no-default-features --features=ceres-source,fftw-source,gsl -- -n=1
 
   fmt:
@@ -136,7 +136,7 @@ jobs:
         toolchain: stable
     - uses: Swatinem/rust-cache@v2
       with:
-        key: "stable"
+        shared-key: "stable"
     - run: cargo clippy --all-targets --no-default-features --features=ceres-source,fftw-source,gsl -- -D warnings
 
   fmt-test-util:
@@ -168,7 +168,7 @@ jobs:
         toolchain: stable
     - uses: Swatinem/rust-cache@v2
       with:
-        key: "test-util"
+        shared-key: "test-util"
     - run: cargo clippy --all-targets -- -D warnings
 
   coverage:
@@ -185,7 +185,7 @@ jobs:
       uses: taiki-e/install-action@cargo-llvm-cov
     - uses: Swatinem/rust-cache@v2
       with:
-        key: "stable"
+        shared-key: "stable"
     - name: Generate code coverage
       run: |
         cargo llvm-cov --no-report --no-default-features --features=ceres-source,fftw-source,gsl
@@ -222,7 +222,7 @@ jobs:
         toolchain: stable
     - uses: Swatinem/rust-cache@v2
       with:
-        key: "macos"
+        shared-key: "macos"
     - run: cargo build --all-targets --no-default-features --features=ceres-source,fftw-source,gsl
 
   windows:
@@ -237,5 +237,5 @@ jobs:
         toolchain: stable
     - uses: Swatinem/rust-cache@v2
       with:
-        key: "windows"
+        shared-key: "windows"
     - run: cargo build --all-targets --no-default-features --features=fftw-source
