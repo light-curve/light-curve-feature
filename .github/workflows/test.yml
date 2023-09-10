@@ -14,6 +14,12 @@ jobs:
     - uses: actions/checkout@v3
       with:
         submodules: true
+    - uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: stable
+    - uses: Swatinem/rust-cache@v2
+      with:
+        key: "stable"
     - name: Install FFTW and GSL
       run: |
         sudo apt-get update
@@ -42,6 +48,9 @@ jobs:
     - uses: dtolnay/rust-toolchain@master
       with:
         toolchain: ${{ steps.get_msrv.outputs.msrv }}
+    - uses: Swatinem/rust-cache@v2
+      with:
+        key: "msrv"
     # Build "normal" target only, see https://github.com/light-curve/light-curve-feature/issues/74
     - run: cargo +${{ steps.get_msrv.outputs.msrv }} build --no-default-features --features ceres-source,fftw-source,gsl
 
@@ -56,6 +65,12 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y libfftw3-dev libgsl-dev
+    - uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: stable
+    - uses: Swatinem/rust-cache@v2
+      with:
+        key: "stable"
     - run: cargo test --no-default-features --features=ceres-source,fftw-source,gsl
 
   test-release:
@@ -69,6 +84,12 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y libfftw3-dev libgsl-dev
+    - uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: stable
+    - uses: Swatinem/rust-cache@v2
+      with:
+        key: "stable"
     - run: cargo test --profile=release-with-debug --no-default-features --features=ceres-source,fftw-source,gsl
 
   examples:
@@ -82,6 +103,12 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y libfftw3-dev libgsl-dev
+    - uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: stable
+    - uses: Swatinem/rust-cache@v2
+      with:
+        key: "stable"
     - run: cargo run --example plot_snia_curve_fits --no-default-features --features=ceres-source,fftw-source,gsl -- -n=1
 
   fmt:
@@ -104,6 +131,12 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y libfftw3-dev libgsl-dev
+    - uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: stable
+    - uses: Swatinem/rust-cache@v2
+      with:
+        key: "stable"
     - run: cargo clippy --all-targets --no-default-features --features=ceres-source,fftw-source,gsl -- -D warnings
 
   fmt-test-util:
@@ -127,33 +160,42 @@ jobs:
         working-directory: test-util
 
     steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: true
-      - run: cargo clippy --all-targets -- -D warnings
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+    - uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: stable
+    - uses: Swatinem/rust-cache@v2
+      with:
+        key: "test-util"
+    - run: cargo clippy --all-targets -- -D warnings
 
   coverage:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: true
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable
-      - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@cargo-llvm-cov
-      - name: Generate code coverage
-        run: |
-          cargo llvm-cov --no-report --no-default-features --features=ceres-source,fftw-source,gsl
-          cargo llvm-cov run --example=plot_snia_curve_fits --no-report --no-default-features --features=ceres-source,fftw-source,gsl -- -n=1
-          cargo llvm-cov report --lcov --output-path lcov.info
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
-        with:
-          files: lcov.info
-          fail_ci_if_error: true
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+    - uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: stable
+    - name: Install cargo-llvm-cov
+      uses: taiki-e/install-action@cargo-llvm-cov
+    - uses: Swatinem/rust-cache@v2
+      with:
+        key: "stable"
+    - name: Generate code coverage
+      run: |
+        cargo llvm-cov --no-report --no-default-features --features=ceres-source,fftw-source,gsl
+        cargo llvm-cov run --example=plot_snia_curve_fits --no-report --no-default-features --features=ceres-source,fftw-source,gsl -- -n=1
+        cargo llvm-cov report --lcov --output-path lcov.info
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        files: lcov.info
+        fail_ci_if_error: true
 
   arm:
     runs-on: [self-hosted, linux, ARM64]
@@ -170,12 +212,18 @@ jobs:
     runs-on: macos-latest
 
     steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: true
-      - name: Install gsl
-        run: brew install gsl
-      - run: cargo build --all-targets --no-default-features --features=ceres-source,fftw-source,gsl
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+    - name: Install gsl
+      run: brew install gsl
+    - uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: stable
+    - uses: Swatinem/rust-cache@v2
+      with:
+        key: "macos"
+    - run: cargo build --all-targets --no-default-features --features=ceres-source,fftw-source,gsl
 
   windows:
     runs-on: windows-latest
@@ -184,4 +232,10 @@ jobs:
     - uses: actions/checkout@v3
       with:
         submodules: true
+    - uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: stable
+    - uses: Swatinem/rust-cache@v2
+      with:
+        key: "windows"
     - run: cargo build --all-targets --no-default-features --features=fftw-source
