@@ -3,7 +3,7 @@ use crate::transformers::transformer::*;
 use conv::prelude::*;
 use macro_const::macro_const;
 
-const INPUT_FEATURE_SIZE: usize = 5;
+const INPUT_FEATURE_SIZE: usize = 4;
 
 macro_const! {
     const DOC: &str = r#"
@@ -12,7 +12,6 @@ Transform LinexpFit features to be more usable
 The LinexpFit feature extractor returns the following features:
 - amplitude - kept as is
 - fall_slope - kept as is
-- baseline - kept as is
 - ln1p_linexp_fit_reduced_chi2 - transformed to be less spread
   ln(1 + reduced_chi2)
 "#;
@@ -63,14 +62,13 @@ where
 
     #[inline]
     fn size_hint(&self, _size: usize) -> usize {
-        4
+        3
     }
 
     fn names(&self, _names: &[&str]) -> Vec<String> {
         vec![
             "linexp_fit_amplitude".into(),
             "linexp_fit_fall_slope".into(),
-            "linexp_fit_baseline".into(),
             "ln1p_linexp_fit_reduced_chi2".into(),
         ]
     }
@@ -82,7 +80,6 @@ where
                 self.mag_zp
             ),
             "Exponential fall slope the Linexp function (tau_fall)".into(),
-            "baseline, B".into(),
             "natural logarithm of unity plus Linexp fit quality (ln(1 + reduced_chi2))".into(),
         ]
     }
@@ -93,7 +90,7 @@ where
     T: Float,
 {
     fn transform(&self, x: Vec<T>) -> Vec<T> {
-        let [amplitude, _reference_time, fall_slope, baseline, reduced_chi2]: [T;
+        let [amplitude, _reference_time, fall_slope, reduced_chi2]: [T;
             INPUT_FEATURE_SIZE] = match x.try_into() {
             Ok(a) => a,
             Err(x) => panic!(
@@ -104,7 +101,7 @@ where
         };
         let mag_amplitude = self.mag_zp - T::half() * T::five() * T::log10(T::two() * amplitude);
         let lnp1p_reduced_chi2 = reduced_chi2.ln_1p();
-        vec![mag_amplitude, fall_slope, baseline, lnp1p_reduced_chi2]
+        vec![mag_amplitude, fall_slope, lnp1p_reduced_chi2]
     }
 }
 
