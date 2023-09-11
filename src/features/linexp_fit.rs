@@ -393,7 +393,7 @@ mod tests {
 
     check_fit_model_derivatives!(LinexpFit);
 
-    /*
+    
     feature_test!(
         linexp_fit_plateau,
         [LinexpFit::default()],
@@ -401,23 +401,21 @@ mod tests {
         linspace(0.0, 10.0, 11),
         [0.0; 11],
     );
-    */
+    
 
-    /*
     fn linexp_fit_noisy(eval: LinexpFit) {
         const N: usize = 50;
 
-        let mut rng = StdRng::seed_from_u64(0);
+        let mut rng = StdRng::seed_from_u64(42);
 
-        let param_true = [0.03, 0.0, 0.007, 0.0];
-        let noise_scale = 0.05;
+        let param_true = [20.0, 5.0, 20.0, 15.0];
 
-        let t = linspace(-10.0, 600.0, N);
+        let t = linspace(-10.0, 130.0, N);
         let model: Vec<_> = t.iter().map(|&x| LinexpFit::model(x, &param_true)).collect();
         let m: Vec<_> = model
             .iter()
             .map(|&y| {
-                let std = noise_scale * f64::abs(y);
+                let std = f64::sqrt(y);
                 let err = std * rng.sample::<f64, _>(StandardNormal);
                 y + err
             })
@@ -426,18 +424,16 @@ mod tests {
         println!("{:?}\n{:?}\n{:?}\n{:?}", t, model, m, w);
         let mut ts = TimeSeries::new(&t, &m, &w);
 
-        // curve_fit(lambda t, a, t0, fall, b : b + a * (t - t0) * np.exp(-fall * (t - t0)), xdata=t, ydata=m, sigma=0.05*abs(y), p0=[0.015, 15, .005, 0])
-        let desired = [
-            -0.00700205,
-            0.02974836,
-            0.03040189,
-            0.0,
-        ];
+        // curve_fit(lambda t, a, t0, fall, b : b + a * (t - t0) * np.exp(-fall * (t - t0)), xdata=t, ydata=m, sigma=0.05*abs(y), p0=[0.015, 15.0, .005, 30.0])
+        let desired = [ 22.13422546,
+		 -14.63084146,
+		  18.54535316,
+		  16.20223788];
 
         let values = eval.eval(&mut ts).unwrap();
         assert_relative_eq!(&values[..5], &desired[..], max_relative = 0.01);
     }
-
+	
     #[cfg(any(feature = "ceres-source", feature = "ceres-system"))]
     #[test]
     fn linexp_fit_noisy_ceres() {
@@ -471,7 +467,7 @@ mod tests {
             LinexpInitsBounds::option_arrays(
                 [None; 5],
                 [None; 5],
-                [None, None, Some(50.0), Some(50.0), Some(50.0)],
+                [None, Some(50.0), Some(50.0), None],
             ),
         ));
     }
@@ -501,14 +497,13 @@ mod tests {
     #[test]
     fn linexp_fit_noizy_mcmc_with_prior() {
         let prior = LnPrior::ind_components([
-            LnPrior1D::normal(1e4, 2e3),
-            LnPrior1D::normal(1e3, 2e2),
-            LnPrior1D::uniform(25.0, 35.0),
-            LnPrior1D::log_normal(f64::ln(10.0), 0.2),
-            LnPrior1D::log_normal(f64::ln(30.0), 0.2),
+            LnPrior1D::normal(20.0, 5.0),
+   	    LnPrior1D::uniform(-50.0, 50.0),
+            LnPrior1D::log_normal(f64::ln(20.0), 0.2),
+            LnPrior1D::normal(15.0, 20.0),
         ]);
         let mcmc = McmcCurveFit::new(1024, None);
         linexp_fit_noisy(LinexpFit::new(mcmc.into(), prior, LinexpInitsBounds::Default));
     }
-    */
+
 }
