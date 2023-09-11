@@ -1,10 +1,10 @@
 use clap::Parser;
 use light_curve_feature::{
     features::VillarLnPrior, prelude::*, BazinFit, CeresCurveFit, Feature, FeatureEvaluator,
-    LinexpFit, McmcCurveFit, TimeSeries, VillarFit,
+    LinexpFit, McmcCurveFit, TimeSeries, VillarFit, LnPrior,
 };
-
-use light_curve_feature::{LmsderCurveFit, LnPrior};
+#[cfg(all(feature = "ceres-source", feature = "gsl"))]
+use light_curve_feature::{LmsderCurveFit};
 use light_curve_feature_test_util::iter_sn1a_flux_ts;
 use ndarray::{Array1, ArrayView1};
 use plotters::prelude::*;
@@ -20,7 +20,81 @@ fn main() {
     #[allow(clippy::vec_init_then_push)]
     let features = {
         let mut features: Vec<(&str, Feature<_>)> = vec![];
-
+        #[cfg(all(feature = "gsl", feature = "ceres-source"))]
+        {
+            features.push((
+                "BazinFit LMSDER",
+                BazinFit::new(
+                    LmsderCurveFit::default().into(),
+                    LnPrior::none(),
+                    BazinFit::default_inits_bounds(),
+                )
+                .into(),
+            ));
+            features.push((
+                "BazinFit MCMC+LMSDER",
+                BazinFit::new(
+                    McmcCurveFit::new(1024, Some(LmsderCurveFit::default().into())).into(),
+                    LnPrior::none(),
+                    BazinFit::default_inits_bounds(),
+                )
+                .into(),
+            ));
+            features.push((
+                "BazinFit Ceres",
+                BazinFit::new(
+                    CeresCurveFit::default().into(),
+                    LnPrior::none(),
+                    BazinFit::default_inits_bounds(),
+                )
+                .into(),
+            ));
+            features.push((
+                "BazinFit MCMC+Ceres",
+                BazinFit::new(
+                    McmcCurveFit::new(1024, Some(CeresCurveFit::default().into())).into(),
+                    LnPrior::none(),
+                    BazinFit::default_inits_bounds(),
+                )
+                .into(),
+            ));
+            features.push((
+                "VillarFit LMSDER",
+                VillarFit::new(
+                    LmsderCurveFit::default().into(),
+                    LnPrior::none(),
+                    VillarFit::default_inits_bounds(),
+                )
+                .into(),
+            ));
+            features.push((
+                "VillarFit MCMC+LMSDER",
+                VillarFit::new(
+                    McmcCurveFit::new(1024, Some(LmsderCurveFit::default().into())).into(),
+                    LnPrior::none(),
+                    VillarFit::default_inits_bounds(),
+                )
+                .into(),
+            ));
+            features.push((
+                "VillarFit Ceres",
+                VillarFit::new(
+                    CeresCurveFit::default().into(),
+                    LnPrior::none(),
+                    VillarFit::default_inits_bounds(),
+                )
+                .into(),
+            ));
+            features.push((
+                "VillarFit MCMC+Ceres",
+                VillarFit::new(
+                    McmcCurveFit::new(1024, Some(CeresCurveFit::default().into())).into(),
+                    LnPrior::none(),
+                    VillarFit::default_inits_bounds(),
+                )
+                .into(),
+            ));
+        }
         features.push((
             "VillarFit MCMC+prior",
             VillarFit::new(
@@ -63,15 +137,6 @@ fn main() {
             .into(),
         ));
         features.push((
-            "BazinFit LMSDER",
-            BazinFit::new(
-                LmsderCurveFit::default().into(),
-                LnPrior::none(),
-                BazinFit::default_inits_bounds(),
-            )
-            .into(),
-        ));
-        features.push((
             "LinexpFit Ceres",
             LinexpFit::new(
                 CeresCurveFit::default().into(),
@@ -82,6 +147,7 @@ fn main() {
         ));
         features
     };
+      
     iter_sn1a_flux_ts(Some("g"))
         .take(n)
         .par_bridge()
