@@ -6,25 +6,24 @@ use crate::nl_fit::{
 
 use conv::ConvUtil;
 
-const NPARAMS: usize = 3;
+const NPARAMS: usize = 4;
 
 macro_const! {
     const DOC: &str = r"
 Linexp function fit
 
-Three fit parameters and goodness of fit (reduced $\chi^2$) of the Linexp function developed for
+Four fit parameters and goodness of fit (reduced $\chi^2$) of the Linexp function developed for
 core-collapsed supernovae:
 
 $$
-f(t) = A \frac{(t-t_0)}{\tau} \times \exp{\left(\frac{(t-t_0)}{\tau}\right)}.
+f(t) = A \frac{(t-t_0)}{\tau} \times \exp{\left(\frac{(t-t_0)}{\tau}\right)} + B.
 $$
 
 Note, that the Linexp function is developed to be used with fluxes, not magnitudes.
-Also, baseline is not included. It should therefore be used only on data where baseline = 0 (flux = flux - flux.min())
 
 - Depends on: **time**, **flux**, **flux error**
-- Minimum number of observations: **3**
-- Number of features: **3**
+- Minimum number of observations: **6**
+- Number of features: **5**
 
 ";
 }
@@ -143,6 +142,11 @@ where
     fn sgn_tau(&self) -> T {
         self.internal[2].signum()
     }
+
+    #[inline]
+    fn b(&self) -> T {
+        self.external[3]
+    }
 }
 
 impl<T, U> FitModelTrait<T, U, NPARAMS> for LinexpFit
@@ -161,7 +165,7 @@ where
             external: Self::internal_to_dimensionless(param),
         };
         let dt = (t - x.t0()) / x.tau();
-        x.a() * dt * U::exp(-dt)
+        x.b() + x.a() * dt * U::exp(-dt)
     }
 }
 
@@ -185,6 +189,8 @@ where
         jac[1] = x.a() * exp / x.tau() * (dt - T::one());
         // tau
         jac[2] = jac[1] * x.sgn_tau() * dt;
+        // b
+        jac[3] = T::one();
     }
 }
 
@@ -212,6 +218,7 @@ impl FitParametersOriginalDimLessTrait<NPARAMS> for LinexpFit {
             norm_data.m_to_norm_scale(orig[0]), // A amplitude
             norm_data.t_to_norm(orig[1]),       // t_0 reference_time
             norm_data.t_to_norm_scale(orig[2]), // tau fall time
+            norm_data.m_to_norm(orig[3]),       // b baseline
         ]
     }
 
@@ -223,6 +230,7 @@ impl FitParametersOriginalDimLessTrait<NPARAMS> for LinexpFit {
             norm_data.m_to_orig_scale(norm[0]), // A amplitude
             norm_data.t_to_orig(norm[1]),       // t_0 reference_time
             norm_data.t_to_orig_scale(norm[2]), // tau fall time
+            norm_data.m_to_orig(norm[3]),       // b baseline
         ]
     }
 }
@@ -236,7 +244,7 @@ where
     }
 
     fn internal_to_dimensionless(params: &[U; NPARAMS]) -> [U; NPARAMS] {
-        [params[0].abs(), params[1], params[2].abs()]
+        [params[0].abs(), params[1], params[2].abs(), params[3]]
     }
 }
 
@@ -258,6 +266,7 @@ impl FeatureNamesDescriptionsTrait for LinexpFit {
             "linexp_fit_amplitude",
             "linexp_fit_reference_time",
             "linexp_fit_fall_time",
+            "linexp_fit_baseline",
             "linexp_fit_reduced_chi2",
         ]
     }
@@ -267,6 +276,7 @@ impl FeatureNamesDescriptionsTrait for LinexpFit {
             "Amplitude of the Linexp function (A)",
             "reference time of the Linexp fit (t0)",
             "fall time of the Linexp function (tau)",
+            "baseline of the Linexp function (B)",
             "Linexp fit quality (reduced chi2)",
         ]
     }
@@ -311,7 +321,9 @@ impl LinexpInitsBounds {
         let t_max: f64 = ts.t.get_max().value_into().unwrap();
         let t_amplitude = t_max - t_min;
         let t_peak: f64 = ts.get_t_max_m().value_into().unwrap();
+        let m_min: f64 = ts.m.get_min().value_into().unwrap();
         let m_max: f64 = ts.m.get_max().value_into().unwrap();
+        let m_amplitude = m_max - m_min;
 
         let a_init = m_max * 0.15;
         let (a_lower, a_upper) = (0.0, 100.0 * m_max);
@@ -326,10 +338,13 @@ impl LinexpInitsBounds {
         let t0_init = t_peak - 1.5 * tau_init;
         let (t0_lower, t0_upper) = (t_min - 10.0 * t_amplitude, t_max + 10.0 * t_amplitude);
 
+        let b_init = m_min;
+        let (b_lower, b_upper) = (m_min - 100.0 * m_amplitude, m_max + 100.0 * m_amplitude);
+
         FitInitsBoundsArrays {
-            init: [a_init, t0_init, tau_init].into(),
-            lower: [a_lower, t0_lower, tau_lower].into(),
-            upper: [a_upper, t0_upper, tau_upper].into(),
+            init: [a_init, t0_init, tau_init, b_init].into(),
+            lower: [a_lower, t0_lower, tau_lower, b_lower].into(),
+            upper: [a_upper, t0_upper, tau_upper, b_upper].into(),
         }
     }
 }
@@ -382,7 +397,7 @@ mod tests {
     feature_test!(
         linexp_fit_plateau,
         [LinexpFit::default()],
-        [0.015, 15.0, 0.005, 0.0], // initial model parameters and zero chi2
+        [0.015, 15.0, 0.005, 0.0, 0.0], // initial model parameters and zero chi2
         linspace(0.0, 10.0, 11),
         [0.0; 11],
     );
@@ -394,7 +409,7 @@ mod tests {
 
         let mut rng = StdRng::seed_from_u64(0);
 
-        let param_true = [0.03, 0.0, 0.007];
+        let param_true = [0.03, 0.0, 0.007, 0.0];
         let noise_scale = 0.05;
 
         let t = linspace(-10.0, 600.0, N);
@@ -411,11 +426,12 @@ mod tests {
         println!("{:?}\n{:?}\n{:?}\n{:?}", t, model, m, w);
         let mut ts = TimeSeries::new(&t, &m, &w);
 
-        // curve_fit(lambda t, a, t0, fall : a * (t - t0) * np.exp(-fall * (t - t0)), xdata=t, ydata=m, sigma=0.05*abs(y), p0=[0.015, 15, .005])
+        // curve_fit(lambda t, a, t0, fall, b : b + a * (t - t0) * np.exp(-fall * (t - t0)), xdata=t, ydata=m, sigma=0.05*abs(y), p0=[0.015, 15, .005, 0])
         let desired = [
             -0.00700205,
             0.02974836,
             0.03040189,
+            0.0,
         ];
 
         let values = eval.eval(&mut ts).unwrap();

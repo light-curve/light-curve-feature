@@ -140,7 +140,7 @@ mod tests {
             (IdentityTransformer::new().into(), 3),
             (ClippedLgTransformer::default().into(), 2),
             (BazinFitTransformer::default().into(), 6),
-            (LinexpFitTransformer::default().into(), 4),
+            (LinexpFitTransformer::default().into(), 5),
         ])
         .unwrap(),
         ComposedTransformer::<Transformer<f32>>
@@ -175,7 +175,7 @@ mod tests {
         let tr = ComposedTransformer::<Transformer<f32>>::new([
             (IdentityTransformer::new().into(), 2),
             (BazinFitTransformer::default().into(), 6),
-            (LinexpFitTransformer::default().into(), 4),
+            (LinexpFitTransformer::default().into(), 5),
         ])
         .unwrap();
         assert_eq!(tr.transformers.len(), 3);
@@ -191,7 +191,7 @@ mod tests {
         let result = ComposedTransformer::<Transformer<f32>>::new([
             (IdentityTransformer::new().into(), 3),
             (BazinFitTransformer::default().into(), 3), // requires six features
-            (LinexpFitTransformer::default().into(), 3), // requires four features
+            (LinexpFitTransformer::default().into(), 3), // requires five features
         ]);
         assert!(result.is_err());
     }
