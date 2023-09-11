@@ -328,11 +328,14 @@ impl LinexpInitsBounds {
         let a_init = m_max * 0.15;
         let (a_lower, a_upper) = (0.0, 100.0 * m_max);
 
-        let tau_init = 0.1 * t_amplitude;
-        let (tau_lower, tau_upper) = (0.0, 10.0 * t_amplitude);
+        let tau_init = t_amplitude * 0.2;
+        let (tau_lower, tau_upper) = (0.0, t_amplitude * 10000.0);
 
-        // From analytical solution of the Linexp function peak
-        let t0_init = t_peak - tau_init;
+        // - tau_init comes from analytical solution of the Linexp function peak
+        // We multiply by 1.5 because from experience the minimizer behaves better 
+        // when the initial guess overshoots to the left compared to the right
+        
+        let t0_init = t_peak - 1.5 * tau_init;
         let (t0_lower, t0_upper) = (t_min - 10.0 * t_amplitude, t_max + 10.0 * t_amplitude);
 
         let b_init = m_min;
