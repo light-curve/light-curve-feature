@@ -10,9 +10,11 @@ macro_const! {
 Transform LinexpFit features to be more usable
 
 The LinexpFit feature extractor returns the following features:
-- amplitude - kept as is
-- fall_slope - kept as is
-- baseline - kept as is
+- mag_amplitude - amplitude in fluxes is assumed to be intersect object
+  flux, so we transform it to be apparent magnitude: zp - 2.5 log10(2 * A)
+- fall_time - kept as is
+- baseline_amplitude_ratio - ratio of baseline to amplitude (both taken
+  in original units, not magnitudes, because baseline can be negative)
 - ln1p_linexp_fit_reduced_chi2 - transformed to be less spread
   ln(1 + reduced_chi2)
 "#;
@@ -69,7 +71,7 @@ where
     fn names(&self, _names: &[&str]) -> Vec<String> {
         vec![
             "linexp_fit_amplitude".into(),
-            "linexp_fit_fall_slope".into(),
+            "linexp_fit_fall_time".into(),
             "linexp_fit_baseline".into(),
             "ln1p_linexp_fit_reduced_chi2".into(),
         ]
@@ -93,7 +95,7 @@ where
     T: Float,
 {
     fn transform(&self, x: Vec<T>) -> Vec<T> {
-        let [amplitude, _reference_time, fall_slope, baseline, reduced_chi2]: [T;
+        let [amplitude, _reference_time, fall_time, baseline, reduced_chi2]: [T;
             INPUT_FEATURE_SIZE] = match x.try_into() {
             Ok(a) => a,
             Err(x) => panic!(
@@ -103,8 +105,14 @@ where
             ),
         };
         let mag_amplitude = self.mag_zp - T::half() * T::five() * T::log10(T::two() * amplitude);
+        let baseline_amplitude_ratio = baseline / amplitude;
         let lnp1p_reduced_chi2 = reduced_chi2.ln_1p();
-        vec![mag_amplitude, fall_slope, baseline, lnp1p_reduced_chi2]
+        vec![
+		mag_amplitude,
+		fall_time,
+		baseline_amplitude_ratio,
+		lnp1p_reduced_chi2
+	]
     }
 }
 

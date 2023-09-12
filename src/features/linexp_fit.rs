@@ -22,7 +22,7 @@ $$
 Note, that the Linexp function is developed to be used with fluxes, not magnitudes.
 
 - Depends on: **time**, **flux**, **flux error**
-- Minimum number of observations: **6**
+- Minimum number of observations: **5**
 - Number of features: **5**
 
 ";
