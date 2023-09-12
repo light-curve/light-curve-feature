@@ -1,11 +1,11 @@
 use clap::Parser;
-use light_curve_feature::{
-    features::VillarLnPrior, prelude::*, BazinFit, Feature, FeatureEvaluator,
-    LinexpFit, McmcCurveFit, TimeSeries, VillarFit, LnPrior,
-};
-use light_curve_feature::{CeresCurveFit};
+use light_curve_feature::CeresCurveFit;
 #[cfg(all(feature = "ceres-source", feature = "gsl"))]
-use light_curve_feature::{LmsderCurveFit};
+use light_curve_feature::LmsderCurveFit;
+use light_curve_feature::{
+    features::VillarLnPrior, prelude::*, BazinFit, Feature, FeatureEvaluator, LinexpFit, LnPrior,
+    McmcCurveFit, TimeSeries, VillarFit,
+};
 use light_curve_feature_test_util::iter_sn1a_flux_ts;
 use ndarray::{Array1, ArrayView1};
 use plotters::prelude::*;
@@ -95,6 +95,15 @@ fn main() {
                 )
                 .into(),
             ));
+            features.push((
+                "LinexpFit Ceres",
+                LinexpFit::new(
+                    CeresCurveFit::default().into(),
+                    LnPrior::none(),
+                    LinexpFit::default_inits_bounds(),
+                )
+                .into(),
+            ));
         }
         features.push((
             "VillarFit MCMC+prior",
@@ -137,15 +146,7 @@ fn main() {
             )
             .into(),
         ));
-        features.push((
-            "LinexpFit Ceres",
-            LinexpFit::new(
-                CeresCurveFit::default().into(),
-                LnPrior::none(),
-                LinexpFit::default_inits_bounds(),
-            )
-            .into(),
-        ));
+
         features
     };
 

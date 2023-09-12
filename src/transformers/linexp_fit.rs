@@ -108,11 +108,11 @@ where
         let baseline_amplitude_ratio = baseline / amplitude;
         let lnp1p_reduced_chi2 = reduced_chi2.ln_1p();
         vec![
-		mag_amplitude,
-		fall_time,
-		baseline_amplitude_ratio,
-		lnp1p_reduced_chi2
-	]
+            mag_amplitude,
+            fall_time,
+            baseline_amplitude_ratio,
+            lnp1p_reduced_chi2,
+        ]
     }
 }
 

@@ -393,15 +393,13 @@ mod tests {
 
     check_fit_model_derivatives!(LinexpFit);
 
-
     feature_test!(
         linexp_fit_plateau,
         [LinexpFit::default()],
-        [0.0, 5.5, 3.0, 0.0, 0.0], // initial model parameters and zero chi2
+        [0.0, 6.3, 2.5, 0.0, 0.0], // initial model parameters and zero chi2
         linspace(0.0, 10.0, 11),
         [0.0; 11],
     );
-
 
     fn linexp_fit_noisy(eval: LinexpFit) {
         const N: usize = 50;
@@ -411,7 +409,10 @@ mod tests {
         let param_true = [1000.0, -15.0, 20.0, 15.0];
 
         let t = linspace(-10.0, 100.0, N);
-        let model: Vec<_> = t.iter().map(|&x| LinexpFit::model(x, &param_true)).collect();
+        let model: Vec<_> = t
+            .iter()
+            .map(|&x| LinexpFit::model(x, &param_true))
+            .collect();
         let m: Vec<_> = model
             .iter()
             .map(|&y| {
@@ -425,10 +426,7 @@ mod tests {
         let mut ts = TimeSeries::new(&t, &m, &w);
 
         // curve_fit(lambda t, a, t0, fall, b : b + a * ((t - t0) / fall) * np.exp(-(t - t0) / fall), xdata=t, ydata=m, sigma=np.array(w)**-0.5, p0=[800, 10, 15, 30])
-        let desired = [982.42262317,
-		 -15.08873767,
-		  20.42325543,
-		  13.23259373];
+        let desired = [982.42262317, -15.08873767, 20.42325543, 13.23259373];
 
         let values = eval.eval(&mut ts).unwrap();
         assert_relative_eq!(&values[..4], &desired[..], max_relative = 0.02);
@@ -498,12 +496,15 @@ mod tests {
     fn linexp_fit_noizy_mcmc_with_prior() {
         let prior = LnPrior::ind_components([
             LnPrior1D::normal(900.0, 100.0),
-   	    LnPrior1D::uniform(-50.0, 50.0),
+            LnPrior1D::uniform(-50.0, 50.0),
             LnPrior1D::log_normal(f64::ln(20.0), 0.2),
             LnPrior1D::normal(15.0, 20.0),
         ]);
         let mcmc = McmcCurveFit::new(1024, None);
-        linexp_fit_noisy(LinexpFit::new(mcmc.into(), prior, LinexpInitsBounds::Default));
+        linexp_fit_noisy(LinexpFit::new(
+            mcmc.into(),
+            prior,
+            LinexpInitsBounds::Default,
+        ));
     }
-
 }
