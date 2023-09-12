@@ -396,7 +396,7 @@ mod tests {
     feature_test!(
         linexp_fit_plateau,
         [LinexpFit::default()],
-        [0.0, 6.3, 2.5, 0.0, 0.0], // initial model parameters and zero chi2
+        [0.0, 6.25, 2.5, 0.0, 0.0], // initial model parameters and zero chi2
         linspace(0.0, 10.0, 11),
         [0.0; 11],
     );
