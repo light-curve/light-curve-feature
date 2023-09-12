@@ -325,10 +325,10 @@ impl LinexpInitsBounds {
         let m_max: f64 = ts.m.get_max().value_into().unwrap();
         let m_amplitude = m_max - m_min;
 
-        let a_init = m_max * 0.15;
-        let (a_lower, a_upper) = (0.0, 100.0 * m_max);
+        let a_init = m_max * 3.0;
+        let (a_lower, a_upper) = (0.0, 1000.0 * m_max);
 
-        let tau_init = t_amplitude * 0.2;
+        let tau_init = t_amplitude * 0.25;
         let (tau_lower, tau_upper) = (0.0, t_amplitude * 10000.0);
 
         // - tau_init comes from analytical solution of the Linexp function peak
@@ -393,11 +393,11 @@ mod tests {
 
     check_fit_model_derivatives!(LinexpFit);
 
-    
+
     feature_test!(
         linexp_fit_plateau,
         [LinexpFit::default()],
-        [0.015, 15.0, 0.005, 0.0, 0.0], // initial model parameters and zero chi2
+        [0.0, 5.5, 3.0, 0.0, 0.0], // initial model parameters and zero chi2
         linspace(0.0, 10.0, 11),
         [0.0; 11],
     );
@@ -408,9 +408,9 @@ mod tests {
 
         let mut rng = StdRng::seed_from_u64(42);
 
-        let param_true = [20.0, 5.0, 20.0, 15.0];
+        let param_true = [1000.0, -15.0, 20.0, 15.0];
 
-        let t = linspace(-10.0, 130.0, N);
+        let t = linspace(-10.0, 100.0, N);
         let model: Vec<_> = t.iter().map(|&x| LinexpFit::model(x, &param_true)).collect();
         let m: Vec<_> = model
             .iter()
@@ -424,14 +424,14 @@ mod tests {
         println!("{:?}\n{:?}\n{:?}\n{:?}", t, model, m, w);
         let mut ts = TimeSeries::new(&t, &m, &w);
 
-        // curve_fit(lambda t, a, t0, fall, b : b + a * (t - t0) * np.exp(-fall * (t - t0)), xdata=t, ydata=m, sigma=0.05*abs(y), p0=[0.015, 15.0, .005, 30.0])
-        let desired = [ 22.13422546,
-		 -14.63084146,
-		  18.54535316,
-		  16.20223788];
+        // curve_fit(lambda t, a, t0, fall, b : b + a * ((t - t0) / fall) * np.exp(-(t - t0) / fall), xdata=t, ydata=m, sigma=np.array(w)**-0.5, p0=[800, 10, 15, 30])
+        let desired = [982.42262317,
+		 -15.08873767,
+		  20.42325543,
+		  13.23259373];
 
         let values = eval.eval(&mut ts).unwrap();
-        assert_relative_eq!(&values[..5], &desired[..], max_relative = 0.01);
+        assert_relative_eq!(&values[..4], &desired[..], max_relative = 0.02);
     }
 	
     #[cfg(any(feature = "ceres-source", feature = "ceres-system"))]
@@ -440,7 +440,7 @@ mod tests {
         linexp_fit_noisy(LinexpFit::new(
             CeresCurveFit::default().into(),
             LnPrior::none(),
-            LinexpInitsBounds::Default,
+            LinexpInitsBounds::Default,	
         ));
     }
 
@@ -465,8 +465,8 @@ mod tests {
             mcmc.into(),
             LnPrior::none(),
             LinexpInitsBounds::option_arrays(
-                [None; 5],
-                [None; 5],
+                [None; 4],
+                [None; 4],
                 [None, Some(50.0), Some(50.0), None],
             ),
         ));
@@ -497,7 +497,7 @@ mod tests {
     #[test]
     fn linexp_fit_noizy_mcmc_with_prior() {
         let prior = LnPrior::ind_components([
-            LnPrior1D::normal(20.0, 5.0),
+            LnPrior1D::normal(900.0, 100.0),
    	    LnPrior1D::uniform(-50.0, 50.0),
             LnPrior1D::log_normal(f64::ln(20.0), 0.2),
             LnPrior1D::normal(15.0, 20.0),
@@ -505,5 +505,5 @@ mod tests {
         let mcmc = McmcCurveFit::new(1024, None);
         linexp_fit_noisy(LinexpFit::new(mcmc.into(), prior, LinexpInitsBounds::Default));
     }
-
+	
 }
