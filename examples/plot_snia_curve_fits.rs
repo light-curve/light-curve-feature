@@ -148,7 +148,7 @@ fn main() {
         ));
         features
     };
-      
+
     iter_sn1a_flux_ts(Some("g"))
         .take(n)
         .par_bridge()
