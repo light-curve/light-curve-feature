@@ -401,7 +401,7 @@ mod tests {
         linspace(0.0, 10.0, 11),
         [0.0; 11],
     );
-    
+
 
     fn linexp_fit_noisy(eval: LinexpFit) {
         const N: usize = 50;
@@ -433,14 +433,14 @@ mod tests {
         let values = eval.eval(&mut ts).unwrap();
         assert_relative_eq!(&values[..4], &desired[..], max_relative = 0.02);
     }
-	
+
     #[cfg(any(feature = "ceres-source", feature = "ceres-system"))]
     #[test]
     fn linexp_fit_noisy_ceres() {
         linexp_fit_noisy(LinexpFit::new(
             CeresCurveFit::default().into(),
             LnPrior::none(),
-            LinexpInitsBounds::Default,	
+            LinexpInitsBounds::Default,
         ));
     }
 
@@ -505,5 +505,5 @@ mod tests {
         let mcmc = McmcCurveFit::new(1024, None);
         linexp_fit_noisy(LinexpFit::new(mcmc.into(), prior, LinexpInitsBounds::Default));
     }
-	
+
 }
