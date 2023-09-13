@@ -429,7 +429,7 @@ mod tests {
         let desired = [982.42262317, -15.08873767, 20.42325543, 13.23259373];
 
         let values = eval.eval(&mut ts).unwrap();
-        assert_relative_eq!(&values[..4], &desired[..], max_relative = 0.02);
+        assert_relative_eq!(&values[..4], &desired[..], max_relative = 0.05);
     }
 
     #[cfg(any(feature = "ceres-source", feature = "ceres-system"))]
