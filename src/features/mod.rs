@@ -42,6 +42,9 @@ pub use linear_fit::LinearFit;
 mod linear_trend;
 pub use linear_trend::LinearTrend;
 
+mod linexp_fit;
+pub use linexp_fit::{LinexpFit, LinexpInitsBounds, LinexpLnPrior};
+
 mod magnitude_percentage_ratio;
 pub use magnitude_percentage_ratio::MagnitudePercentageRatio;
 

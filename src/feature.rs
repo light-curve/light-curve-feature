@@ -36,6 +36,7 @@ where
     Kurtosis,
     LinearFit,
     LinearTrend,
+    LinexpFit,
     MagnitudePercentageRatio,
     MaximumSlope,
     MaximumTimeInterval,

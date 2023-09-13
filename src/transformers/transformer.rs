@@ -40,6 +40,7 @@ pub enum Transformer<T: Float> {
     ClippedLg(super::clipped_lg::ClippedLgTransformer<T>),
     Composed(super::composed::ComposedTransformer<Self>),
     Identity(super::identity::IdentityTransformer),
+    LinexpFit(super::linexp_fit::LinexpFitTransformer<T>),
     Ln1p(super::ln1p::Ln1pTransformer),
     Lg(super::lg::LgTransformer),
     Sqrt(super::sqrt::SqrtTransformer),

@@ -608,6 +608,8 @@ mod tests {
 
     check_feature!(VillarFit);
 
+    check_fit_model_derivatives!(VillarFit);
+
     feature_test!(
         villar_fit_plateau,
         [VillarFit::default()],
@@ -725,44 +727,6 @@ mod tests {
             prior,
             VillarInitsBounds::Default,
         ));
-    }
-
-    #[test]
-    fn villar_fit_derivatives() {
-        const REPEAT: usize = 10;
-
-        let mut rng = StdRng::seed_from_u64(0);
-        for _ in 0..REPEAT {
-            let t = 10.0 * rng.gen::<f64>();
-
-            let param = {
-                let mut param = [0.0; NPARAMS];
-                for x in param.iter_mut() {
-                    *x = rng.gen::<f64>() - 0.5;
-                }
-                param
-            };
-            let actual = {
-                let mut jac = [0.0; NPARAMS];
-                VillarFit::derivatives(t, &param, &mut jac);
-                jac
-            };
-
-            let desired: Vec<_> = {
-                let hyper_param = {
-                    let mut hyper = [Hyperdual::<f64, { NPARAMS + 1 }>::from_real(0.0); NPARAMS];
-                    for (i, (x, h)) in param.iter().zip(hyper.iter_mut()).enumerate() {
-                        h[0] = *x;
-                        h[i + 1] = 1.0;
-                    }
-                    hyper
-                };
-                let result = VillarFit::model(t, &hyper_param);
-                (1..=NPARAMS).map(|i| result[i]).collect()
-            };
-
-            assert_relative_eq!(&actual[..], &desired[..], epsilon = 1e-9);
-        }
     }
 
     /// https://github.com/light-curve/light-curve-feature/issues/48

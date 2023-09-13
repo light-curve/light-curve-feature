@@ -1,7 +1,7 @@
 use clap::Parser;
 use light_curve_feature::{
-    features::VillarLnPrior, prelude::*, BazinFit, Feature, FeatureEvaluator, McmcCurveFit,
-    TimeSeries, VillarFit,
+    features::VillarLnPrior, prelude::*, BazinFit, Feature, FeatureEvaluator, LinexpFit,
+    McmcCurveFit, TimeSeries, VillarFit,
 };
 #[cfg(all(feature = "ceres-source", feature = "gsl"))]
 use light_curve_feature::{CeresCurveFit, LmsderCurveFit, LnPrior};
@@ -94,6 +94,15 @@ fn main() {
                 )
                 .into(),
             ));
+            features.push((
+                "LinexpFit Ceres",
+                LinexpFit::new(
+                    CeresCurveFit::default().into(),
+                    LnPrior::none(),
+                    LinexpFit::default_inits_bounds(),
+                )
+                .into(),
+            ));
         }
         features.push((
             "VillarFit MCMC+prior",
@@ -136,8 +145,10 @@ fn main() {
             )
             .into(),
         ));
+
         features
     };
+
     iter_sn1a_flux_ts(Some("g"))
         .take(n)
         .par_bridge()
@@ -171,6 +182,7 @@ fn fitted_model(
     let reduced_chi2 = values[values.len() - 1];
     let model: BoxedModel = match feature {
         Feature::BazinFit(..) => Box::new(BazinFit::f),
+        Feature::LinexpFit(..) => Box::new(LinexpFit::f),
         Feature::VillarFit(..) => Box::new(VillarFit::f),
         _ => panic!("Unknown *Fit variant"),
     };
