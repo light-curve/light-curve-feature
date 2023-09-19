@@ -13,11 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Build breaking** Minimum supported Rust version (MSRV) 1.57 -> 1.67 (released 2023-01-26) https://github.com/light-curve/light-curve-feature/pull/125 https://github.com/light-curve/light-curve-feature/pull/130
-- New `LinexpFit`feature for parametric model fit. Thanks @erusseil for his first contribution. https://github.com/light-curve/light-curve-feature/pull/122
-- Feature's `doc()` static method is `const` now https://github.com/light-curve/light-curve-feature/pull/110
-- Bump `itertools` from ^0.10 to ^0.11 https://github.com/light-curve/light-curve-feature/pull/131
-- Bump `fftw` from ^0.7 to ^0.8 https://github.com/light-curve/light-curve-feature/pull/130
+-
 
 ### Deprecated
 
@@ -34,6 +30,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 --
+
+
+# [0.6.0] 2023 September 19
+
+### Changed
+
+- **Build breaking** Minimum supported Rust version (MSRV) 1.57 -> 1.67 (released 2023-01-26) https://github.com/light-curve/light-curve-feature/pull/125 https://github.com/light-curve/light-curve-feature/pull/130
+- New `LinexpFit`feature for parametric model fit. Thanks @erusseil for his first contribution. https://github.com/light-curve/light-curve-feature/pull/122
+- Feature's `doc()` static method is `const` now https://github.com/light-curve/light-curve-feature/pull/110
+- Bump `itertools` from ^0.10 to ^0.11 https://github.com/light-curve/light-curve-feature/pull/131
+- Bump `fftw` from ^0.7 to ^0.8 https://github.com/light-curve/light-curve-feature/pull/130
 
 
 # [0.5.5] 2023 March 30

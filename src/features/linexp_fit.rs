@@ -325,8 +325,9 @@ impl LinexpInitsBounds {
         let m_max: f64 = ts.m.get_max().value_into().unwrap();
         let m_amplitude = m_max - m_min;
 
-        let a_init = m_max * 3.0;
-        let (a_lower, a_upper) = (0.0, 1000.0 * m_max);
+        // Analytical solution is amplitude = Flux_amplitude * exp(1)
+        let a_init = m_amplitude * 3.0;
+        let (a_lower, a_upper) = (0.0, 100.0 * m_amplitude);
 
         let tau_init = t_amplitude * 0.25;
         let (tau_lower, tau_upper) = (0.0, t_amplitude * 10000.0);
@@ -506,5 +507,21 @@ mod tests {
             prior,
             LinexpInitsBounds::Default,
         ));
+    }
+
+    /// https://github.com/light-curve/light-curve-feature/issues/138
+    #[test]
+    fn linexp_left_bound_larger_right_bound() {
+        let mut ts = light_curve_feature_test_util::issue_light_curve_mag::<f64, _>(
+            "light-curve-feature-138/1.csv",
+        )
+        .into_triple(None)
+        .into();
+        let linexp = LinexpFit::new(
+            McmcCurveFit::new(1 << 14, None).into(),
+            LnPrior::none(),
+            LinexpInitsBounds::Default,
+        );
+        let _result = linexp.eval(&mut ts).unwrap();
     }
 }
