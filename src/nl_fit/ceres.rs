@@ -168,9 +168,6 @@ mod tests {
         const N: usize = 300;
         const NOISE: f64 = 0.5;
 
-        // curve_fit(lambda x, a, b, c: b * np.exp(-a * x) * x**2 + c, xdata=t, ydata=y, p0=[1, 1, 1], xtol=1e-6)
-        let desired = [0.7450598836400693, 1.981911479079224, 0.5094446163866907];
-
         let param_true = [0.75, 2.0, 0.5];
         let param_init = [1.0, 1.0, 1.0];
 
@@ -182,6 +179,12 @@ mod tests {
             nonlinear_func(x, &param_true) + NOISE * eps
         });
         let inv_err: Array1<_> = vec![1.0 / NOISE; N].into();
+        println!(
+            "t = {:?}\ny = {:?}\ninv_err = {:?}",
+            t.as_slice().unwrap(),
+            y.as_slice().unwrap(),
+            inv_err.as_slice().unwrap()
+        );
         let ts = Rc::new(Data { t, m: y, inv_err });
 
         let fitter = CeresCurveFit::new(14, None);
@@ -194,8 +197,15 @@ mod tests {
             nonlinear_func_dump_ln_prior,
         );
 
+        // curve_fit(lambda x, a, b, c: b * np.exp(-a * x) * x**2 + c, xdata=t, ydata=y, sigma=1/np.array(inv_err), p0=[1, 1, 1], xtol=1e-6)
+        let desired = [0.76007721, 2.0225076, 0.49238112];
+
         // Not as good as for LMSDER
-        assert_abs_diff_eq!(&result.x[..], &param_true[..], epsilon = 0.04);
-        assert_abs_diff_eq!(&result.x[..], &desired[..], epsilon = 0.02);
+        assert_abs_diff_eq!(
+            &result.x[..],
+            &param_true[..],
+            epsilon = NOISE / (N as f64).sqrt()
+        );
+        assert_abs_diff_eq!(&result.x[..], &desired[..], epsilon = 0.04);
     }
 }

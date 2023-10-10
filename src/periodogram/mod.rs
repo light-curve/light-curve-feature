@@ -242,7 +242,7 @@ mod tests {
 
     #[test]
     fn direct_vs_fft_unevenly_sin_cos() {
-        const OMEGA1: f64 = 0.472;
+        const OMEGA1: f64 = 0.222;
         const OMEGA2: f64 = 1.222;
         const AMPLITUDE2: f64 = 2.0;
         const NOISE_AMPLITUDE: f64 = 1.0;
