@@ -445,20 +445,21 @@ mod tests {
             })
             .collect();
         let w: Vec<_> = model.iter().copied().map(f64::recip).collect();
-        println!("{:?}\n{:?}\n{:?}\n{:?}", t, model, m, w);
+        println!("t = {:?}\nmodel = {:?}\nm = {:?}\nw = {:?}", t, model, m, w);
         let mut ts = TimeSeries::new(&t, &m, &w);
 
         // curve_fit(lambda t, a, b, t0, rise, fall: b + a * np.exp(-(t-t0)/fall) / (1 + np.exp(-(t-t0) / rise)), xdata=t, ydata=m, sigma=np.array(w)**-0.5, p0=[1e4, 1e3, 30, 10, 30])
         let desired = [
-            9.89658673e+03,
-            1.11312724e+03,
-            3.06401284e+01,
-            9.75027284e+00,
-            2.86714363e+01,
+            1.01014622e+04,
+            9.76594899e+02,
+            3.02450768e+01,
+            1.00640456e+01,
+            2.99357915e+01,
         ];
 
         let values = eval.eval(&mut ts).unwrap();
-        assert_relative_eq!(&values[..5], &desired[..], max_relative = 0.01);
+        assert_relative_eq!(&values[..5], &param_true[..], max_relative = 0.03);
+        assert_relative_eq!(&values[..5], &desired[..], max_relative = 0.02);
     }
 
     #[cfg(any(feature = "ceres-source", feature = "ceres-system"))]

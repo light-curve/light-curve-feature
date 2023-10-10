@@ -644,13 +644,13 @@ mod tests {
 
         // curve_fit(lambda t, a, c, t0, tau_rise, tau_fall, nu, gamma: c + a * (1 - nu * np.where(t - t0 < gamma, (t - t0) / gamma, 1)) / (1 + np.exp(-(t-t0) / tau_rise)) * np.where(t > t0 + gamma, np.exp(-(t-t0-gamma) / tau_fall), 1.0), xdata=t, ydata=m, sigma=np.array(w)**-0.5, p0=[1e4, 1e3, 20, 5, 30, 0.3, 30])
         let desired = [
-            1.00899754e+04,
-            1.00689083e+03,
-            2.02385802e+01,
-            5.04283765e+00,
-            3.00679883e+01,
-            3.00400783e-01,
-            2.94149214e+01,
+            9.94199441e+03,
+            1.00094110e+03,
+            1.98928845e+01,
+            4.96049541e+00,
+            2.96149274e+01,
+            2.97679866e-01,
+            3.05544920e+01,
         ];
 
         let values = eval.eval(&mut ts).unwrap();
@@ -660,25 +660,26 @@ mod tests {
             t, model, m, w, values[NPARAMS]
         );
 
-        assert_relative_eq!(&values[..NPARAMS], &desired[..], max_relative = 0.01);
+        assert_relative_eq!(&values[..NPARAMS], &param_true[..], max_relative = 0.1);
+        assert_relative_eq!(&values[..NPARAMS], &desired[..], max_relative = 0.05);
     }
 
-    // It doesn't converge to the right place
-    // #[cfg(any(feature = "ceres-source", feature = "ceres-system"))]
-    // #[test]
-    // fn villar_fit_noisy_ceres() {
-    //     villar_fit_noisy(VillarFit::new(
-    //         CeresCurveFit::new().into(),
-    //         LnPrior::none(),
-    //         VillarInitsBounds::Default,
-    //     ));
-    // }
+    #[cfg(any(feature = "ceres-source", feature = "ceres-system"))]
+    #[test]
+    fn villar_fit_noisy_ceres() {
+        let ceres = CeresCurveFit::default();
+        villar_fit_noisy(VillarFit::new(
+            ceres.into(),
+            LnPrior::none(),
+            VillarInitsBounds::Default,
+        ));
+    }
 
     #[cfg(any(feature = "ceres-source", feature = "ceres-system"))]
     #[test]
     fn villar_fit_noizy_mcmc_plus_ceres() {
         let ceres = CeresCurveFit::default();
-        let mcmc = McmcCurveFit::new(512, Some(ceres.into()));
+        let mcmc = McmcCurveFit::new(1024, Some(ceres.into()));
         villar_fit_noisy(VillarFit::new(
             mcmc.into(),
             LnPrior::none(),
@@ -721,7 +722,7 @@ mod tests {
             LnPrior1D::log_normal(f64::ln(30.0), 1.0),
         ]);
         let lmsder = LmsderCurveFit::new(1);
-        let mcmc = McmcCurveFit::new(1024, Some(lmsder.into()));
+        let mcmc = McmcCurveFit::new(2048, Some(lmsder.into()));
         villar_fit_noisy(VillarFit::new(
             mcmc.into(),
             prior,

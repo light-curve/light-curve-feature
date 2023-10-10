@@ -295,7 +295,8 @@ mod tests {
     use super::*;
     use crate::straight_line_fit::StraightLineFitterResult;
 
-    use light_curve_common::{all_close, linspace};
+    use approx::assert_relative_eq;
+    use light_curve_common::linspace;
     use rand::prelude::*;
     use rand_distr::StandardNormal;
     use std::ops::Mul;
@@ -422,7 +423,11 @@ mod tests {
         assert_eq!(result.status, Value::Success);
         let param = result.x();
 
-        all_close(param.as_slice().unwrap(), &[-247.0, 39.0], 1e-9);
+        assert_relative_eq!(
+            param.as_slice().unwrap(),
+            [-247.0, 39.0].as_slice(),
+            max_relative = 1e-9
+        );
     }
 
     #[test]
@@ -466,7 +471,11 @@ mod tests {
         assert_eq!(result.status, Value::Success);
         let param = result.x();
 
-        all_close(param.as_slice().unwrap(), &[0.0, 1.0, 1.0], 1e-8);
+        assert_relative_eq!(
+            param.as_slice().unwrap(),
+            [0.0, 1.0, 1.0].as_slice(),
+            epsilon = 1e-8
+        );
     }
 
     #[inline]
@@ -485,9 +494,6 @@ mod tests {
         const NOISE: f64 = 0.5;
         const RTOL: f64 = 1e-6;
 
-        // curve_fit(lambda x, a, b, c: b * np.exp(-a * x) * x**2 + c, xdata=t, ydata=y, p0=[1, 1, 1], xtol=1e-6)
-        let desired = [0.7450598836400693, 1.981911479079224, 0.5094446163866907];
-
         let param_true = [0.75, 2.0, 0.5];
         let param_init = [1.0, 1.0, 1.0];
         let param_init = VectorF64::from_slice(&param_init).unwrap();
@@ -502,6 +508,7 @@ mod tests {
                 nonlinear_func(&param_true, x) + NOISE * eps
             })
             .collect();
+        println!("t = {:?}\ny = {:?}", t, y);
         let data = Rc::new(Data { t, y, err: None });
 
         let function = {
@@ -546,12 +553,19 @@ mod tests {
         assert_eq!(result.status, Value::Success);
         let param = result.x();
 
-        all_close(
+        // curve_fit(lambda x, a, b, c: b * np.exp(-a * x) * x**2 + c, xdata=t, ydata=y, p0=[1, 1, 1], xtol=1e-6)
+        let desired = [0.76007721, 2.0225076, 0.49238112];
+
+        assert_relative_eq!(
             param.as_slice().unwrap(),
-            &param_true,
-            NOISE / (N as f64).sqrt(),
+            param_true.as_slice(),
+            max_relative = NOISE / (N as f64).sqrt(),
         );
-        all_close(param.as_slice().unwrap(), &desired, RTOL);
+        assert_relative_eq!(
+            param.as_slice().unwrap(),
+            desired.as_slice(),
+            max_relative = RTOL
+        );
     }
 
     #[test]
@@ -559,9 +573,6 @@ mod tests {
         const N: usize = 300;
         const NOISE: f64 = 0.5;
         const RTOL: f64 = 1e-6;
-
-        // curve_fit(lambda x, a, b, c: b * np.exp(-a * x) * x**2 + c, xdata=t, ydata=y, p0=[1, 1, 1], xtol=1e-6)
-        let desired = [0.7450598836400693, 1.981911479079224, 0.5094446163866907];
 
         let param_true = [0.75, 2.0, 0.5];
         let param_init = [1.0, 1.0, 1.0];
@@ -577,6 +588,7 @@ mod tests {
                 nonlinear_func(&param_true, x) + NOISE * eps
             })
             .collect();
+        println!("t = {:?}\ny = {:?}", t, y);
         let data = Rc::new(Data { t, y, err: None });
         let data_real = data.clone();
         let data_dual = data;
@@ -608,11 +620,18 @@ mod tests {
         assert_eq!(result.status, Value::Success);
         let param = result.x();
 
-        all_close(
+        // curve_fit(lambda x, a, b, c: b * np.exp(-a * x) * x**2 + c, xdata=t, ydata=y, p0=[1, 1, 1], xtol=1e-6)
+        let desired = [0.76007721, 2.0225076, 0.49238112];
+
+        assert_relative_eq!(
             param.as_slice().unwrap(),
-            &param_true,
-            NOISE / (N as f64).sqrt(),
+            param_true.as_slice(),
+            max_relative = NOISE / ((N - param_true.len()) as f64).sqrt(),
         );
-        all_close(param.as_slice().unwrap(), &desired, RTOL);
+        assert_relative_eq!(
+            param.as_slice().unwrap(),
+            desired.as_slice(),
+            max_relative = RTOL
+        );
     }
 }
