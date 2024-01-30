@@ -27,8 +27,8 @@ pub mod mcmc;
 pub use mcmc::McmcCurveFit;
 
 pub mod prior;
-pub use prior::ln_prior::{LnPrior, LnPriorTrait};
-pub use prior::ln_prior_1d::{LnPrior1D, LnPrior1DTrait};
+pub use prior::ln_prior::LnPrior;
+pub use prior::ln_prior_1d::LnPrior1D;
 
 #[cfg(test)]
 pub trait HyperdualFloat: hyperdual::Float {
