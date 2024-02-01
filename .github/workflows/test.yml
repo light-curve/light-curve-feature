@@ -192,10 +192,12 @@ jobs:
         cargo llvm-cov run --example=plot_snia_curve_fits --no-report --no-default-features --features=ceres-source,fftw-source,gsl -- -n=1
         cargo llvm-cov report --lcov --output-path lcov.info
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       with:
         files: lcov.info
         fail_ci_if_error: true
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   arm:
     runs-on: [self-hosted, linux, ARM64]
