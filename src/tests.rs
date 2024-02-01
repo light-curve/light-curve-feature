@@ -5,7 +5,7 @@ pub use crate::float_trait::Float;
 pub use crate::time_series::TimeSeries;
 
 pub use light_curve_common::{all_close, linspace};
-pub use ndarray::{Array1, ArrayView1};
+pub use ndarray::Array1;
 pub use rand::prelude::*;
 pub use rand_distr::StandardNormal;
 
