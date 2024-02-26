@@ -207,8 +207,7 @@ jobs:
       with:
         submodules: true
     - name: build
-      # ceres-source doesn't build on ARM yet
-      run: cargo build --all-targets --no-default-features --features=ceres-system,fftw-source,gsl
+      run: cargo build --all-targets --no-default-features --features=ceres-source,fftw-source,gsl
 
   macos:
     runs-on: macos-latest
