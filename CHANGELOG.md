@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
--
+- **Build breaking**: bump `ceres-solver` to 0.3.0, which requires C++ version of ceres-solver v2.2.0 for `ceres-system` Cargo feature
 
 ### Deprecated
 
