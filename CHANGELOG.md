@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 --
 
+# [0.7.0] 2024 February 26
 
 # [0.6.0] 2023 September 19
 
