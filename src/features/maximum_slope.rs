@@ -33,6 +33,7 @@ lazy_info!(
     m_required: true,
     w_required: false,
     sorting_required: true,
+    variability_required: false,
 );
 
 impl MaximumSlope {
@@ -57,8 +58,7 @@ impl<T> FeatureEvaluator<T> for MaximumSlope
 where
     T: Float,
 {
-    fn eval(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
-        self.check_ts_length(ts)?;
+    fn eval_no_ts_check(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
         let result =
             ts.t.as_slice()
                 .iter()

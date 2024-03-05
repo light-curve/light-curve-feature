@@ -39,6 +39,7 @@ lazy_info!(
     m_required: false,
     w_required: false,
     sorting_required: true,
+    variability_required: false,
 );
 
 impl FeatureNamesDescriptionsTrait for Duration {
@@ -55,8 +56,7 @@ impl<T> FeatureEvaluator<T> for Duration
 where
     T: Float,
 {
-    fn eval(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
-        self.check_ts_length(ts)?;
+    fn eval_no_ts_check(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
         Ok(vec![ts.t.sample[ts.lenu() - 1] - ts.t.sample[0]])
     }
 }

@@ -94,6 +94,7 @@ lazy_info!(
     m_required: true,
     w_required: false,
     sorting_required: false,
+    variability_required: false,
 );
 
 impl<T> Default for BeyondNStd<T>
@@ -122,8 +123,7 @@ impl<T> FeatureEvaluator<T> for BeyondNStd<T>
 where
     T: Float,
 {
-    fn eval(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
-        self.check_ts_length(ts)?;
+    fn eval_no_ts_check(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
         let m_mean = ts.m.get_mean();
         let threshold = ts.m.get_std() * self.nstd;
         let count_beyond = ts.m.sample.fold(0, |count, &m| {

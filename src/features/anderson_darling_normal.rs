@@ -46,6 +46,7 @@ lazy_info!(
     m_required: true,
     w_required: false,
     sorting_required: false,
+    variability_required: true,
 );
 
 impl FeatureNamesDescriptionsTrait for AndersonDarlingNormal {
@@ -62,10 +63,10 @@ impl<T> FeatureEvaluator<T> for AndersonDarlingNormal
 where
     T: Float,
 {
-    fn eval(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
-        let size = self.check_ts_length(ts)?;
-        let m_std = get_nonzero_m_std(ts)?;
+    fn eval_no_ts_check(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
+        let size = ts.lenu();
         let m_mean = ts.m.get_mean();
+        let m_std = ts.m.get_std();
         let sum: f64 =
             ts.m.get_sorted()
                 .as_ref()

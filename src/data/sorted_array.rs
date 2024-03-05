@@ -1,5 +1,6 @@
 use crate::error::SortedArrayError;
 use crate::float_trait::Float;
+
 use conv::prelude::*;
 use itertools::Itertools;
 use ndarray::Array1;

@@ -1,5 +1,5 @@
+use crate::data::SortedArray;
 use crate::float_trait::Float;
-use crate::sorted_array::SortedArray;
 
 use conv::{ConvAsUtil, ConvUtil, RoundToNearest};
 use enum_dispatch::enum_dispatch;

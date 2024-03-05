@@ -1,5 +1,5 @@
+use crate::data::SortedArray;
 use crate::evaluator::*;
-use crate::sorted_array::SortedArray;
 
 macro_const! {
     const DOC: &'static str = r"
@@ -30,6 +30,7 @@ lazy_info!(
     m_required: true,
     w_required: false,
     sorting_required: false,
+    variability_required: false,
 );
 
 impl MedianAbsoluteDeviation {
@@ -56,8 +57,7 @@ impl<T> FeatureEvaluator<T> for MedianAbsoluteDeviation
 where
     T: Float,
 {
-    fn eval(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
-        self.check_ts_length(ts)?;
+    fn eval_no_ts_check(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
         let m_median = ts.m.get_median();
         let sorted_deviation: SortedArray<_> =
             ts.m.sample

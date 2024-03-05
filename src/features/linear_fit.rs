@@ -45,6 +45,7 @@ lazy_info!(
     m_required: true,
     w_required: true,
     sorting_required: true,
+    variability_required: false,
 );
 
 impl FeatureNamesDescriptionsTrait for LinearFit {
@@ -69,8 +70,7 @@ impl<T> FeatureEvaluator<T> for LinearFit
 where
     T: Float,
 {
-    fn eval(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
-        self.check_ts_length(ts)?;
+    fn eval_no_ts_check(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
         let result = fit_straight_line(ts, true);
         Ok(vec![
             result.slope,
