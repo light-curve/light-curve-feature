@@ -53,6 +53,7 @@ where
     Periodogram(Periodogram<T, Self>),
     _PeriodogramPeaks,
     ReducedChi2,
+    Roms,
     Skew,
     StandardDeviation,
     StetsonK,
