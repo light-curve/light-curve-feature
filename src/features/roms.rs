@@ -40,7 +40,7 @@ lazy_info!(
     t_required: false,
     m_required: true,
     w_required: true,
-    sorting_required: true,
+    sorting_required: false,
 );
 
 impl FeatureNamesDescriptionsTrait for Roms {
@@ -65,7 +65,7 @@ where
             ts.m.as_slice()
                 .iter()
                 .zip(ts.w.as_slice().iter())
-                .map(|(&m, &w)| ((m - m_median).abs() / w))
+                .map(|(&m, &w)| ((m - m_median).abs() * w.sqrt()))
                 .filter(|&x| x.is_finite())
                 .sum::<T>();
         let value = tmp_sum / (n - T::one());
@@ -87,15 +87,16 @@ mod tests {
     feature_test!(
         roms,
         [Roms::new()],
-        [1.0],
+        [2.6035533],
+        [1.0_f32, 2.0, 3.0, 4.0, 5.0],
         [1.0_f32, 1.0, 2.0, 3.0, 5.0],
-        [1.0_f32, 1.0, 2.0, 2.0, 2.0],
+        [1.0_f32, 4.0, 1.0, 2.0, 4.0],
     );
 
     #[test]
     fn roms_const_data() {
         let eval = Roms::default();
-        let x = linspace(0.0_f32, 100.0, 10);
+        let x = linspace(0.0_f32, 10.0, 10);
         let y = vec![1.0_f32, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0];
         let z = vec![1.0_f32, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0];
         let mut ts = TimeSeries::new(&x, &y, &z);
@@ -103,5 +104,4 @@ mod tests {
         let desired = [0.0_f32];
         all_close(&actual, &desired, 1e-10);
     }
-
 }
