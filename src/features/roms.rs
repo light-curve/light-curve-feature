@@ -99,8 +99,8 @@ mod tests {
         let y = vec![1.0_f32, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0];
         let z = vec![0_f32, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0];
         let mut ts = TimeSeries::new(&x, &y, &z);
-        let actual: f32 = eval.eval(&mut ts).unwrap()[0];
-        let desired: f32 = 0.0;
+        let actual = eval.eval(&mut ts).unwrap();
+        let desired = [0.0_f32];
         all_close(&actual, &desired, 1e-10);
     }
 
