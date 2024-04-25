@@ -9,11 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
---
+- `Roms`: Robust median statistic feature, thanks @GaluTi for their first contribution! https://github.com/light-curve/light-curve-feature/issues/103 https://github.com/light-curve/light-curve-feature/pull/160
 
 ### Changed
 
-- **Build breaking**: bump `ceres-solver` to 0.3.0, which requires C++ version of ceres-solver v2.2.0 for `ceres-system` Cargo feature
+--
 
 ### Deprecated
 
@@ -32,6 +32,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 --
 
 # [0.7.0] 2024 February 26
+
+### Changed
+
+- **Build breaking**: bump `ceres-solver` to 0.3.0, which requires C++ version of ceres-solver v2.2.0 for `ceres-system` Cargo feature
 
 # [0.6.0] 2023 September 19
 
