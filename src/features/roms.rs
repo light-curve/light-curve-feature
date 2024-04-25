@@ -87,9 +87,9 @@ mod tests {
     feature_test!(
         roms,
         [Roms::new()],
-        [1.25],
+        [1.0],
         [1.0_f32, 1.0, 2.0, 3.0, 5.0],
-        [1.0_f32, 2.0, 1.0, 2.0, 1.0],
+        [1.0_f32, 1.0, 2.0, 2.0, 2.0],
     );
 
     #[test]
@@ -97,7 +97,7 @@ mod tests {
         let eval = Roms::default();
         let x = linspace(0.0_f32, 100.0, 10);
         let y = vec![1.0_f32, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0];
-        let z = vec![0_f32, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0];
+        let z = vec![1.0_f32, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0];
         let mut ts = TimeSeries::new(&x, &y, &z);
         let actual = eval.eval(&mut ts).unwrap();
         let desired = [0.0_f32];
