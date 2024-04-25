@@ -94,16 +94,14 @@ mod tests {
 
     #[test]
     fn roms_const_data() {
-        let fe = FeatureExtractor::<_, Feature<_>>::new(vec![
-            Roms::default().into(),
-        ]);
+        let eval = Roms::default();
         let x = linspace(0.0_f32, 100.0, 10);
-        let y: Vec<_> = vec![1.0_f32, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0];
-        let z: Vec<_> = vec![.0_f32, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0];
+        let y = vec![1.0_f32, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0];
+        let z = vec![0_f32, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0];
         let mut ts = TimeSeries::new(&x, &y, &z);
-        let value = fe.eval(&mut ts).unwrap();
-        let des = 0.0;
-        all_close(&value[0], &des, 1e-10);
+        let actual: f32 = eval.eval(&mut ts).unwrap()[0];
+        let desired: f32 = 0.0;
+        all_close(&actual, &desired, 1e-10);
     }
 
 }
