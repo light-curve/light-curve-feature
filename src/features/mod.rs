@@ -91,6 +91,9 @@ pub use periodogram::PeriodogramPeaks as _PeriodogramPeaks;
 mod reduced_chi2;
 pub use reduced_chi2::ReducedChi2;
 
+mod roms;
+pub use roms::Roms;
+
 mod skew;
 pub use skew::Skew;
 
