@@ -4,8 +4,10 @@ use serde::de::DeserializeOwned;
 use serde::Deserialize;
 
 pub(super) trait Record<T, B>: DeserializeOwned {
+    #[allow(dead_code)]
     fn into_triple(self) -> (T, T, T);
     fn into_quadruple(self) -> (T, T, T, B);
+    #[allow(dead_code)]
     fn band(&self) -> B;
 }
 
