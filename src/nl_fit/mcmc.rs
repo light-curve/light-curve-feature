@@ -126,7 +126,7 @@ impl CurveFitTrait for McmcCurveFit {
             let _result = sampler.sample(&initial_guesses, self.niterations as usize, |step| {
                 for (pos, &lnprob) in step.pos.iter().zip(step.lnprob.iter()) {
                     if lnprob > best_lnprob {
-                        best_x = pos.values.clone();
+                        best_x.clone_from(&pos.values);
                         best_lnprob = lnprob;
                     }
                 }
