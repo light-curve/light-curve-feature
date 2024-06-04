@@ -143,11 +143,11 @@ where
                 .zip(ts.m.as_slice().iter().copied())
                 .zip(ts.w.as_slice().iter().copied())
                 .map(|((t, m), w)| (t, m, w))
-                .group_by(|(t, _, _)| ((*t - self.offset) / self.window).floor())
+                .chunk_by(|(t, _, _)| ((*t - self.offset) / self.window).floor())
                 .into_iter()
-                .map(|(x, group)| {
+                .map(|(x, chunk)| {
                     let bin_t = (x + T::half()) * self.window;
-                    let (n, bin_m, norm) = group
+                    let (n, bin_m, norm) = chunk
                         .fold((T::zero(), T::zero(), T::zero()), |acc, (_, m, w)| {
                             (acc.0 + T::one(), acc.1 + m * w, acc.2 + w)
                         });
