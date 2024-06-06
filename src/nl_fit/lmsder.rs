@@ -11,6 +11,7 @@ use hyperdual::Hyperdual;
 use ndarray::Zip;
 use rgsl::{
     MatrixF64, MultiFitFdfSolver, MultiFitFdfSolverType, MultiFitFunctionFdf, Value, VectorF64,
+    View,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -139,20 +140,26 @@ impl NlsProblem {
             self.fit_function.p,
         )
         .unwrap();
-        match solver.set(&mut self.fit_function, &x0) {
-            Value::Success => {}
-            status => return NlsFitResult { status, solver },
+        if let Err(status) = solver.set(&mut self.fit_function, &x0) {
+            return NlsFitResult { status, solver };
         }
 
         for _ in 0..self.max_iter {
             match solver.iterate() {
-                Value::Success | Value::ToleranceX | Value::ToleranceF | Value::ToleranceG => {}
-                status => return NlsFitResult { status, solver },
+                Ok(_) => {}
+                Err(Value::ToleranceX | Value::ToleranceF | Value::ToleranceG) => {}
+                Err(status) => return NlsFitResult { status, solver },
             }
 
             match rgsl::multifit::test_delta(&solver.dx(), &solver.x(), self.atol, self.rtol) {
-                Value::Continue => {}
-                status => return NlsFitResult { status, solver },
+                Err(Value::Continue) => {}
+                Ok(_) => {
+                    return NlsFitResult {
+                        status: Value::Success,
+                        solver,
+                    }
+                }
+                Err(status) => return NlsFitResult { status, solver },
             }
         }
         NlsFitResult {
@@ -275,11 +282,11 @@ struct NlsFitResult {
 }
 
 impl NlsFitResult {
-    fn x(&self) -> VectorF64 {
+    fn x(&self) -> View<VectorF64> {
         self.solver.x()
     }
 
-    fn f(&self) -> VectorF64 {
+    fn f(&self) -> View<VectorF64> {
         self.solver.f()
     }
 
