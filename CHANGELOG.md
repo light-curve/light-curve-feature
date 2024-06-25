@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `Roms`: Robust median statistic feature, thanks @GaluTi for their first contribution! https://github.com/light-curve/light-curve-feature/issues/103 https://github.com/light-curve/light-curve-feature/pull/160
+- Expose `nl_fit::CurveFitResult`
 
 ### Changed
 

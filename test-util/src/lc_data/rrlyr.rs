@@ -9,6 +9,7 @@ use light_curve_feature::Float;
 
 pub struct RrLyr<T> {
     pub id: usize,
+    #[allow(dead_code)]
     pub subtype: String,
     pub period: T,
     pub light_curve: MultiColorLightCurve<T>,
