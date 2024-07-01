@@ -59,7 +59,7 @@ unzip3 = "1"
 light-curve-feature-test-util = { path = "test-util" }
 approx = "0.5"
 chfft = "0.3.4"
-clap = { version = "3.2.6", features = ["std", "color", "suggestions", "derive", "wrap_help", "unstable-v4"] }
+clap = { version = "4.5.8", features = ["std", "color", "suggestions", "derive", "wrap_help", "unstable-v4"] }
 criterion = "0.5"
 hyperdual = "1.1"
 light-curve-common = "0.1.0"
