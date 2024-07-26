@@ -82,6 +82,9 @@ harness = false
 [lints.clippy]
 incompatible_msrv = "deny"
 
+[lints.rust]
+unexpected_cfgs = "deny"
+
 [package.metadata.docs.rs]
 rustdoc-args = [
     "--html-in-header",
