@@ -79,6 +79,9 @@ name = "benchmark"
 path = "benches/lib.rs"
 harness = false
 
+[lints.clippy]
+incompatible_msrv = "deny"
+
 [package.metadata.docs.rs]
 rustdoc-args = [
     "--html-in-header",
