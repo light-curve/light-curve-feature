@@ -62,7 +62,8 @@ where
         let sorted_deviation: SortedArray<_> =
             ts.m.sample
                 .mapv(|m| T::abs(m - m_median))
-                .into_raw_vec()
+                .as_slice_memory_order()
+                .expect("TimeSeries::m::sample::mapv(...) is supposed to be contiguous")
                 .into();
         Ok(vec![sorted_deviation.median()])
     }
