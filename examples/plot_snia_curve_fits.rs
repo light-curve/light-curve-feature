@@ -243,7 +243,7 @@ fn fit_and_plot<P>(
                 &Palette99::pick(i),
             ))
             .unwrap()
-            .label(&format!("{}, reduced chi2 = {:.2}", name, reduced_chi2))
+            .label(format!("{}, reduced chi2 = {:.2}", name, reduced_chi2))
             .legend(move |(x, y)| PathElement::new(vec![(x, y), (x + 10, y)], Palette99::pick(i)));
     }
 
