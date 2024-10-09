@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Update ndarray from 0.15 to 0.16 https://github.com/light-curve/light-curve-feature/pull/175
+- **Breaking** Update ndarray from 0.15 to 0.16 https://github.com/light-curve/light-curve-feature/pull/175
 
 ### Deprecated
 
