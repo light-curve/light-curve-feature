@@ -94,9 +94,8 @@ where
     fn unwrap_with(&self, with: &FitArray<T, NPARAMS>) -> FitArray<T, NPARAMS> {
         let mut a = with.clone();
         for (opt, x) in self.0.iter().zip(a.0.iter_mut()) {
-            match opt {
-                Some(value) => *x = value.clone(),
-                None => {}
+            if let Some(value) = opt {
+                *x = value.clone()
             }
         }
         a
