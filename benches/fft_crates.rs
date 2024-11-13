@@ -8,9 +8,9 @@ use fftw::types::Flag;
 use num_complex::Complex as FftwComplex;
 use num_traits::{Float, FloatConst, NumAssign};
 use rand::prelude::*;
+use realfft::rustfft::num_complex::Complex as RustFftComplex;
+use realfft::FftNum;
 use realfft::{RealFftPlanner, RealToComplex as RealFftRealToComplex};
-use rustfft::num_complex::Complex as RustFftComplex;
-use rustfft::FftNum;
 use std::{any, collections::HashMap, sync::Arc};
 
 trait Fft<T>: Debug {

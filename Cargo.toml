@@ -22,6 +22,7 @@ fftw-system = ["fftw/system"]
 fftw-source = ["fftw/source"]
 fftw-mkl = ["fftw/intel-mkl"]
 gsl = ["GSL/v2_1"]
+rustfft = ["realfft"]
 
 [profile.release]
 lto = true
@@ -49,6 +50,7 @@ ndarray-stats = "^0.6"
 num-complex = "^0.4" # the same version as used by fftw
 num-traits = "^0.2"
 paste = "1"
+realfft = { version = "3", optional = true }
 schemars = "^0.8"
 serde = { version = "1", features = ["derive"] }
 thiserror = "1"
@@ -68,8 +70,6 @@ plotters-bitmap = "0.3.3"
 rand = "0.8"
 rand_distr = "0.4"
 rayon = "1.5"
-realfft = "3.1"
-rustfft = "6.1"
 serde_json = "1.0"
 serde_test = "1.0"
 serde_type_name = "0.2"
