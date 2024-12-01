@@ -51,7 +51,7 @@ num-traits = "^0.2"
 paste = "1"
 schemars = "^0.8"
 serde = { version = "1", features = ["derive"] }
-thiserror = "1"
+thiserror = "2"
 thread_local = "1.1"
 unzip3 = "1"
 
