@@ -15,4 +15,4 @@ itertools = "0.13.0"
 lazy_static = "1.4"
 light-curve-feature = { path = "..", default-features = false }
 serde = { version = "1", features = ["derive"] }
-thiserror = "1"
+thiserror = "2"
