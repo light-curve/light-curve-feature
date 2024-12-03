@@ -160,7 +160,7 @@ where
     }
 }
 
-impl<'a, T> From<Vec<T>> for DataSample<'a, T>
+impl<T> From<Vec<T>> for DataSample<'_, T>
 where
     T: Float,
 {
@@ -178,7 +178,7 @@ where
     }
 }
 
-impl<'a, T> From<Array1<T>> for DataSample<'a, T>
+impl<T> From<Array1<T>> for DataSample<'_, T>
 where
     T: Float,
 {

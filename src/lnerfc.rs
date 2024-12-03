@@ -1,5 +1,5 @@
-/// Natural logarythm of the error function
-/// Manually translated from GNU Scientific Library's log_erfc
+//! Natural logarithm of the error function
+//! Manually translated from GNU Scientific Library's log_erfc
 
 #[allow(clippy::excessive_precision)]
 const TEN_ROOT6_DBL_EPSILON: f64 = 2.4607833005759251e-02;

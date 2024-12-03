@@ -227,7 +227,7 @@ struct EmceeModel<'b, F, LP, const NPARAMS: usize> {
     upper: &'b [f32; NPARAMS],
 }
 
-impl<'b, F, LP, const NPARAMS: usize> Prob for EmceeModel<'b, F, LP, NPARAMS>
+impl<F, LP, const NPARAMS: usize> Prob for EmceeModel<'_, F, LP, NPARAMS>
 where
     F: Fn(&Guess) -> f32,
     LP: Fn(&Guess) -> f32,
