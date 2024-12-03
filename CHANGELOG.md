@@ -9,11 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Expose `nl_fit::CurveFitResult`
+--
 
 ### Changed
 
-- **Breaking** Update ndarray from 0.15 to 0.16 https://github.com/light-curve/light-curve-feature/pull/175
+--
 
 ### Deprecated
 
@@ -30,6 +30,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 --
+
+# [0.8.0] 2024 December 3
+
+### Added
+
+- Expose `nl_fit::CurveFitResult`
+
+### Changed
+
+- **Breaking** Update ndarray from 0.15 to 0.16 https://github.com/light-curve/light-curve-feature/pull/175
 
 # [0.7.1] 2024 April 25
 
