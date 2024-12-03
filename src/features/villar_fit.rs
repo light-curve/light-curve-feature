@@ -332,7 +332,7 @@ struct Params<'a, T> {
     external: [T; NPARAMS],
 }
 
-impl<'a, T> Params<'a, T>
+impl<T> Params<'_, T>
 where
     T: LikeFloat,
 {

@@ -76,7 +76,6 @@ where
 #[cfg(test)]
 #[allow(clippy::unreadable_literal)]
 #[allow(clippy::excessive_precision)]
-
 mod tests {
     use super::*;
     use crate::extractor::FeatureExtractor;
