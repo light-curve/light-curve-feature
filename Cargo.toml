@@ -40,7 +40,7 @@ emcee_rand = { version = "^0.3.15", package = "rand" }
 enum_dispatch = "^0.3.9"
 fftw = { version = "^0.8", default-features = false }
 GSL = { version = "^7", default-features = false, optional = true }
-itertools = "^0.13"
+itertools = "^0.14"
 lazy_static = "^1.4"
 libm = "^0.2"
 macro_const = "^0.1"
