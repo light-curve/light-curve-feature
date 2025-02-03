@@ -198,11 +198,11 @@ struct Randoms {}
 impl<T> Series<T> for Randoms
 where
     T: FftNum,
-    rand::distributions::Standard: Distribution<T>,
+    rand::distr::StandardUniform: Distribution<T>,
 {
     fn series(&self, n: usize) -> Vec<T> {
         let mut rng = StdRng::seed_from_u64(0);
-        (0..n).map(|_| rng.gen::<T>()).collect()
+        (0..n).map(|_| rng.random::<T>()).collect()
     }
 }
 
@@ -218,7 +218,7 @@ where
     FftwComplex<T>: AlignedAllocable,
     Plan<T, FftwComplex<T>, T::Plan>: R2CPlan<Real = T, Complex = FftwComplex<T>>,
     Vec<T>: fmt::Debug,
-    rand::distributions::Standard: Distribution<T>,
+    rand::distr::StandardUniform: Distribution<T>,
 {
     let counts: Vec<_> = (8..=20).step_by(4).map(|i| 1_usize << i).collect();
     let series: Vec<Box<dyn Series<T>>> = vec![Box::new(Ones {}), Box::new(Randoms {})];

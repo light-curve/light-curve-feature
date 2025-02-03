@@ -546,7 +546,7 @@ mod tests {
             .map(|&x| {
                 3.0 * f32::sin(2.0 * std::f32::consts::PI / period * x + 0.5)
                     + 4.0
-                    + 0.01 * rng.gen::<f32>() // noise stabilizes solution
+                    + 0.01 * rng.random::<f32>() // noise stabilizes solution
             })
             .collect();
         let mut ts = TimeSeries::new_without_weight(&x[..], &y[..]);
@@ -560,7 +560,7 @@ mod tests {
         let periodogram: Periodogram<_, Feature<_>> = Periodogram::default();
         let period = 0.17;
         let mut rng = StdRng::seed_from_u64(0);
-        let mut x: Vec<f32> = (0..100).map(|_| rng.gen()).collect();
+        let mut x: Vec<f32> = (0..100).map(|_| rng.random()).collect();
         x[..].sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
         let y: Vec<_> = x
             .iter()
@@ -580,7 +580,7 @@ mod tests {
         ]);
         let period = 0.17;
         let mut rng = StdRng::seed_from_u64(0);
-        let mut x: Vec<f32> = (0..100).map(|_| rng.gen()).collect();
+        let mut x: Vec<f32> = (0..100).map(|_| rng.random()).collect();
         x[..].sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
         let y: Vec<_> = x
             .iter()
@@ -601,7 +601,7 @@ mod tests {
         let period1 = 0.0753;
         let period2 = 0.45;
         let mut rng = StdRng::seed_from_u64(0);
-        let mut x: Vec<f32> = (0..1000).map(|_| rng.gen()).collect();
+        let mut x: Vec<f32> = (0..1000).map(|_| rng.random()).collect();
         x[..].sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
         let y: Vec<_> = x
             .iter()
@@ -625,14 +625,14 @@ mod tests {
         let period1 = 0.0753;
         let period2 = 0.46;
         let mut rng = StdRng::seed_from_u64(0);
-        let mut x: Vec<f32> = (0..1000).map(|_| rng.gen()).collect();
+        let mut x: Vec<f32> = (0..1000).map(|_| rng.random()).collect();
         x[..].sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
         let y: Vec<_> = x
             .iter()
             .map(|&x| {
                 3.0 * f32::sin(2.0 * std::f32::consts::PI / period1 * x + 0.5)
                     + -5.0 * f32::cos(2.0 * std::f32::consts::PI / period2 * x + 0.5)
-                    + 10.0 * rng.gen::<f32>()
+                    + 10.0 * rng.random::<f32>()
                     + 4.0
             })
             .collect();
