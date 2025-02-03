@@ -55,7 +55,11 @@ jobs:
       - run: cargo +${{ steps.get_msrv.outputs.msrv }} build --no-default-features --features ceres-source,fftw-source,gsl
 
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm]
 
     steps:
       - uses: actions/checkout@v4
@@ -202,16 +206,6 @@ jobs:
           fail_ci_if_error: true
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-
-  arm:
-    runs-on: [ self-hosted, linux, ARM64 ]
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: true
-      - name: build
-        run: cargo build --all-targets --no-default-features --features=ceres-source,fftw-source,gsl
 
   macos:
     runs-on: macos-latest
