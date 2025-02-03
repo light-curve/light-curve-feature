@@ -344,7 +344,7 @@ mod tests {
         let mut rng = StdRng::seed_from_u64(0);
 
         let t = linspace(0.0, (N - 1) as f64, N);
-        let m: Vec<f64> = (0..N).map(|_| rng.gen()).collect();
+        let m: Vec<f64> = (0..N).map(|_| rng.random()).collect();
         let mut ts = TimeSeries::new_without_weight(&t[..], &m[..]);
 
         let nyquist = AverageNyquistFreq.into();
@@ -374,7 +374,7 @@ mod tests {
         let mut rng = StdRng::seed_from_u64(0);
 
         let t = linspace(0.0, (N - 1) as f64, N);
-        let m: Vec<f64> = (0..N).map(|_| rng.gen()).collect();
+        let m: Vec<f64> = (0..N).map(|_| rng.random()).collect();
         let mut ts = TimeSeries::new_without_weight(&t[..], &m[..]);
 
         let nyquist = AverageNyquistFreq.into();

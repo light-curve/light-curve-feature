@@ -389,12 +389,12 @@ macro_rules! check_fit_model_derivatives {
 
             let mut rng = StdRng::seed_from_u64(0);
             for _ in 0..REPEAT {
-                let t = 10.0 * rng.gen::<f64>();
+                let t = 10.0 * rng.random::<f64>();
 
                 let param = {
                     let mut param = [0.0; NPARAMS];
                     for x in param.iter_mut() {
-                        *x = rng.gen::<f64>() - 0.5;
+                        *x = rng.random::<f64>() - 0.5;
                     }
                     param
                 };

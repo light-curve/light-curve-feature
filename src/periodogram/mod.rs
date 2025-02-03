@@ -252,7 +252,7 @@ mod tests {
 
         let mut rng = StdRng::seed_from_u64(0);
         let t: SortedArray<_> = (0..N)
-            .map(|_| rng.gen::<f64>() * (N - 1) as f64)
+            .map(|_| rng.random::<f64>() * (N - 1) as f64)
             .collect::<Vec<_>>()
             .into();
         let m: Vec<_> = t
@@ -260,7 +260,7 @@ mod tests {
             .map(|&x| {
                 f64::sin(OMEGA1 * x)
                     + AMPLITUDE2 * f64::cos(OMEGA2 * x)
-                    + NOISE_AMPLITUDE * rng.gen::<f64>()
+                    + NOISE_AMPLITUDE * rng.random::<f64>()
             })
             .collect();
         let mut ts = TimeSeries::new_without_weight(&t, &m);

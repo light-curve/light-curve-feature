@@ -179,7 +179,7 @@ where
 {
     (0..n)
         .map(|_| {
-            let x: T = thread_rng().sample(StandardNormal);
+            let x: T = rand::rng().sample(StandardNormal);
             x
         })
         .collect()
