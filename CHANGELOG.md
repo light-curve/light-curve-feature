@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Build breaking**: bump minimum supported Rust version (MSRV) from 1.67 to 1.81
 - Bump `itertools` from ^0.13 to ^0.14 https://github.com/light-curve/light-curve-feature/pull/190
 
 ### Deprecated
