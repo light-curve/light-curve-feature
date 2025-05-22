@@ -95,8 +95,8 @@ impl<const NPARAMS: usize> JsonSchema for IndComponentsLnPrior<NPARAMS> {
         IndComponentsLnPriorSerde::schema_name()
     }
 
-    fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
-        IndComponentsLnPriorSerde::json_schema(gen)
+    fn json_schema(r#gen: &mut schemars::r#gen::SchemaGenerator) -> schemars::schema::Schema {
+        IndComponentsLnPriorSerde::json_schema(r#gen)
     }
 }
 

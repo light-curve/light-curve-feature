@@ -1,17 +1,17 @@
-use criterion::{black_box, Criterion};
+use criterion::{Criterion, black_box};
 
 use light_curve_common::linspace;
 use light_curve_feature::peak_indices;
 
 macro_rules! gen_bench {
-    ($c: expr, $name: expr, $func: ident, $x: expr $(,)?) => {
+    ($c: expr_2021, $name: expr_2021, $func: ident, $x: expr_2021 $(,)?) => {
         $c.bench_function($name, move |b| b.iter(|| black_box($func(&$x))));
     };
 }
 
 pub fn bench_peak_indices(c: &mut Criterion) {
     macro_rules! b {
-        ($name: expr, $x: expr $(,)?) => {
+        ($name: expr_2021, $x: expr_2021 $(,)?) => {
             gen_bench!(c, $name, peak_indices, $x);
         };
     }
@@ -29,13 +29,7 @@ pub fn bench_peak_indices(c: &mut Criterion) {
     b!(
         "peak_indices_sawtooth",
         (0..=100)
-            .map(|i| {
-                if i % 2 == 0 {
-                    1.0_f32
-                } else {
-                    0.0_f32
-                }
-            })
+            .map(|i| { if i % 2 == 0 { 1.0_f32 } else { 0.0_f32 } })
             .collect::<Vec<_>>(),
     );
 }

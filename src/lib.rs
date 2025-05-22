@@ -28,14 +28,14 @@ pub use float_trait::Float;
 mod lnerfc;
 
 mod nl_fit;
-pub use nl_fit::evaluator::FitFeatureEvaluatorGettersTrait;
 #[cfg(any(feature = "ceres-source", feature = "ceres-system"))]
 pub use nl_fit::CeresCurveFit;
 pub use nl_fit::CurveFitResult;
 #[cfg(feature = "gsl")]
 pub use nl_fit::LmsderCurveFit;
-pub use nl_fit::{prior, LnPrior, LnPrior1D};
+pub use nl_fit::evaluator::FitFeatureEvaluatorGettersTrait;
 pub use nl_fit::{CurveFitAlgorithm, McmcCurveFit};
+pub use nl_fit::{LnPrior, LnPrior1D, prior};
 
 #[doc(hidden)]
 pub mod periodogram;

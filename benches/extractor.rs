@@ -1,5 +1,5 @@
 use conv::ConvUtil;
-use criterion::{black_box, Criterion};
+use criterion::{Criterion, black_box};
 use light_curve_feature::*;
 use light_curve_feature_test_util::iter_sn1a_flux_ts;
 use ndarray::Array1;

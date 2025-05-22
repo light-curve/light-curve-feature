@@ -11,7 +11,7 @@ pub mod transformer;
 pub mod villar_fit;
 
 macro_rules! transformer {
-    ($module:ident, $structure:ident, $func:expr, $names:expr, $descriptions:expr, $doc:literal $(,)?) => {
+    ($module:ident, $structure:ident, $func:expr_2021, $names:expr_2021, $descriptions:expr_2021, $doc:literal $(,)?) => {
         pub mod $module {
             use super::*;
 
@@ -76,7 +76,7 @@ macro_rules! transformer {
 
 // into_iter().map().collect() should create no allocations
 macro_rules! transformer_from_per_element_fn {
-    ($module:ident, $func:expr, $prefix_name:literal, $prefix_description:literal, $doc:literal $(,)?) => {
+    ($module:ident, $func:expr_2021, $prefix_name:literal, $prefix_description:literal, $doc:literal $(,)?) => {
         paste! {
             transformer!(
                 $module,

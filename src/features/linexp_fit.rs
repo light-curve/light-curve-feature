@@ -1,7 +1,7 @@
 use crate::evaluator::*;
 use crate::nl_fit::{
-    data::NormalizedData, evaluator::*, CurveFitAlgorithm, CurveFitResult, CurveFitTrait,
-    LikeFloat, LnPrior, McmcCurveFit,
+    CurveFitAlgorithm, CurveFitResult, CurveFitTrait, LikeFloat, LnPrior, McmcCurveFit,
+    data::NormalizedData, evaluator::*,
 };
 
 use conv::ConvUtil;
@@ -379,13 +379,13 @@ impl From<LnPrior<NPARAMS>> for LinexpLnPrior {
 #[allow(clippy::excessive_precision)]
 mod tests {
     use super::*;
-    use crate::nl_fit::LnPrior1D;
-    use crate::tests::*;
     #[cfg(any(feature = "ceres-source", feature = "ceres-system"))]
     use crate::CeresCurveFit;
     #[cfg(feature = "gsl")]
     use crate::LmsderCurveFit;
     use crate::TimeSeries;
+    use crate::nl_fit::LnPrior1D;
+    use crate::tests::*;
 
     use approx::assert_relative_eq;
     use hyperdual::Hyperdual;

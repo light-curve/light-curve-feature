@@ -1,7 +1,7 @@
 use clap::Parser;
 use light_curve_feature::{
-    features::VillarLnPrior, prelude::*, BazinFit, Feature, FeatureEvaluator, LinexpFit,
-    McmcCurveFit, TimeSeries, VillarFit,
+    BazinFit, Feature, FeatureEvaluator, LinexpFit, McmcCurveFit, TimeSeries, VillarFit,
+    features::VillarLnPrior, prelude::*,
 };
 #[cfg(all(feature = "ceres-source", feature = "gsl"))]
 use light_curve_feature::{CeresCurveFit, LmsderCurveFit, LnPrior};

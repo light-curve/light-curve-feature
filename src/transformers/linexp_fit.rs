@@ -95,8 +95,13 @@ where
     T: Float,
 {
     fn transform(&self, x: Vec<T>) -> Vec<T> {
-        let [amplitude, _reference_time, fall_time, baseline, reduced_chi2]: [T;
-            INPUT_FEATURE_SIZE] = match x.try_into() {
+        let [
+            amplitude,
+            _reference_time,
+            fall_time,
+            baseline,
+            reduced_chi2,
+        ]: [T; INPUT_FEATURE_SIZE] = match x.try_into() {
             Ok(a) => a,
             Err(x) => panic!(
                 "LinexpFitTransformer: expected {} features, found {}",

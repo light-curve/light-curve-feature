@@ -165,8 +165,9 @@ mod tests {
     use crate::features::{Amplitude, BazinFit, Cusum, Kurtosis, LinexpFit, ReducedChi2};
     use crate::tests::*;
     use crate::transformers::{
-        arcsinh::ArcsinhTransformer, bazin_fit::BazinFitTransformer, identity::IdentityTransformer,
-        lg::LgTransformer, linexp_fit::LinexpFitTransformer, ln1p::Ln1pTransformer, Transformer,
+        Transformer, arcsinh::ArcsinhTransformer, bazin_fit::BazinFitTransformer,
+        identity::IdentityTransformer, lg::LgTransformer, linexp_fit::LinexpFitTransformer,
+        ln1p::Ln1pTransformer,
     };
 
     eval_info_test!(
