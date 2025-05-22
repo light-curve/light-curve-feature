@@ -11,16 +11,16 @@ pub use rand_distr::StandardNormal;
 
 #[macro_export]
 macro_rules! feature_test {
-    ($name: ident, $fe: tt, $desired: expr, $y: expr $(,)?) => {
+    ($name: ident, $fe: tt, $desired: expr_2021, $y: expr_2021 $(,)?) => {
         feature_test!($name, $fe, $desired, $y, $y);
     };
-    ($name: ident, $fe: tt, $desired: expr, $x: expr, $y: expr $(,)?) => {
+    ($name: ident, $fe: tt, $desired: expr_2021, $x: expr_2021, $y: expr_2021 $(,)?) => {
         feature_test!($name, $fe, $desired, $x, $y, vec![1.0; $x.len()]);
     };
-    ($name: ident, $fe: tt, $desired: expr, $x: expr, $y: expr, $w: expr $(,)?) => {
+    ($name: ident, $fe: tt, $desired: expr_2021, $x: expr_2021, $y: expr_2021, $w: expr_2021 $(,)?) => {
         feature_test!($name, $fe, $desired, $x, $y, $w, 1e-6);
     };
-    ($name: ident, $fe: tt, $desired: expr, $x: expr, $y: expr, $w: expr, $tol: expr $(,)?) => {
+    ($name: ident, $fe: tt, $desired: expr_2021, $x: expr_2021, $y: expr_2021, $w: expr_2021, $tol: expr_2021 $(,)?) => {
         #[test]
         fn $name() {
             let fe = FeatureExtractor::new(vec!$fe);
@@ -45,7 +45,7 @@ macro_rules! feature_test {
 
 #[macro_export]
 macro_rules! eval_info_test {
-    ($name: ident, $eval: expr $(,)?) => {
+    ($name: ident, $eval: expr_2021 $(,)?) => {
         #[test]
         fn $name() {
             eval_info_tests($eval.into(), true, true, true, true, true);
@@ -267,7 +267,7 @@ fn eval_info_sorting_required_test(
 
 #[macro_export]
 macro_rules! serialization_name_test {
-    ($feature_type: ty, $feature_expr: expr) => {
+    ($feature_type: ty, $feature_expr: expr_2021) => {
         #[test]
         fn serialization_name() {
             let feature = $feature_expr;
@@ -289,7 +289,7 @@ macro_rules! serialization_name_test {
 
 #[macro_export]
 macro_rules! serde_json_test {
-    ($name: ident, $feature_type: ty, $feature_expr: expr $(,)?) => {
+    ($name: ident, $feature_type: ty, $feature_expr: expr_2021 $(,)?) => {
         #[test]
         fn $name() {
             const N: usize = 128;
@@ -333,7 +333,7 @@ macro_rules! check_doc_static_method {
 
 #[macro_export]
 macro_rules! check_finite {
-    ($name: ident, $feature_expr: expr $(,)?) => {
+    ($name: ident, $feature_expr: expr_2021 $(,)?) => {
         #[test]
         fn $name() {
             let eval = $feature_expr;
@@ -437,7 +437,7 @@ macro_rules! transformer_check_doc_static_method {
 
 #[macro_export]
 macro_rules! transformer_check_size_hint {
-    ($name: ident, $transformer: expr, $type: ty) => {
+    ($name: ident, $transformer: expr_2021, $type: ty) => {
         #[test]
         fn $name() {
             let transformer = $transformer;

@@ -1,4 +1,4 @@
-use criterion::{black_box, Criterion};
+use criterion::{Criterion, black_box};
 use light_curve_feature::RecurrentSinCos;
 
 fn plain(n: usize, x: f64) {

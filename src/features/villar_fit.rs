@@ -1,7 +1,7 @@
 use crate::evaluator::*;
 use crate::nl_fit::{
-    data::NormalizedData, evaluator::*, CurveFitAlgorithm, CurveFitResult, CurveFitTrait,
-    LikeFloat, LnPrior, LnPrior1D, McmcCurveFit,
+    CurveFitAlgorithm, CurveFitResult, CurveFitTrait, LikeFloat, LnPrior, LnPrior1D, McmcCurveFit,
+    data::NormalizedData, evaluator::*,
 };
 
 use conv::ConvUtil;
@@ -594,14 +594,14 @@ impl From<LnPrior<NPARAMS>> for VillarLnPrior {
 mod tests {
     use super::*;
 
+    #[cfg(feature = "gsl")]
+    use crate::LmsderCurveFit;
+    use crate::TimeSeries;
     #[cfg(any(feature = "ceres-source", feature = "ceres-system"))]
     use crate::nl_fit::CeresCurveFit;
     #[cfg(feature = "gsl")]
     use crate::nl_fit::LnPrior1D;
     use crate::tests::*;
-    #[cfg(feature = "gsl")]
-    use crate::LmsderCurveFit;
-    use crate::TimeSeries;
 
     use approx::assert_relative_eq;
     use hyperdual::Hyperdual;

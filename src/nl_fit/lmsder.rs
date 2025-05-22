@@ -157,7 +157,7 @@ impl NlsProblem {
                     return NlsFitResult {
                         status: Value::Success,
                         solver,
-                    }
+                    };
                 }
                 Err(status) => return NlsFitResult { status, solver },
             }

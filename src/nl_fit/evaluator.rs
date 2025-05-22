@@ -1,5 +1,5 @@
 use crate::float_trait::Float;
-use crate::nl_fit::{data::NormalizedData, CurveFitAlgorithm, LikeFloat, LnPrior};
+use crate::nl_fit::{CurveFitAlgorithm, LikeFloat, LnPrior, data::NormalizedData};
 use crate::time_series::TimeSeries;
 
 use schemars::JsonSchema;
@@ -55,8 +55,8 @@ where
         FitArraySerde::<T>::schema_name()
     }
 
-    fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
-        FitArraySerde::<T>::json_schema(gen)
+    fn json_schema(r#gen: &mut schemars::r#gen::SchemaGenerator) -> schemars::schema::Schema {
+        FitArraySerde::<T>::json_schema(r#gen)
     }
 }
 

@@ -1,7 +1,7 @@
 use chfft::RFft1D;
 use core::fmt;
 use core::fmt::Debug;
-use criterion::{black_box, Criterion};
+use criterion::{Criterion, black_box};
 use fftw::array::{AlignedAllocable, AlignedVec};
 use fftw::plan::{Plan, Plan32, Plan64, PlanSpec, R2CPlan};
 use fftw::types::Flag;
@@ -9,8 +9,8 @@ use num_complex::Complex as FftwComplex;
 use num_traits::{Float, FloatConst, NumAssign};
 use rand::prelude::*;
 use realfft::{RealFftPlanner, RealToComplex as RealFftRealToComplex};
-use rustfft::num_complex::Complex as RustFftComplex;
 use rustfft::FftNum;
+use rustfft::num_complex::Complex as RustFftComplex;
 use std::{any, collections::HashMap, sync::Arc};
 
 trait Fft<T>: Debug {

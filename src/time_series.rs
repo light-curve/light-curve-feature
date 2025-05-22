@@ -4,7 +4,7 @@ use crate::types::CowArray1;
 
 use conv::prelude::*;
 use itertools::Itertools;
-use ndarray::{s, Array1, ArrayView1, Zip};
+use ndarray::{Array1, ArrayView1, Zip, s};
 use ndarray_stats::SummaryStatisticsExt;
 
 /// A [`TimeSeries`] component
@@ -24,7 +24,7 @@ where
 }
 
 macro_rules! data_sample_getter {
-    ($attr: ident, $getter: ident, $func: expr, $method_sorted: ident) => {
+    ($attr: ident, $getter: ident, $func: expr_2021, $method_sorted: ident) => {
         // This lint is false-positive in macros
         // https://github.com/rust-lang/rust-clippy/issues/1553
         #[allow(clippy::redundant_closure_call)]
@@ -41,7 +41,7 @@ macro_rules! data_sample_getter {
             }
         }
     };
-    ($attr: ident, $getter: ident, $func: expr) => {
+    ($attr: ident, $getter: ident, $func: expr_2021) => {
         // This lint is false-positive in macros
         // https://github.com/rust-lang/rust-clippy/issues/1553
         #[allow(clippy::redundant_closure_call)]
@@ -216,7 +216,7 @@ where
 }
 
 macro_rules! time_series_getter {
-    ($t: ty, $attr: ident, $getter: ident, $func: expr) => {
+    ($t: ty, $attr: ident, $getter: ident, $func: expr_2021) => {
         // This lint is false-positive in macros
         // https://github.com/rust-lang/rust-clippy/issues/1553
         #[allow(clippy::redundant_closure_call)]
@@ -231,7 +231,7 @@ macro_rules! time_series_getter {
         }
     };
 
-    ($attr: ident, $getter: ident, $func: expr) => {
+    ($attr: ident, $getter: ident, $func: expr_2021) => {
         time_series_getter!(T, $attr, $getter, $func);
     };
 }
@@ -464,7 +464,9 @@ mod tests {
         data_sample_median_even,
         get_median,
         [5.655794743124782],
-        [9.47981408, 3.86815751, 9.90299294, -2.986894, 7.44343197, 1.52751816],
+        [
+            9.47981408, 3.86815751, 9.90299294, -2.986894, 7.44343197, 1.52751816
+        ],
     );
 
     data_sample_test!(

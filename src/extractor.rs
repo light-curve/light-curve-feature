@@ -179,10 +179,10 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tests::*;
     use crate::Feature;
+    use crate::tests::*;
 
-    use serde_test::{assert_ser_tokens, Token};
+    use serde_test::{Token, assert_ser_tokens};
 
     serialization_name_test!(FeatureExtractor<f64, Feature<f64>>);
 

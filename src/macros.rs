@@ -2,12 +2,12 @@
 macro_rules! lazy_info {
     (
         $name: ident,
-        size: $size: expr,
-        min_ts_length: $len: expr,
-        t_required: $t: expr,
-        m_required: $m: expr,
-        w_required: $w: expr,
-        sorting_required: $sort: expr,
+        size: $size: expr_2021,
+        min_ts_length: $len: expr_2021,
+        t_required: $t: expr_2021,
+        m_required: $m: expr_2021,
+        w_required: $w: expr_2021,
+        sorting_required: $sort: expr_2021,
     ) => {
         lazy_static! {
             static ref $name: EvaluatorInfo = EvaluatorInfo {
@@ -23,12 +23,12 @@ macro_rules! lazy_info {
     (
         $name: ident,
         $feature: ty,
-        size: $size: expr,
-        min_ts_length: $len: expr,
-        t_required: $t: expr,
-        m_required: $m: expr,
-        w_required: $w: expr,
-        sorting_required: $sort: expr,
+        size: $size: expr_2021,
+        min_ts_length: $len: expr_2021,
+        t_required: $t: expr_2021,
+        m_required: $m: expr_2021,
+        w_required: $w: expr_2021,
+        sorting_required: $sort: expr_2021,
     ) => {
         lazy_info!(
             $name,
@@ -50,12 +50,12 @@ macro_rules! lazy_info {
         $name: ident,
         $feature: ty,
         T,
-        size: $size: expr,
-        min_ts_length: $len: expr,
-        t_required: $t: expr,
-        m_required: $m: expr,
-        w_required: $w: expr,
-        sorting_required: $sort: expr,
+        size: $size: expr_2021,
+        min_ts_length: $len: expr_2021,
+        t_required: $t: expr_2021,
+        m_required: $m: expr_2021,
+        w_required: $w: expr_2021,
+        sorting_required: $sort: expr_2021,
     ) => {
         lazy_info!(
             $name,
@@ -99,7 +99,7 @@ macro_rules! transformer_eval {
 
 /// Helper implementing JsonSchema crate
 macro_rules! json_schema {
-    ($parameters: ty, $is_referenceable: expr) => {
+    ($parameters: ty, $is_referenceable: expr_2021) => {
         fn is_referenceable() -> bool {
             $is_referenceable
         }
@@ -108,8 +108,8 @@ macro_rules! json_schema {
             <$parameters>::schema_name()
         }
 
-        fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
-            <$parameters>::json_schema(gen)
+        fn json_schema(r#gen: &mut schemars::r#gen::SchemaGenerator) -> schemars::schema::Schema {
+            <$parameters>::json_schema(r#gen)
         }
     };
 }

@@ -104,8 +104,16 @@ where
     T: Float,
 {
     fn transform(&self, x: Vec<T>) -> Vec<T> {
-        let [amplitude, baseline, _reference_time, rise_time, fall_time, rel_plateau_amplitude, plateau_duration, reduced_chi2]: [T;
-            INPUT_FEATURE_SIZE] = match x.try_into() {
+        let [
+            amplitude,
+            baseline,
+            _reference_time,
+            rise_time,
+            fall_time,
+            rel_plateau_amplitude,
+            plateau_duration,
+            reduced_chi2,
+        ]: [T; INPUT_FEATURE_SIZE] = match x.try_into() {
             Ok(a) => a,
             Err(x) => panic!(
                 "VillarFitTransformer: expected {} features, found {}",

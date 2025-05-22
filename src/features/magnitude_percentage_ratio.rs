@@ -156,7 +156,7 @@ mod tests {
     use super::*;
     use crate::tests::*;
 
-    use serde_test::{assert_tokens, Token};
+    use serde_test::{Token, assert_tokens};
 
     check_feature!(MagnitudePercentageRatio);
 

@@ -1,7 +1,7 @@
 use crate::evaluator::*;
 use crate::time_series::DataSample;
 use conv::prelude::*;
-use ndarray::{s, Array1, ArrayView1, Axis, Zip};
+use ndarray::{Array1, ArrayView1, Axis, Zip, s};
 use ndarray_stats::QuantileExt;
 
 macro_const! {
@@ -125,10 +125,12 @@ impl FeatureNamesDescriptionsTrait for OtsuSplit {
     }
 
     fn get_descriptions(&self) -> Vec<&str> {
-        vec!["difference between mean values of Otsu split subsets",
-             "standard deviation for observations below the threshold given by Otsu method",
-             "standard deviation for observations above the threshold given by Otsu method",
-             "ratio of quantity of observations bellow the threshold given by Otsu method to quantity of all observations"]
+        vec![
+            "difference between mean values of Otsu split subsets",
+            "standard deviation for observations below the threshold given by Otsu method",
+            "standard deviation for observations above the threshold given by Otsu method",
+            "ratio of quantity of observations bellow the threshold given by Otsu method to quantity of all observations",
+        ]
     }
 }
 

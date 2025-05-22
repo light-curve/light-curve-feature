@@ -41,7 +41,7 @@ mod tests {
     use light_curve_common::linspace;
 
     macro_rules! peak_indices {
-        ($name: ident, $desired: expr, $x: expr $(,)?) => {
+        ($name: ident, $desired: expr_2021, $x: expr_2021 $(,)?) => {
             #[test]
             fn $name() {
                 assert_eq!(peak_indices_reverse_sorted(&$x), $desired);
@@ -71,13 +71,7 @@ mod tests {
             .filter(|i| i % 2 == 0)
             .collect::<Vec<_>>(),
         (0..=100)
-            .map(|i| {
-                if i % 2 == 0 {
-                    1.0_f32
-                } else {
-                    0.0_f32
-                }
-            })
+            .map(|i| { if i % 2 == 0 { 1.0_f32 } else { 0.0_f32 } })
             .collect::<Vec<_>>(),
     );
     peak_indices!(
