@@ -13,9 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Build breaking**: bump minimum supported Rust version (MSRV) from 1.67 to 1.85 https://github.com/light-curve/light-curve-feature/pull/200 https://github.com/light-curve/light-curve-feature/pull/203
-- Also update Rust Edition to 2024 https://github.com/light-curve/light-curve-feature/pull/203
-- Bump `itertools` from ^0.13 to ^0.14 https://github.com/light-curve/light-curve-feature/pull/190
+--
 
 ### Deprecated
 
@@ -32,6 +30,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 --
+
+# [0.9.0] 2025 May 22
+
+### Changed
+
+- **Build breaking**: bump minimum supported Rust version (MSRV) from 1.67 to 1.85 https://github.com/light-curve/light-curve-feature/pull/200 https://github.com/light-curve/light-curve-feature/pull/203
+- Also update Rust Edition to 2024 https://github.com/light-curve/light-curve-feature/pull/203
+- Bump `itertools` from ^0.13 to ^0.14 https://github.com/light-curve/light-curve-feature/pull/190
 
 # [0.8.1] 2025 January 7
 
