@@ -139,7 +139,7 @@ pub trait FreqGridTrait<T>: Send + Sync + Clone + Debug {
 #[non_exhaustive]
 pub enum FreqGrid<T: Float> {
     ZeroBasedPow2(ZeroBasedPow2FreqGrid<T>),
-    // Linear(LinearGrid<T>),
+    Linear(LinearFreqGrid<T>),
     // Arbitrary(SortedArray<T>),
 }
 
@@ -149,11 +149,21 @@ impl<T: Float> FreqGrid<T> {
         Self::ZeroBasedPow2(ZeroBasedPow2FreqGrid::new(step, log2_size_m1))
     }
 
+    /// Construct a linear grid
+    pub fn linear(start: T, step: T, size: usize) -> Self {
+        if start.is_zero() {
+            if let Some(zero_based_pow2) = ZeroBasedPow2FreqGrid::try_with_size(step, size) {
+                return Self::ZeroBasedPow2(zero_based_pow2);
+            }
+        }
+        Self::Linear(LinearFreqGrid::new(start, step, size))
+    }
+
     /// Unwrap into ZeroBasedPow2FreqGrid or panic with a given message.
-    pub fn expect_zero_based_pow2(&self, _message: impl Display) -> &ZeroBasedPow2FreqGrid<T> {
+    pub fn expect_zero_based_pow2(&self, message: impl Display) -> &ZeroBasedPow2FreqGrid<T> {
         match self {
             FreqGrid::ZeroBasedPow2(x) => x,
-            // _ => panic!("FreqGrid is not ZeroBasedPow2: {message}"),
+            _ => panic!("FreqGrid is not ZeroBasedPow2: {message}"),
         }
     }
 }
@@ -164,6 +174,7 @@ impl<T: Float> Mul<T> for &FreqGrid<T> {
     fn mul(self, rhs: T) -> Self::Output {
         match self {
             FreqGrid::ZeroBasedPow2(grid) => FreqGrid::ZeroBasedPow2(grid * rhs),
+            FreqGrid::Linear(grid) => FreqGrid::Linear(grid * rhs),
         }
     }
 }
@@ -262,5 +273,57 @@ impl<T: Float> FreqGridTrait<T> for ZeroBasedPow2FreqGrid<T> {
 
     fn iter_sin_cos(&self) -> RecurrentSinCos<T> {
         RecurrentSinCos::with_zero_first(self.step)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct LinearFreqGrid<T: Float> {
+    /// Grid start point
+    start: T,
+    /// Distance between points
+    step: T,
+    /// Number of points
+    size: usize,
+}
+
+impl<T: Float> Mul<T> for &LinearFreqGrid<T> {
+    type Output = LinearFreqGrid<T>;
+
+    fn mul(self, rhs: T) -> Self::Output {
+        LinearFreqGrid {
+            start: self.start * rhs,
+            step: self.step * rhs,
+            size: self.size,
+        }
+    }
+}
+
+impl<T: Float> LinearFreqGrid<T> {
+    pub fn new(start: T, step: T, size: usize) -> Self {
+        assert!(step.is_finite(), "frequency step must be finite");
+        assert!(size > 0, "Size must not be zero");
+        Self { start, step, size }
+    }
+}
+
+impl<T: Float> FreqGridTrait<T> for LinearFreqGrid<T> {
+    fn size(&self) -> usize {
+        self.size
+    }
+
+    fn get(&self, i: usize) -> T {
+        self.start + self.step * i.approx().unwrap()
+    }
+
+    fn minimum(&self) -> T {
+        self.start
+    }
+
+    fn maximum(&self) -> T {
+        self.start + self.step * (self.size - 1).approx().unwrap()
+    }
+
+    fn iter_sin_cos(&self) -> RecurrentSinCos<T> {
+        RecurrentSinCos::new(self.start, self.step)
     }
 }
