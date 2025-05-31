@@ -8,7 +8,7 @@ fn plain(n: usize, x: f64) {
 }
 
 fn rec(n: usize, x: f64) {
-    for s_c in RecurrentSinCos::new(x).take(n) {
+    for s_c in RecurrentSinCos::with_zero_first(x).take(n) {
         black_box(s_c);
     }
 }

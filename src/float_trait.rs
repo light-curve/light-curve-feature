@@ -35,6 +35,7 @@ pub trait Float:
     + ValueInto<f64>
     + ApproxFrom<usize>
     + ApproxFrom<f64>
+    + ApproxInto<u32, RoundToNearest>
     + ApproxInto<usize, RoundToNearest>
     + ApproxInto<f32>
     + ApproxInto<f64>

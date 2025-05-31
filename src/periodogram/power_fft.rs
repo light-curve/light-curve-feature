@@ -1,6 +1,6 @@
 use crate::float_trait::Float;
 use crate::periodogram::fft::*;
-use crate::periodogram::freq::FreqGrid;
+use crate::periodogram::freq::{FreqGrid, FreqGridTrait, ZeroBasedPow2FreqGrid};
 use crate::periodogram::power_trait::*;
 use crate::time_series::TimeSeries;
 
@@ -74,10 +74,14 @@ where
     T: Float,
 {
     fn power(&self, freq: &FreqGrid<T>, ts: &mut TimeSeries<T>) -> Vec<T> {
+        let freq = freq.expect_zero_based_pow2(
+            "Only FreqGrid::ZeroBasedPow2 variant is supported by PeriodogramPowerFft.power()",
+        );
+
         let m_std2 = ts.m.get_std2();
 
         if m_std2.is_zero() {
-            return vec![T::zero(); freq.size.next_power_of_two()];
+            return vec![T::zero(); freq.size()];
         }
 
         let grid = TimeGrid::from_freq_grid(freq);
@@ -107,7 +111,6 @@ where
         sum_sin_cos_h
             .iter()
             .zip(sum_sin_cos_2.iter())
-            .skip(1) // skip zero frequency
             .map(|(sch, sc2)| {
                 let sum_cos_h = sch.get_re();
                 let sum_sin_h = -sch.get_im();
@@ -250,28 +253,29 @@ struct TimeGrid<T> {
 }
 
 impl<T: Float> TimeGrid<T> {
-    fn from_freq_grid(freq: &FreqGrid<T>) -> Self {
-        let size = freq.size.next_power_of_two() << 1;
+    fn from_freq_grid(freq: &ZeroBasedPow2FreqGrid<T>) -> Self {
         Self {
-            dt: T::two() * T::PI() / (freq.step * size.approx().unwrap()),
-            size,
+            dt: T::PI() / freq.maximum(),
+            size: (freq.size() - 1) << 1,
         }
     }
 
     #[cfg(test)]
-    fn freq_grid(&self) -> FreqGrid<T> {
-        FreqGrid {
-            step: T::two() * T::PI() / (self.dt * self.size.approx().unwrap()),
-            size: self.size >> 1,
-        }
+    fn freq_grid(&self) -> ZeroBasedPow2FreqGrid<T> {
+        let step = T::two() * T::PI() / (self.dt * self.size.approx().unwrap());
+        let size = (self.size >> 1) + 1;
+        ZeroBasedPow2FreqGrid::try_with_size(step, size).unwrap()
     }
 }
 
 fn spread<T: Float>(v: &mut [T], x: T, y: T) {
     let x_lo = x.floor();
     let x_hi = x.ceil();
-    let i_lo: usize = x_lo.approx_by::<RoundToNearest>().unwrap() % v.len();
-    let i_hi: usize = x_hi.approx_by::<RoundToNearest>().unwrap() % v.len();
+
+    let i_lo_unwrapped: usize = x_lo.approx_by::<RoundToNearest>().unwrap();
+    let i_lo: usize = i_lo_unwrapped % v.len();
+    let i_hi_unwrapped: usize = x_hi.approx_by::<RoundToNearest>().unwrap();
+    let i_hi: usize = i_hi_unwrapped % v.len();
 
     if i_lo == i_hi {
         v[i_lo] += y;
@@ -310,31 +314,17 @@ fn spread_arrays_for_fft<T: Float>(
 mod tests {
     use super::*;
     use crate::periodogram::freq::AverageNyquistFreq;
+    use approx::assert_relative_eq;
     use light_curve_common::{all_close, linspace};
     use rand::prelude::*;
 
     #[test]
     fn time_grid_from_freq_grid_power_of_two_size() {
-        const FREQ: FreqGrid<f32> = FreqGrid {
-            size: 1 << 4,
-            step: 3.0,
-        };
-        let time_grid = TimeGrid::from_freq_grid(&FREQ);
+        let orig_freq_grid = ZeroBasedPow2FreqGrid::new(3.0, 4);
+        let time_grid = TimeGrid::from_freq_grid(&orig_freq_grid);
         let freq_grid = time_grid.freq_grid();
-        assert_eq!(freq_grid.size, FREQ.size);
-        assert!(f32::abs(freq_grid.step - FREQ.step) < 1e-10);
-    }
-
-    #[test]
-    fn time_grid_from_freq_grid_not_power_of_two_size() {
-        const FREQ: FreqGrid<f32> = FreqGrid {
-            size: (1 << 4) + 1,
-            step: 3.0,
-        };
-        let time_grid = TimeGrid::from_freq_grid(&FREQ);
-        let freq_grid = time_grid.freq_grid();
-        assert!(freq_grid.size >= FREQ.size);
-        assert!(f32::abs(freq_grid.step - FREQ.step) < 1e-10);
+        assert_eq!(freq_grid.size(), orig_freq_grid.size());
+        assert!(f32::abs(freq_grid.step() - orig_freq_grid.step()) < 1e-10);
     }
 
     #[test]
@@ -349,7 +339,7 @@ mod tests {
 
         let nyquist = AverageNyquistFreq.into();
         let freq_grid = FreqGrid::from_t(&t, 1.0, 1.0, nyquist);
-        let time_grid = TimeGrid::from_freq_grid(&freq_grid);
+        let time_grid = TimeGrid::from_freq_grid(freq_grid.expect_zero_based_pow2("NOOOOO"));
 
         let (mh, m2) = {
             let mut mh = vec![0.0; time_grid.size];
@@ -359,7 +349,7 @@ mod tests {
         };
 
         let desired_mh: Vec<_> = m.iter().map(|&x| x - ts.m.get_mean()).collect();
-        all_close(&mh, &desired_mh, 1e-10);
+        assert_relative_eq!(&mh[..], &desired_mh[..], max_relative = 1e-10);
 
         let desired_m2: Vec<_> = (0..N).map(|i| ((i + 1) % 2 * 2) as f64).collect();
         assert_eq!(&m2[..], &desired_m2[..]);
@@ -379,7 +369,7 @@ mod tests {
 
         let nyquist = AverageNyquistFreq.into();
         let freq_grid = FreqGrid::from_t(&t, RESOLUTION as f32, 1.0, nyquist);
-        let time_grid = TimeGrid::from_freq_grid(&freq_grid);
+        let time_grid = TimeGrid::from_freq_grid(freq_grid.expect_zero_based_pow2("NOOOOO"));
         let (mh, m2) = {
             let mut mh = vec![0.0; time_grid.size];
             let mut m2 = vec![0.0; time_grid.size];
