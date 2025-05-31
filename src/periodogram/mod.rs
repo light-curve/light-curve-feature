@@ -3,7 +3,6 @@
 use crate::float_trait::Float;
 use crate::time_series::TimeSeries;
 
-use conv::ConvAsUtil;
 use enum_dispatch::enum_dispatch;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -12,10 +11,10 @@ mod fft;
 pub use fft::{FftwComplex, FftwFloat};
 
 mod freq;
-use freq::FreqGrid;
 pub use freq::{
     AverageNyquistFreq, FixedNyquistFreq, MedianNyquistFreq, NyquistFreq, QuantileNyquistFreq,
 };
+use freq::{FreqGrid, FreqGridTrait};
 
 mod power_fft;
 pub use power_fft::PeriodogramPowerFft;
@@ -69,9 +68,6 @@ where
     T: Float,
 {
     pub fn new(periodogram_power: PeriodogramPower<T>, freq_grid: FreqGrid<T>) -> Self {
-        assert!(freq_grid.step.is_sign_positive() && freq_grid.step.is_finite());
-        assert!(freq_grid.size > 0);
-
         Self {
             freq_grid,
             periodogram_power,
@@ -93,7 +89,7 @@ where
     }
 
     pub fn freq(&self, i: usize) -> T {
-        self.freq_grid.step * (i + 1).approx().unwrap()
+        self.freq_grid.get(i)
     }
 
     pub fn power(&self, ts: &mut TimeSeries<T>) -> Vec<T> {
@@ -108,9 +104,12 @@ mod tests {
     use super::*;
 
     use crate::peak_indices::peak_indices_reverse_sorted;
+    use crate::periodogram::freq::ZeroBasedPow2FreqGrid;
     use crate::sorted_array::SortedArray;
 
+    use approx::assert_relative_eq;
     use light_curve_common::{all_close, linspace};
+    use ndarray::Array1;
     use rand::prelude::*;
 
     #[test]
@@ -122,15 +121,12 @@ mod tests {
         let mut ts = TimeSeries::new_without_weight(&t, &m);
         let periodogram = Periodogram::new(
             PeriodogramPowerDirect.into(),
-            FreqGrid {
-                step: OMEGA_SIN,
-                size: 1,
-            },
+            FreqGrid::zero_based_pow2(OMEGA_SIN, 0),
         );
-        all_close(
-            &[periodogram.power(&mut ts)[0] * 2.0 / (N as f64 - 1.0)],
-            &[1.0],
-            1.0 / (N as f64),
+        assert_relative_eq!(
+            periodogram.power(&mut ts)[1] * 2.0 / (N as f64 - 1.0),
+            1.0,
+            max_relative = 1.0 / (N as f64),
         );
 
         // import numpy as np
@@ -139,34 +135,39 @@ mod tests {
         // t = np.arange(100)
         // m = np.sin(0.07 * t)
         // y = (m - m.mean()) / m.std(ddof=1)
-        // freq = np.linspace(0.01, 0.05, 5)
+        // freq = np.linspace(0.0, 0.04, 5)
         // print(lombscargle(t, y, freq, precenter=True, normalize=False))
 
-        let freq_grid = FreqGrid {
-            step: 0.01,
-            size: 5,
-        };
-        let periodogram = Periodogram::new(PeriodogramPowerDirect.into(), freq_grid.clone());
-        all_close(
-            &linspace(
-                freq_grid.step,
-                freq_grid.step * freq_grid.size as f64,
-                freq_grid.size,
+        let freq_grid = ZeroBasedPow2FreqGrid::new(0.01, 2);
+        let periodogram = Periodogram::new(
+            PeriodogramPowerDirect.into(),
+            FreqGrid::ZeroBasedPow2(freq_grid.clone()),
+        );
+        assert_relative_eq!(
+            &Array1::linspace(
+                0.0,
+                freq_grid.step() * (freq_grid.size() as f64 - 1.0),
+                freq_grid.size(),
             ),
-            &(0..freq_grid.size)
+            &(0..freq_grid.size())
                 .map(|i| periodogram.freq(i))
-                .collect::<Vec<_>>(),
-            1e-12,
+                .collect::<Array1<_>>(),
+            max_relative = 1e-12,
         );
         let desired = [
-            16.99018018,
-            18.57722516,
-            21.96049738,
-            28.15056806,
-            36.66519435,
+            3.76158192e-33,
+            1.69901802e+01,
+            1.85772252e+01,
+            2.19604974e+01,
+            2.81505681e+01,
         ];
         let actual = periodogram.power(&mut ts);
-        all_close(&actual[..], &desired[..], 1e-6);
+        assert_relative_eq!(
+            &actual[..],
+            &desired[..],
+            max_relative = 1e-6,
+            epsilon = f64::EPSILON
+        );
     }
 
     #[test]

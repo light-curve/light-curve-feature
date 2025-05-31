@@ -1,5 +1,5 @@
 use crate::float_trait::Float;
-use crate::periodogram::freq::FreqGrid;
+use crate::periodogram::freq::{FreqGrid, FreqGridTrait};
 use crate::periodogram::power_trait::*;
 use crate::periodogram::recurrent_sin_cos::*;
 use crate::time_series::TimeSeries;
@@ -25,15 +25,18 @@ where
     fn power(&self, freq: &FreqGrid<T>, ts: &mut TimeSeries<T>) -> Vec<T> {
         let m_mean = ts.m.get_mean();
 
-        let sin_cos_omega_tau = SinCosOmegaTau::new(freq.step, ts.t.as_slice().iter());
+        let sin_cos_omega_tau = SinCosOmegaTau::new(freq, ts.t.as_slice().iter());
         let mut sin_cos_omega_x: Vec<_> =
             ts.t.as_slice()
                 .iter()
-                .map(|&x| RecurrentSinCos::new(freq.step * x))
+                .map(|&x| {
+                    let x_freq = freq * x;
+                    x_freq.iter_sin_cos()
+                })
                 .collect();
 
         sin_cos_omega_tau
-            .take(freq.size)
+            .take(freq.size())
             .map(|(sin_omega_tau, cos_omega_tau)| {
                 let mut sum_m_sin = T::zero();
                 let mut sum_m_cos = T::zero();
@@ -68,9 +71,12 @@ struct SinCosOmegaTau<T> {
 }
 
 impl<T: Float> SinCosOmegaTau<T> {
-    fn new<'a>(freq0: T, t: impl Iterator<Item = &'a T>) -> Self {
+    fn new<'a>(freq_grid: &FreqGrid<T>, t: impl Iterator<Item = &'a T>) -> Self {
         let sin_cos_2omega_x = t
-            .map(|&x| RecurrentSinCos::new(T::two() * freq0 * x))
+            .map(|&x| {
+                let two_x_freq = freq_grid * (T::two() * x);
+                two_x_freq.iter_sin_cos()
+            })
             .collect();
         Self { sin_cos_2omega_x }
     }

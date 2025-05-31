@@ -1,13 +1,15 @@
 use crate::float_trait::Float;
 use crate::sorted_array::SortedArray;
 
+use crate::RecurrentSinCos;
 use conv::{ConvAsUtil, ConvUtil, RoundToNearest};
 use enum_dispatch::enum_dispatch;
 use itertools::Itertools;
 use macro_const::macro_const;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
+use std::ops::Mul;
 
 macro_const! {
     const NYQUIST_FREQ_DOC: &'static str = r"Derive Nyquist frequency from time series
@@ -123,10 +125,47 @@ impl NyquistFreqTrait for FixedNyquistFreq {
     }
 }
 
+#[enum_dispatch]
+pub trait FreqGridTrait<T>: Send + Sync + Clone + Debug {
+    fn size(&self) -> usize;
+    fn get(&self, i: usize) -> T;
+    fn minimum(&self) -> T;
+    fn maximum(&self) -> T;
+    fn iter_sin_cos(&self) -> RecurrentSinCos<T>;
+}
+
+#[enum_dispatch(FreqGridTrait<T>)]
 #[derive(Clone, Debug)]
-pub struct FreqGrid<T> {
-    pub step: T,
-    pub size: usize,
+#[non_exhaustive]
+pub enum FreqGrid<T: Float> {
+    ZeroBasedPow2(ZeroBasedPow2FreqGrid<T>),
+    // Linear(LinearGrid<T>),
+    // Arbitrary(SortedArray<T>),
+}
+
+impl<T: Float> FreqGrid<T> {
+    /// Construct a linear grid starting at zero, and having 2^log2_size_m1 + 1 points
+    pub fn zero_based_pow2(step: T, log2_size_m1: u32) -> Self {
+        Self::ZeroBasedPow2(ZeroBasedPow2FreqGrid::new(step, log2_size_m1))
+    }
+
+    /// Unwrap into ZeroBasedPow2FreqGrid or panic with a given message.
+    pub fn expect_zero_based_pow2(&self, _message: impl Display) -> &ZeroBasedPow2FreqGrid<T> {
+        match self {
+            FreqGrid::ZeroBasedPow2(x) => x,
+            // _ => panic!("FreqGrid is not ZeroBasedPow2: {message}"),
+        }
+    }
+}
+
+impl<T: Float> Mul<T> for &FreqGrid<T> {
+    type Output = FreqGrid<T>;
+
+    fn mul(self, rhs: T) -> Self::Output {
+        match self {
+            FreqGrid::ZeroBasedPow2(grid) => FreqGrid::ZeroBasedPow2(grid * rhs),
+        }
+    }
 }
 
 impl<T> FreqGrid<T>
@@ -141,7 +180,87 @@ where
         let step = T::two() * T::PI() * (sizef - T::one())
             / (sizef * resolution.value_as::<T>().unwrap() * duration);
         let max_freq = nyquist.nyquist_freq(t) * max_freq_factor.value_as::<T>().unwrap();
-        let size = (max_freq / step).approx_by::<RoundToNearest>().unwrap();
-        Self { step, size }
+        let log2_size: u32 = T::log2(max_freq / step)
+            .approx_by::<RoundToNearest>()
+            .unwrap();
+        Self::ZeroBasedPow2(ZeroBasedPow2FreqGrid::new(step, log2_size))
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct ZeroBasedPow2FreqGrid<T: Float> {
+    /// Step between the points
+    step: T,
+    /// Number of points, guaranteed to be 2^k + 1
+    size: usize,
+    /// log2(size - 1)
+    log2_size_m1: u32,
+}
+
+impl<T: Float> ZeroBasedPow2FreqGrid<T> {
+    pub fn new(step: T, log2_size_m1: u32) -> Self {
+        assert!(
+            step.is_finite() && step.is_sign_positive(),
+            "step should be positive finite"
+        );
+        Self {
+            step,
+            size: (1 << log2_size_m1) + 1,
+            log2_size_m1,
+        }
+    }
+
+    pub fn try_with_size(step: T, size: usize) -> Option<Self> {
+        assert!(size > 0, "Size must not be zero");
+        let size_m1 = size - 1;
+        if size_m1.is_power_of_two() {
+            Some(Self::new(step, size_m1.ilog2()))
+        } else {
+            None
+        }
+    }
+
+    pub fn step(&self) -> T {
+        self.step
+    }
+}
+
+impl<T: Float> Mul<T> for ZeroBasedPow2FreqGrid<T> {
+    type Output = ZeroBasedPow2FreqGrid<T>;
+    fn mul(mut self, rhs: T) -> Self::Output {
+        self.step *= rhs;
+        self
+    }
+}
+
+impl<T: Float> Mul<T> for &ZeroBasedPow2FreqGrid<T> {
+    type Output = ZeroBasedPow2FreqGrid<T>;
+    fn mul(self, rhs: T) -> Self::Output {
+        ZeroBasedPow2FreqGrid {
+            step: self.step * rhs,
+            size: self.size,
+            log2_size_m1: self.log2_size_m1,
+        }
+    }
+}
+
+impl<T: Float> FreqGridTrait<T> for ZeroBasedPow2FreqGrid<T> {
+    fn size(&self) -> usize {
+        self.size
+    }
+    fn get(&self, i: usize) -> T {
+        self.step * i.approx().unwrap()
+    }
+
+    fn minimum(&self) -> T {
+        T::zero()
+    }
+
+    fn maximum(&self) -> T {
+        self.step * (self.size - 1).approx().unwrap()
+    }
+
+    fn iter_sin_cos(&self) -> RecurrentSinCos<T> {
+        RecurrentSinCos::with_zero_first(self.step)
     }
 }
