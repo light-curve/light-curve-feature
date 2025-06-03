@@ -26,7 +26,7 @@ pub use power_direct::PeriodogramPowerDirect;
 mod power_trait;
 pub use power_trait::PeriodogramPowerTrait;
 
-pub mod recurrent_sin_cos;
+pub mod sin_cos_iterator;
 
 /// Periodogram execution algorithm
 #[enum_dispatch(PeriodogramPowerTrait<T>)]

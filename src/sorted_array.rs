@@ -3,10 +3,13 @@ use crate::float_trait::Float;
 use conv::prelude::*;
 use itertools::Itertools;
 use ndarray::Array1;
+use schemars::schema::Schema;
+use schemars::{JsonSchema, SchemaGenerator};
+use serde::{Deserialize, Serialize};
 use std::ops::Deref;
 
 // Underlying array is guaranteed to be sorted and contiguous
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SortedArray<T>(pub Array1<T>);
 
 fn is_sorted<T: Float>(x: &[T]) -> bool {
@@ -102,6 +105,23 @@ impl<T> Deref for SortedArray<T> {
 impl<T> AsRef<[T]> for SortedArray<T> {
     fn as_ref(&self) -> &[T] {
         self
+    }
+}
+
+impl<T> JsonSchema for SortedArray<T>
+where
+    T: JsonSchema,
+{
+    fn is_referenceable() -> bool {
+        false
+    }
+
+    fn schema_name() -> String {
+        "SortedArray".to_string()
+    }
+
+    fn json_schema(generator: &mut SchemaGenerator) -> Schema {
+        <[T] as JsonSchema>::json_schema(generator)
     }
 }
 
