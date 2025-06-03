@@ -275,4 +275,34 @@ mod tests {
             peak_indices_reverse_sorted(&direct)[..2]
         );
     }
+
+    #[test]
+    fn arbitrary_vs_zero_based_pow2_for_direct() {
+        let step = 0.1;
+        let log2_size_m1 = 7;
+        let size = (1 << log2_size_m1) + 1;
+
+        let zero_based_grid = FreqGrid::zero_based_pow2(step, log2_size_m1);
+
+        let freqs: Vec<_> = (0..size).map(|i| step * i as f64).collect();
+        let arbitrary_grid = FreqGrid::from_array(&freqs);
+
+        let n_points = 100;
+        let t = linspace(0.0, 10.0, n_points);
+        let m: Vec<_> = t
+            .iter()
+            .map(|&x| (x as f64 * 2.3).sin() + (x as f64 * 0.7).cos())
+            .collect();
+        let mut ts = TimeSeries::new_without_weight(&t, &m);
+
+        let direct = PeriodogramPowerDirect;
+        let power_zero_based = direct.power(&zero_based_grid, &mut ts).unwrap();
+        let power_arbitrary = direct.power(&arbitrary_grid, &mut ts).unwrap();
+
+        assert_relative_eq!(
+            &power_zero_based[..],
+            &power_arbitrary[..],
+            max_relative = 1e-10
+        );
+    }
 }
