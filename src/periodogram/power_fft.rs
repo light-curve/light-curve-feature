@@ -313,7 +313,8 @@ fn spread_arrays_for_fft<T: Float>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::periodogram::freq::AverageNyquistFreq;
+
+    use crate::periodogram::freq::{AverageNyquistFreq, DynamicFreqGridParams};
     use approx::assert_relative_eq;
     use light_curve_common::{all_close, linspace};
     use rand::prelude::*;
@@ -337,9 +338,9 @@ mod tests {
         let m: Vec<f64> = (0..N).map(|_| rng.random()).collect();
         let mut ts = TimeSeries::new_without_weight(&t[..], &m[..]);
 
-        let nyquist = AverageNyquistFreq.into();
-        let freq_grid = FreqGrid::from_t(&t, 1.0, 1.0, nyquist);
-        let time_grid = TimeGrid::from_freq_grid(freq_grid.expect_zero_based_pow2("NOOOOO"));
+        let dynamic_freq_grid = DynamicFreqGridParams::new(1.0, 1.0, AverageNyquistFreq);
+        let freq_grid = ZeroBasedPow2FreqGrid::from_t(&t, &dynamic_freq_grid);
+        let time_grid = TimeGrid::from_freq_grid(&freq_grid);
 
         let (mh, m2) = {
             let mut mh = vec![0.0; time_grid.size];
@@ -367,9 +368,10 @@ mod tests {
         let m: Vec<f64> = (0..N).map(|_| rng.random()).collect();
         let mut ts = TimeSeries::new_without_weight(&t[..], &m[..]);
 
-        let nyquist = AverageNyquistFreq.into();
-        let freq_grid = FreqGrid::from_t(&t, RESOLUTION as f32, 1.0, nyquist);
-        let time_grid = TimeGrid::from_freq_grid(freq_grid.expect_zero_based_pow2("NOOOOO"));
+        let dynamic_freq_grid =
+            DynamicFreqGridParams::new(RESOLUTION as f32, 1.0, AverageNyquistFreq);
+        let freq_grid = ZeroBasedPow2FreqGrid::from_t(&t, &dynamic_freq_grid);
+        let time_grid = TimeGrid::from_freq_grid(&freq_grid);
         let (mh, m2) = {
             let mut mh = vec![0.0; time_grid.size];
             let mut m2 = vec![0.0; time_grid.size];

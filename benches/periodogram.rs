@@ -13,9 +13,10 @@ pub fn bench_periodogram(c: &mut Criterion) {
         ),
     ];
     const PERIOD: f32 = 0.22;
-    let nyquist: NyquistFreq = AverageNyquistFreq.into();
+    let nyquist = AverageNyquistFreq;
 
     for (ns, power, resolution) in ns_power_resolution.iter() {
+        let freq_grid_strategy = FreqGridStrategy::dynamic(*resolution, 1.0, nyquist);
         for &n in ns {
             let x = linspace(0.0_f32, 1.0, n);
             let y: Vec<_> = x
@@ -27,13 +28,8 @@ pub fn bench_periodogram(c: &mut Criterion) {
                 |b| {
                     b.iter(|| {
                         let mut ts = TimeSeries::new_without_weight(&x, &y);
-                        let periodogram = Periodogram::from_t(
-                            power.clone(),
-                            &x,
-                            *resolution,
-                            1.0,
-                            nyquist.clone(),
-                        );
+                        let periodogram =
+                            Periodogram::from_t(power.clone(), &x, &freq_grid_strategy);
                         periodogram.power(black_box(&mut ts));
                     })
                 },

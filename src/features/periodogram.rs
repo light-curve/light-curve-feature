@@ -2,7 +2,10 @@ use crate::evaluator::*;
 use crate::extractor::FeatureExtractor;
 use crate::peak_indices::peak_indices_reverse_sorted;
 use crate::periodogram;
-use crate::periodogram::{AverageNyquistFreq, NyquistFreq, PeriodogramPower, PeriodogramPowerFft};
+use crate::periodogram::{
+    AverageNyquistFreq, FreqGrid, FreqGridStrategy, NyquistFreq, PeriodogramPower,
+    PeriodogramPowerFft,
+};
 
 use std::convert::TryInto;
 use std::fmt::Debug;
@@ -190,9 +193,7 @@ pub struct Periodogram<T, F>
 where
     T: Float,
 {
-    resolution: f32,
-    max_freq_factor: f32,
-    nyquist: NyquistFreq,
+    freq_grid_strategy: FreqGridStrategy<T>,
     feature_extractor: FeatureExtractor<T, F>,
     periodogram_algorithm: PeriodogramPower<T>,
     properties: Box<EvaluatorProperties>,
@@ -220,25 +221,66 @@ where
 
     /// Set frequency resolution
     ///
-    /// The larger frequency resolution allows to find peak period with better precision
-    pub fn set_freq_resolution(&mut self, resolution: f32) -> &mut Self {
-        self.resolution = resolution;
-        self
-    }
-
-    /// Multiply maximum (Nyquist) frequency
+    /// The larger frequency resolution allows to find peak period with better precision.
     ///
-    /// Maximum frequency is Nyquist frequncy multiplied by this factor. The larger factor allows
-    /// to find larger frequency and makes [PeriodogramPowerFft] more precise. However large
-    /// frequencies can show false peaks
-    pub fn set_max_freq_factor(&mut self, max_freq_factor: f32) -> &mut Self {
-        self.max_freq_factor = max_freq_factor;
+    /// Returns [None] if the underlying freq_grid_strategy is [FreqGridStrategy::Fixed],
+    /// changes the resolution and returns [Some] if it is [FreqGridStrategy::Dynamic].
+    pub fn set_freq_resolution(&mut self, resolution: f32) -> Option<&mut Self> {
+        match &mut self.freq_grid_strategy {
+            FreqGridStrategy::Fixed(_) => None,
+            FreqGridStrategy::Dynamic(params) => {
+                params.resolution = resolution;
+                Some(self)
+            }
+        }
+    }
+
+    /// Set maximum (Nyquist) frequency multiplier
+    ///
+    /// Maximum frequency is Nyquist frequency multiplied by this factor. The larger factor allows
+    /// to find larger frequency and makes [PeriodogramPowerFft] more precise. However, large
+    /// frequencies can show false peaks.
+    ///
+    /// Returns [None] if the underlying freq_grid_strategy is [FreqGridStrategy::Fixed],
+    /// changes the multiplier and returns [Some] if it is [FreqGridStrategy::Dynamic].
+    pub fn set_max_freq_factor(&mut self, max_freq_factor: f32) -> Option<&mut Self> {
+        match &mut self.freq_grid_strategy {
+            FreqGridStrategy::Fixed(_) => None,
+            FreqGridStrategy::Dynamic(params) => {
+                params.max_freq_factor = max_freq_factor;
+                Some(self)
+            }
+        }
+    }
+
+    /// Set Nyquist frequency strategy
+    ///
+    /// Returns [None] if the underlying freq_grid_strategy is [FreqGridStrategy::Fixed],
+    /// changes the resolution and returns [Some] if it is [FreqGridStrategy::Dynamic].
+    pub fn set_nyquist(&mut self, nyquist: impl Into<NyquistFreq>) -> Option<&mut Self> {
+        match &mut self.freq_grid_strategy {
+            FreqGridStrategy::Fixed(_) => None,
+            FreqGridStrategy::Dynamic(params) => {
+                params.nyquist = nyquist.into();
+                Some(self)
+            }
+        }
+    }
+
+    /// Set fixed frequency grid
+    ///
+    /// Changes the underlying frequency grid to the given one.
+    pub fn set_freq_grid(&mut self, freq_grid: impl Into<FreqGrid<T>>) -> &mut Self {
+        self.freq_grid_strategy = FreqGridStrategy::Fixed(freq_grid.into());
         self
     }
 
-    /// Define Nyquist frequency
-    pub fn set_nyquist(&mut self, nyquist: NyquistFreq) -> &mut Self {
-        self.nyquist = nyquist;
+    /// Set a new [FreqGridStrategy]
+    pub fn set_freq_grid_strategy(
+        &mut self,
+        freq_grid_strategy: impl Into<FreqGridStrategy<T>>,
+    ) -> &mut Self {
+        self.freq_grid_strategy = freq_grid_strategy.into();
         self
     }
 
@@ -273,9 +315,7 @@ where
         periodogram::Periodogram::from_t(
             self.periodogram_algorithm.clone(),
             ts.t.as_slice(),
-            self.resolution,
-            self.max_freq_factor,
-            self.nyquist.clone(),
+            &self.freq_grid_strategy,
         )
     }
 
@@ -298,6 +338,19 @@ where
 {
     /// New [Periodogram] that finds given number of peaks
     pub fn new(peaks: usize) -> Self {
+        let freq_grid_strategy = FreqGridStrategy::dynamic(
+            Self::default_resolution(),
+            Self::default_max_freq_factor(),
+            AverageNyquistFreq,
+        );
+        Self::with_freq_frid_strategy(peaks, freq_grid_strategy)
+    }
+
+    /// New [Periodogram] with given number of peaks and [FreqGridStrategy] or [FreqGrid]
+    pub fn with_freq_frid_strategy(
+        peaks: usize,
+        freq_grid_strategy: impl Into<FreqGridStrategy<T>>,
+    ) -> Self {
         let peaks = PeriodogramPeaks::new(peaks);
         let peak_names = peaks.properties.names.clone();
         let peak_descriptions = peaks.properties.descriptions.clone();
@@ -318,9 +371,7 @@ where
                 descriptions: peak_descriptions,
             }
             .into(),
-            resolution: Self::default_resolution(),
-            max_freq_factor: Self::default_max_freq_factor(),
-            nyquist: AverageNyquistFreq.into(),
+            freq_grid_strategy: freq_grid_strategy.into(),
             feature_extractor: FeatureExtractor::new(vec![peaks.into()]),
             periodogram_algorithm: PeriodogramPowerFft::new().into(),
         }
@@ -408,9 +459,7 @@ where
     T: Float,
     F: FeatureEvaluator<T>,
 {
-    resolution: f32,
-    max_freq_factor: f32,
-    nyquist: NyquistFreq,
+    freq_grid_strategy: FreqGridStrategy<T>,
     features: Vec<F>,
     peaks: usize,
     periodogram_algorithm: PeriodogramPower<T>,
@@ -420,13 +469,11 @@ impl<T, F> From<Periodogram<T, F>> for PeriodogramParameters<T, F>
 where
     T: Float,
     F: FeatureEvaluator<T> + From<PeriodogramPeaks> + TryInto<PeriodogramPeaks>,
-    <F as std::convert::TryInto<PeriodogramPeaks>>::Error: Debug,
+    <F as TryInto<PeriodogramPeaks>>::Error: Debug,
 {
     fn from(f: Periodogram<T, F>) -> Self {
         let Periodogram {
-            resolution,
-            max_freq_factor,
-            nyquist,
+            freq_grid_strategy,
             feature_extractor,
             periodogram_algorithm,
             properties: _,
@@ -438,9 +485,7 @@ where
         let peaks = periodogram_peaks.peaks;
 
         Self {
-            resolution,
-            max_freq_factor,
-            nyquist,
+            freq_grid_strategy,
             features: rest_of_features,
             peaks,
             periodogram_algorithm,
@@ -455,18 +500,13 @@ where
 {
     fn from(p: PeriodogramParameters<T, F>) -> Self {
         let PeriodogramParameters {
-            resolution,
-            max_freq_factor,
-            nyquist,
+            freq_grid_strategy,
             features,
             peaks,
             periodogram_algorithm,
         } = p;
 
-        let mut periodogram = Periodogram::new(peaks);
-        periodogram.set_freq_resolution(resolution);
-        periodogram.set_max_freq_factor(max_freq_factor);
-        periodogram.set_nyquist(nyquist);
+        let mut periodogram = Periodogram::with_freq_frid_strategy(peaks, freq_grid_strategy);
         for feature in features {
             periodogram.add_feature(feature);
         }
@@ -646,12 +686,11 @@ mod tests {
 
     #[test]
     fn periodogram_different_time_scales() {
-        let mut periodogram: Periodogram<_, Feature<_>> = Periodogram::new(2);
-        periodogram
-            .set_nyquist(QuantileNyquistFreq { quantile: 0.05 }.into())
-            .set_freq_resolution(10.0)
-            .set_max_freq_factor(1.0)
-            .set_periodogram_algorithm(PeriodogramPowerFft::new().into());
+        let freq_grid_strategy =
+            FreqGridStrategy::dynamic(10.0, 1.0, QuantileNyquistFreq { quantile: 0.1 });
+        let mut periodogram: Periodogram<_, Feature<_>> =
+            Periodogram::with_freq_frid_strategy(2, freq_grid_strategy);
+        periodogram.set_periodogram_algorithm(PeriodogramPowerFft::new().into());
         let period1 = 0.01;
         let period2 = 1.0;
         let n = 100;
