@@ -13,7 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Breaking** Periodogram `FreqGrid` is refactored https://github.com/light-curve/light-curve-feature/pull/205
+- **Breaking** Periodogram `FreqGrid` is refactored, now Periodogram uses new
+  `FreqGridStrategy` https://github.com/light-curve/light-curve-feature/pull/205 https://github.com/light-curve/light-curve-feature/pull/206
 
 ### Deprecated
 

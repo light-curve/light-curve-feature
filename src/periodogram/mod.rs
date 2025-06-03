@@ -6,15 +6,16 @@ use crate::time_series::TimeSeries;
 use enum_dispatch::enum_dispatch;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 
 mod fft;
 pub use fft::{FftwComplex, FftwFloat};
 
 mod freq;
 pub use freq::{
-    AverageNyquistFreq, FixedNyquistFreq, MedianNyquistFreq, NyquistFreq, QuantileNyquistFreq,
+    AverageNyquistFreq, FixedNyquistFreq, FreqGrid, FreqGridStrategy, FreqGridTrait,
+    MedianNyquistFreq, NyquistFreq, QuantileNyquistFreq,
 };
-use freq::{FreqGrid, FreqGridTrait};
 
 mod power_fft;
 pub use power_fft::PeriodogramPowerFft;
@@ -55,19 +56,19 @@ where
 /// $$
 /// \min\omega = \Delta\omega = \frac{2\pi}{\mathrm{resolution} \times \mathrm{duration}}.
 /// $$
-pub struct Periodogram<T>
+pub struct Periodogram<'a, T>
 where
     T: Float,
 {
-    freq_grid: FreqGrid<T>,
+    freq_grid: Cow<'a, FreqGrid<T>>,
     periodogram_power: PeriodogramPower<T>,
 }
 
-impl<T> Periodogram<T>
+impl<'a, T> Periodogram<'a, T>
 where
     T: Float,
 {
-    pub fn new(periodogram_power: PeriodogramPower<T>, freq_grid: FreqGrid<T>) -> Self {
+    pub fn new(periodogram_power: PeriodogramPower<T>, freq_grid: Cow<'a, FreqGrid<T>>) -> Self {
         Self {
             freq_grid,
             periodogram_power,
@@ -78,13 +79,15 @@ where
     pub fn from_t(
         periodogram_power: PeriodogramPower<T>,
         t: &[T],
-        resolution: f32,
-        max_freq_factor: f32,
-        nyquist: NyquistFreq,
+        freq_grid_strategy: &'a FreqGridStrategy<T>,
     ) -> Self {
+        let zero_base = match periodogram_power {
+            PeriodogramPower::Direct(_) => false,
+            PeriodogramPower::Fft(_) => true,
+        };
         Self::new(
             periodogram_power,
-            FreqGrid::from_t(t, resolution, max_freq_factor, nyquist),
+            freq_grid_strategy.freq_grid(t, zero_base),
         )
     }
 
@@ -104,7 +107,7 @@ mod tests {
     use super::*;
 
     use crate::peak_indices::peak_indices_reverse_sorted;
-    use crate::periodogram::freq::ZeroBasedPow2FreqGrid;
+    use crate::periodogram::freq::{DynamicFreqGridParams, ZeroBasedPow2FreqGrid};
     use crate::sorted_array::SortedArray;
 
     use approx::assert_relative_eq;
@@ -121,7 +124,7 @@ mod tests {
         let mut ts = TimeSeries::new_without_weight(&t, &m);
         let periodogram = Periodogram::new(
             PeriodogramPowerDirect.into(),
-            FreqGrid::zero_based_pow2(OMEGA_SIN, 0),
+            FreqGrid::zero_based_pow2(OMEGA_SIN, 0).into(),
         );
         assert_relative_eq!(
             periodogram.power(&mut ts)[1] * 2.0 / (N as f64 - 1.0),
@@ -141,7 +144,7 @@ mod tests {
         let freq_grid = ZeroBasedPow2FreqGrid::new(0.01, 2);
         let periodogram = Periodogram::new(
             PeriodogramPowerDirect.into(),
-            FreqGrid::ZeroBasedPow2(freq_grid.clone()),
+            FreqGrid::ZeroBasedPow2(freq_grid.clone()).into(),
         );
         assert_relative_eq!(
             &Array1::linspace(
@@ -180,24 +183,13 @@ mod tests {
         let t = linspace(0.0, (N - 1) as f64, N);
         let m: Vec<_> = t.iter().map(|&x| f64::sin(OMEGA * x)).collect();
         let mut ts = TimeSeries::new_without_weight(&t, &m);
-        let nyquist: NyquistFreq = AverageNyquistFreq.into();
+        let params = DynamicFreqGridParams::new(RESOLUTION, MAX_FREQ_FACTOR, AverageNyquistFreq);
+        let freq_grid_strategy = ZeroBasedPow2FreqGrid::from_t(&t, &params).into();
 
-        let direct = Periodogram::from_t(
-            PeriodogramPowerDirect.into(),
-            &t,
-            RESOLUTION,
-            MAX_FREQ_FACTOR,
-            nyquist.clone(),
-        )
-        .power(&mut ts);
-        let fft = Periodogram::from_t(
-            PeriodogramPowerFft::new().into(),
-            &t,
-            RESOLUTION,
-            MAX_FREQ_FACTOR,
-            nyquist,
-        )
-        .power(&mut ts);
+        let direct = Periodogram::from_t(PeriodogramPowerDirect.into(), &t, &freq_grid_strategy)
+            .power(&mut ts);
+        let fft = Periodogram::from_t(PeriodogramPowerFft::new().into(), &t, &freq_grid_strategy)
+            .power(&mut ts);
         all_close(&fft[..direct.len() - 1], &direct[..direct.len() - 1], 1e-8);
     }
 
@@ -216,24 +208,13 @@ mod tests {
             .map(|&x| f64::sin(OMEGA1 * x) + AMPLITUDE2 * f64::cos(OMEGA2 * x))
             .collect();
         let mut ts = TimeSeries::new_without_weight(&t, &m);
-        let nyquist: NyquistFreq = AverageNyquistFreq.into();
+        let params = DynamicFreqGridParams::new(RESOLUTION, MAX_FREQ_FACTOR, AverageNyquistFreq);
+        let freq_grid_strategy = ZeroBasedPow2FreqGrid::from_t(&t, &params).into();
 
-        let direct = Periodogram::from_t(
-            PeriodogramPowerDirect.into(),
-            &t,
-            RESOLUTION,
-            MAX_FREQ_FACTOR,
-            nyquist.clone(),
-        )
-        .power(&mut ts);
-        let fft = Periodogram::from_t(
-            PeriodogramPowerFft::new().into(),
-            &t,
-            RESOLUTION,
-            MAX_FREQ_FACTOR,
-            nyquist,
-        )
-        .power(&mut ts);
+        let direct = Periodogram::from_t(PeriodogramPowerDirect.into(), &t, &freq_grid_strategy)
+            .power(&mut ts);
+        let fft = Periodogram::from_t(PeriodogramPowerFft::new().into(), &t, &freq_grid_strategy)
+            .power(&mut ts);
 
         assert_eq!(
             peak_indices_reverse_sorted(&fft)[..2],
@@ -248,8 +229,6 @@ mod tests {
         const AMPLITUDE2: f64 = 2.0;
         const NOISE_AMPLITUDE: f64 = 1.0;
         const N: usize = 100;
-        const RESOLUTION: f32 = 6.0;
-        const MAX_FREQ_FACTOR: f32 = 1.0;
 
         let mut rng = StdRng::seed_from_u64(0);
         let t: SortedArray<_> = (0..N)
@@ -265,24 +244,14 @@ mod tests {
             })
             .collect();
         let mut ts = TimeSeries::new_without_weight(&t, &m);
-        let nyquist: NyquistFreq = MedianNyquistFreq.into();
+        let freq_grid_strategy = ZeroBasedPow2FreqGrid::try_with_size(0.01, 257)
+            .unwrap()
+            .into();
 
-        let direct = Periodogram::from_t(
-            PeriodogramPowerDirect.into(),
-            &t,
-            RESOLUTION,
-            MAX_FREQ_FACTOR,
-            nyquist.clone(),
-        )
-        .power(&mut ts);
-        let fft = Periodogram::from_t(
-            PeriodogramPowerFft::new().into(),
-            &t,
-            RESOLUTION,
-            MAX_FREQ_FACTOR,
-            nyquist,
-        )
-        .power(&mut ts);
+        let direct = Periodogram::from_t(PeriodogramPowerDirect.into(), &t, &freq_grid_strategy)
+            .power(&mut ts);
+        let fft = Periodogram::from_t(PeriodogramPowerFft::new().into(), &t, &freq_grid_strategy)
+            .power(&mut ts);
 
         assert_eq!(
             peak_indices_reverse_sorted(&fft)[..2],
