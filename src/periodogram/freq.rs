@@ -2,15 +2,17 @@ use crate::float_trait::Float;
 use crate::sorted_array::SortedArray;
 
 use crate::RecurrentSinCos;
+use crate::error::SortedArrayError;
+use crate::periodogram::sin_cos_iterator::SinCosIterator;
 use conv::{ConvAsUtil, ConvUtil, RoundToNearest};
 use enum_dispatch::enum_dispatch;
 use itertools::Itertools;
 use macro_const::macro_const;
+use ndarray::{Array1, ArrayView1};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::fmt::{Debug, Display};
-use std::ops::Mul;
 
 macro_const! {
     const NYQUIST_FREQ_DOC: &'static str = r"Derive Nyquist frequency from time series
@@ -132,7 +134,8 @@ pub trait FreqGridTrait<T>: Send + Sync + Clone + Debug {
     fn get(&self, i: usize) -> T;
     fn minimum(&self) -> T;
     fn maximum(&self) -> T;
-    fn iter_sin_cos(&self) -> RecurrentSinCos<T>;
+    /// Iterator of (sin(freq * time), cos(freq * time)) over the freq values
+    fn iter_sin_cos_mul(&self, time: T) -> SinCosIterator<T>;
 }
 
 #[enum_dispatch(FreqGridTrait<T>)]
@@ -140,12 +143,25 @@ pub trait FreqGridTrait<T>: Send + Sync + Clone + Debug {
 #[serde(bound = "T: Float")]
 #[non_exhaustive]
 pub enum FreqGrid<T: Float> {
+    Arbitrary(SortedArray<T>),
     ZeroBasedPow2(ZeroBasedPow2FreqGrid<T>),
     Linear(LinearFreqGrid<T>),
-    // Arbitrary(SortedArray<T>),
 }
 
 impl<T: Float> FreqGrid<T> {
+    /// Construct from a sorted frequency array
+    pub fn try_from_sorted_array(
+        sorted_array: impl Into<Array1<T>>,
+    ) -> Result<Self, SortedArrayError> {
+        Ok(Self::Arbitrary(SortedArray::from_sorted(sorted_array)?))
+    }
+
+    /// Construct from an array reference, array will be copied and sorted
+    pub fn from_array<'a>(array: impl Into<ArrayView1<'a, T>>) -> Self {
+        let array_view = array.into();
+        Self::Arbitrary(array_view.into())
+    }
+
     /// Construct a linear grid starting at zero, and having 2^log2_size_m1 + 1 points
     pub fn zero_based_pow2(step: T, log2_size_m1: u32) -> Self {
         Self::ZeroBasedPow2(ZeroBasedPow2FreqGrid::new(step, log2_size_m1))
@@ -176,14 +192,26 @@ impl<T: Float> From<FreqGrid<T>> for Cow<'static, FreqGrid<T>> {
     }
 }
 
-impl<T: Float> Mul<T> for &FreqGrid<T> {
-    type Output = AngleGrid<T>;
+impl<T: Float> FreqGridTrait<T> for SortedArray<T> {
+    fn size(&self) -> usize {
+        self.len()
+    }
 
-    fn mul(self, rhs: T) -> Self::Output {
-        match self {
-            FreqGrid::ZeroBasedPow2(grid) => grid * rhs,
-            FreqGrid::Linear(grid) => grid * rhs,
-        }
+    fn get(&self, i: usize) -> T {
+        self.0[i]
+    }
+
+    fn minimum(&self) -> T {
+        self.0[0]
+    }
+
+    fn maximum(&self) -> T {
+        self.0[self.0.len() - 1]
+    }
+
+    fn iter_sin_cos_mul(&self, time: T) -> SinCosIterator<T> {
+        let angle_iter = self.iter().copied().map(move |freq| freq * time);
+        SinCosIterator::from_angles(angle_iter)
     }
 }
 
@@ -239,20 +267,6 @@ impl<T: Float> ZeroBasedPow2FreqGrid<T> {
     }
 }
 
-impl<T: Float> Mul<T> for &ZeroBasedPow2FreqGrid<T> {
-    type Output = AngleGrid<T>;
-    fn mul(self, rhs: T) -> Self::Output {
-        // Do not use new() because it would panic for negative rhs
-        let freq_grid = ZeroBasedPow2FreqGrid {
-            step: self.step * rhs,
-            size: self.size,
-            log2_size_m1: self.log2_size_m1,
-        }
-        .into();
-        Self::Output { freq_grid }
-    }
-}
-
 impl<T: Float> FreqGridTrait<T> for ZeroBasedPow2FreqGrid<T> {
     fn size(&self) -> usize {
         self.size
@@ -269,8 +283,8 @@ impl<T: Float> FreqGridTrait<T> for ZeroBasedPow2FreqGrid<T> {
         self.step * (self.size - 1).approx().unwrap()
     }
 
-    fn iter_sin_cos(&self) -> RecurrentSinCos<T> {
-        RecurrentSinCos::with_zero_first(self.step)
+    fn iter_sin_cos_mul(&self, time: T) -> SinCosIterator<'static, T> {
+        RecurrentSinCos::with_zero_first(self.step * time).into()
     }
 }
 
@@ -283,20 +297,6 @@ pub struct LinearFreqGrid<T: Float> {
     step: T,
     /// Number of points
     size: usize,
-}
-
-impl<T: Float> Mul<T> for &LinearFreqGrid<T> {
-    type Output = AngleGrid<T>;
-
-    fn mul(self, rhs: T) -> Self::Output {
-        let freq_grid = LinearFreqGrid {
-            start: self.start * rhs,
-            step: self.step * rhs,
-            size: self.size,
-        }
-        .into();
-        Self::Output { freq_grid }
-    }
 }
 
 impl<T: Float> LinearFreqGrid<T> {
@@ -348,20 +348,8 @@ impl<T: Float> FreqGridTrait<T> for LinearFreqGrid<T> {
         self.start + self.step * (self.size - 1).approx().unwrap()
     }
 
-    fn iter_sin_cos(&self) -> RecurrentSinCos<T> {
-        RecurrentSinCos::new(self.start, self.step)
-    }
-}
-
-/// Grid of angles
-#[derive(Clone, Debug)]
-pub struct AngleGrid<T: Float> {
-    freq_grid: FreqGrid<T>,
-}
-
-impl<T: Float> AngleGrid<T> {
-    pub fn iter_sin_cos(&self) -> RecurrentSinCos<T> {
-        self.freq_grid.iter_sin_cos()
+    fn iter_sin_cos_mul(&self, time: T) -> SinCosIterator<T> {
+        RecurrentSinCos::new(self.start * time, self.step * time).into()
     }
 }
 

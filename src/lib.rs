@@ -39,7 +39,7 @@ pub use nl_fit::{LnPrior, LnPrior1D, prior};
 
 #[doc(hidden)]
 pub mod periodogram;
-pub use periodogram::recurrent_sin_cos::RecurrentSinCos;
+pub use periodogram::sin_cos_iterator::RecurrentSinCos;
 pub use periodogram::{
     AverageNyquistFreq, FixedNyquistFreq, MedianNyquistFreq, NyquistFreq, PeriodogramPower,
     PeriodogramPowerDirect, PeriodogramPowerFft, QuantileNyquistFreq,

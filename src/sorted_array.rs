@@ -1,30 +1,27 @@
 use crate::error::SortedArrayError;
 use crate::float_trait::Float;
 use conv::prelude::*;
-use itertools::Itertools;
-use ndarray::Array1;
+use ndarray::{Array1, ArrayView1};
+use schemars::schema::Schema;
+use schemars::{JsonSchema, SchemaGenerator};
+use serde::{Deserialize, Serialize};
 use std::ops::Deref;
 
 // Underlying array is guaranteed to be sorted and contiguous
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SortedArray<T>(pub Array1<T>);
-
-fn is_sorted<T: Float>(x: &[T]) -> bool {
-    x.iter().tuple_windows().all(|(&a, &b)| a < b)
-}
 
 impl<T> SortedArray<T>
 where
     T: Float,
 {
-    pub fn from_sorted(sorted_array: Array1<T>) -> Result<Self, SortedArrayError> {
-        // Replace with Slice::is_sorted when it stabilizes
-        // https://github.com/rust-lang/rust/issues/53485
-        if is_sorted(
-            sorted_array
-                .as_slice()
-                .ok_or(SortedArrayError::NonContiguous)?,
-        ) {
+    pub fn from_sorted(sorted_array: impl Into<Array1<T>>) -> Result<Self, SortedArrayError> {
+        let sorted_array = sorted_array.into();
+        if sorted_array
+            .as_slice()
+            .ok_or(SortedArrayError::NonContiguous)?
+            .is_sorted()
+        {
             Ok(Self(sorted_array))
         } else {
             Err(SortedArrayError::Unsorted)
@@ -91,6 +88,15 @@ where
     }
 }
 
+impl<T> From<ArrayView1<'_, T>> for SortedArray<T>
+where
+    T: Float,
+{
+    fn from(v: ArrayView1<'_, T>) -> Self {
+        v.to_vec().into()
+    }
+}
+
 impl<T> Deref for SortedArray<T> {
     type Target = [T];
 
@@ -102,6 +108,23 @@ impl<T> Deref for SortedArray<T> {
 impl<T> AsRef<[T]> for SortedArray<T> {
     fn as_ref(&self) -> &[T] {
         self
+    }
+}
+
+impl<T> JsonSchema for SortedArray<T>
+where
+    T: JsonSchema,
+{
+    fn is_referenceable() -> bool {
+        false
+    }
+
+    fn schema_name() -> String {
+        "SortedArray".to_string()
+    }
+
+    fn json_schema(generator: &mut SchemaGenerator) -> Schema {
+        <[T] as JsonSchema>::json_schema(generator)
     }
 }
 
