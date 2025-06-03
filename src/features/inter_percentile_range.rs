@@ -48,7 +48,7 @@ impl InterPercentileRange {
     pub fn new(quantile: f32) -> Self {
         assert!(
             (quantile > 0.0) && (quantile < 0.5),
-            "Quanitle should be in range (0.0, 0.5)"
+            "Quantile should be in range (0.0, 0.5)"
         );
         Self {
             quantile,

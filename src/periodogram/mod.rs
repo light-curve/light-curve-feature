@@ -24,7 +24,7 @@ mod power_direct;
 pub use power_direct::PeriodogramPowerDirect;
 
 mod power_trait;
-pub use power_trait::PeriodogramPowerTrait;
+pub use power_trait::{PeriodogramPowerError, PeriodogramPowerTrait};
 
 pub mod sin_cos_iterator;
 
@@ -68,19 +68,26 @@ impl<'a, T> Periodogram<'a, T>
 where
     T: Float,
 {
-    pub fn new(periodogram_power: PeriodogramPower<T>, freq_grid: Cow<'a, FreqGrid<T>>) -> Self {
-        Self {
+    pub fn new(
+        periodogram_power: PeriodogramPower<T>,
+        freq_grid: Cow<'a, FreqGrid<T>>,
+    ) -> Result<Self, PeriodogramPowerError> {
+        if matches!(periodogram_power, PeriodogramPower::Fft(_))
+            && !matches!(freq_grid.as_ref(), FreqGrid::ZeroBasedPow2(_))
+        {
+            return Err(PeriodogramPowerError::PeriodogramFftWrongFreqGrid);
+        }
+        Ok(Self {
             freq_grid,
             periodogram_power,
-        }
+        })
     }
 
-    #[allow(clippy::borrowed_box)] // https://github.com/rust-lang/rust-clippy/issues/4305
     pub fn from_t(
         periodogram_power: PeriodogramPower<T>,
         t: &[T],
         freq_grid_strategy: &'a FreqGridStrategy<T>,
-    ) -> Self {
+    ) -> Result<Self, PeriodogramPowerError> {
         let zero_base = match periodogram_power {
             PeriodogramPower::Direct(_) => false,
             PeriodogramPower::Fft(_) => true,
@@ -96,7 +103,9 @@ where
     }
 
     pub fn power(&self, ts: &mut TimeSeries<T>) -> Vec<T> {
-        self.periodogram_power.power(&self.freq_grid, ts)
+        self.periodogram_power
+            .power(&self.freq_grid, ts)
+            .expect("Unexpected error from PeriodogrmPowerTrait::power")
     }
 }
 
@@ -125,7 +134,8 @@ mod tests {
         let periodogram = Periodogram::new(
             PeriodogramPowerDirect.into(),
             FreqGrid::zero_based_pow2(OMEGA_SIN, 0).into(),
-        );
+        )
+        .unwrap();
         assert_relative_eq!(
             periodogram.power(&mut ts)[1] * 2.0 / (N as f64 - 1.0),
             1.0,
@@ -145,7 +155,8 @@ mod tests {
         let periodogram = Periodogram::new(
             PeriodogramPowerDirect.into(),
             FreqGrid::ZeroBasedPow2(freq_grid.clone()).into(),
-        );
+        )
+        .unwrap();
         assert_relative_eq!(
             &Array1::linspace(
                 0.0,
@@ -187,8 +198,10 @@ mod tests {
         let freq_grid_strategy = ZeroBasedPow2FreqGrid::from_t(&t, &params).into();
 
         let direct = Periodogram::from_t(PeriodogramPowerDirect.into(), &t, &freq_grid_strategy)
+            .unwrap()
             .power(&mut ts);
         let fft = Periodogram::from_t(PeriodogramPowerFft::new().into(), &t, &freq_grid_strategy)
+            .unwrap()
             .power(&mut ts);
         all_close(&fft[..direct.len() - 1], &direct[..direct.len() - 1], 1e-8);
     }
@@ -212,8 +225,10 @@ mod tests {
         let freq_grid_strategy = ZeroBasedPow2FreqGrid::from_t(&t, &params).into();
 
         let direct = Periodogram::from_t(PeriodogramPowerDirect.into(), &t, &freq_grid_strategy)
+            .unwrap()
             .power(&mut ts);
         let fft = Periodogram::from_t(PeriodogramPowerFft::new().into(), &t, &freq_grid_strategy)
+            .unwrap()
             .power(&mut ts);
 
         assert_eq!(
@@ -249,8 +264,10 @@ mod tests {
             .into();
 
         let direct = Periodogram::from_t(PeriodogramPowerDirect.into(), &t, &freq_grid_strategy)
+            .unwrap()
             .power(&mut ts);
         let fft = Periodogram::from_t(PeriodogramPowerFft::new().into(), &t, &freq_grid_strategy)
+            .unwrap()
             .power(&mut ts);
 
         assert_eq!(

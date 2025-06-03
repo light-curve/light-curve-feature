@@ -12,7 +12,7 @@ use ndarray::{Array1, ArrayView1};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
-use std::fmt::{Debug, Display};
+use std::fmt::Debug;
 
 macro_const! {
     const NYQUIST_FREQ_DOC: &'static str = r"Derive Nyquist frequency from time series
@@ -178,10 +178,10 @@ impl<T: Float> FreqGrid<T> {
     }
 
     /// Unwrap into ZeroBasedPow2FreqGrid or panic with a given message.
-    pub fn expect_zero_based_pow2(&self, message: impl Display) -> &ZeroBasedPow2FreqGrid<T> {
+    pub fn to_zero_based_pow2(&self) -> Option<&ZeroBasedPow2FreqGrid<T>> {
         match self {
-            FreqGrid::ZeroBasedPow2(x) => x,
-            _ => panic!("FreqGrid is not ZeroBasedPow2: {message}"),
+            FreqGrid::ZeroBasedPow2(x) => Some(x),
+            _ => None,
         }
     }
 }
