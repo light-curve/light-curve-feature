@@ -2,11 +2,13 @@ use crate::float_trait::Float;
 use crate::sorted_array::SortedArray;
 
 use crate::RecurrentSinCos;
+use crate::error::SortedArrayError;
 use crate::periodogram::sin_cos_iterator::SinCosIterator;
 use conv::{ConvAsUtil, ConvUtil, RoundToNearest};
 use enum_dispatch::enum_dispatch;
 use itertools::Itertools;
 use macro_const::macro_const;
+use ndarray::{Array1, ArrayView1};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
@@ -147,6 +149,19 @@ pub enum FreqGrid<T: Float> {
 }
 
 impl<T: Float> FreqGrid<T> {
+    /// Construct from a sorted frequency array
+    pub fn try_from_sorted_array(
+        sorted_array: impl Into<Array1<T>>,
+    ) -> Result<Self, SortedArrayError> {
+        Ok(Self::Arbitrary(SortedArray::from_sorted(sorted_array)?))
+    }
+
+    /// Construct from an array reference, array will be copied and sorted
+    pub fn from_array<'a>(array: impl Into<ArrayView1<'a, T>>) -> Self {
+        let array_view = array.into();
+        Self::Arbitrary(array_view.into())
+    }
+
     /// Construct a linear grid starting at zero, and having 2^log2_size_m1 + 1 points
     pub fn zero_based_pow2(step: T, log2_size_m1: u32) -> Self {
         Self::ZeroBasedPow2(ZeroBasedPow2FreqGrid::new(step, log2_size_m1))
