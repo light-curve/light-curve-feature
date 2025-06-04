@@ -535,7 +535,7 @@ where
 mod tests {
     use super::*;
     use crate::features::amplitude::Amplitude;
-    use crate::periodogram::{FreqGridTrait, PeriodogramPowerDirect, QuantileNyquistFreq};
+    use crate::periodogram::{PeriodogramPowerDirect, QuantileNyquistFreq};
     use crate::tests::*;
     use rand_distr::StandardNormal;
 

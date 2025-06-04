@@ -288,10 +288,10 @@ mod tests {
         let arbitrary_grid = FreqGrid::from_array(&freqs);
 
         let n_points = 100;
-        let t = linspace(0.0, 10.0, n_points);
+        let t: Vec<f64> = linspace(0.0, 10.0, n_points);
         let m: Vec<_> = t
             .iter()
-            .map(|&x| (x as f64 * 2.3).sin() + (x as f64 * 0.7).cos())
+            .map(|&x| (x * 2.3).sin() + (x * 0.7).cos())
             .collect();
         let mut ts = TimeSeries::new_without_weight(&t, &m);
 
@@ -326,10 +326,10 @@ mod tests {
         let arbitrary_grid = FreqGrid::try_from_sorted_array(freqs).unwrap();
 
         let n_points = 100;
-        let t = linspace(0.0, 10.0, n_points);
+        let t: Vec<f64> = linspace(0.0, 10.0, n_points);
         let m: Vec<_> = t
             .iter()
-            .map(|&x| (x as f64 * 1.77).sin() + (x as f64 * 1756.55).cos())
+            .map(|&x| (x * 1.77).sin() + (x * 1756.55).cos())
             .collect();
         let mut ts = TimeSeries::new_without_weight(&t, &m);
 
