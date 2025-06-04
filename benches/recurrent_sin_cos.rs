@@ -1,6 +1,7 @@
-use criterion::{Criterion, black_box};
+use criterion::Criterion;
 use light_curve_feature::RecurrentSinCos;
 use light_curve_feature::periodogram::sin_cos_iterator::SinCosIterator;
+use std::hint::black_box;
 
 fn plain(n: usize, x: f64) {
     for i in 1..=n {

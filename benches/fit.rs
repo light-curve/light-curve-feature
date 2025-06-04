@@ -1,4 +1,4 @@
-use criterion::{Criterion, black_box};
+use criterion::Criterion;
 use light_curve_common::linspace;
 #[cfg(any(feature = "ceres-source", feature = "ceres-system"))]
 use light_curve_feature::CeresCurveFit;
@@ -9,6 +9,7 @@ use light_curve_feature::{
 };
 use light_curve_feature_test_util::iter_sn1a_flux_ts;
 use rand::prelude::*;
+use std::hint::black_box;
 
 pub fn bench_fit_straight_line(c: &mut Criterion) {
     const N: usize = 1000;

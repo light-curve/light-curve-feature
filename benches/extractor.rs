@@ -1,11 +1,12 @@
 use conv::ConvUtil;
-use criterion::{Criterion, black_box};
+use criterion::Criterion;
 use light_curve_feature::*;
 use light_curve_feature_test_util::iter_sn1a_flux_ts;
 use ndarray::Array1;
 use rand::prelude::*;
 use rand_distr::StandardNormal;
 use std::any::type_name;
+use std::hint::black_box;
 
 pub fn bench_extractor<T>(c: &mut Criterion)
 where

@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `FreqGridStrategy` https://github.com/light-curve/light-curve-feature/pull/205 https://github.com/light-curve/light-curve-feature/pull/206
 - `FreqGrid` now supports "fixed" grids, including an arbitrary sorted
   array https://github.com/light-curve/light-curve-feature/pull/207
+- Bump dev dependency `criterion` from 0.5 to 0.6 https://github.com/light-curve/light-curve-feature/pull/210
 
 ### Deprecated
 
