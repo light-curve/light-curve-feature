@@ -1,7 +1,8 @@
-use criterion::{Criterion, black_box};
+use criterion::Criterion;
 
 use light_curve_common::linspace;
 use light_curve_feature::peak_indices;
+use std::hint::black_box;
 
 macro_rules! gen_bench {
     ($c: expr_2021, $name: expr_2021, $func: ident, $x: expr_2021 $(,)?) => {
