@@ -332,7 +332,7 @@ where
     ) -> Result<(Vec<T>, Vec<T>), PeriodogramPowerError> {
         let p = self.periodogram(ts)?;
         let power = p.power(ts);
-        let freq = (0..power.len()).map(|i| p.freq(i)).collect::<Vec<_>>();
+        let freq = (0..power.len()).map(|i| p.freq(i)).collect();
         Ok((freq, power))
     }
 }
@@ -535,8 +535,9 @@ where
 mod tests {
     use super::*;
     use crate::features::amplitude::Amplitude;
-    use crate::periodogram::{PeriodogramPowerDirect, QuantileNyquistFreq};
+    use crate::periodogram::{FreqGridTrait, PeriodogramPowerDirect, QuantileNyquistFreq};
     use crate::tests::*;
+    use rand_distr::StandardNormal;
 
     check_feature!(Periodogram<f64, Feature<f64>>);
 
@@ -715,5 +716,53 @@ mod tests {
         assert!(f32::abs(features[0] - period2) / period2 < 1.0 / n as f32);
         assert!(f32::abs(features[2] - period1) / period1 < 1.0 / n as f32);
         assert!(features[1] > features[3]);
+    }
+
+    #[test]
+    fn periodogram_arbitrary_vs_linear() {
+        // Create a time series with two frequencies
+        let period1 = 0.17;
+        let period2 = 0.46;
+        let n = 1000;
+        let mut rng = StdRng::seed_from_u64(0);
+        let mut x: Vec<f32> = (0..n).map(|_| rng.random()).collect();
+        x[..].sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
+        let amplitude1: f32 = 3.0;
+        let amplitude2: f32 = 5.0;
+        let noise_std = 0.1 * (amplitude1.abs() + amplitude2.abs());
+        let y: Vec<_> = x
+            .iter()
+            .map(|&x| {
+                3.0 * f32::sin(2.0 * std::f32::consts::PI / period1 * x + 0.5)
+                    + -amplitude2 * f32::cos(2.0 * std::f32::consts::PI / period2 * x + 0.5)
+                    + 4.0
+                    + noise_std * rng.sample::<f32, _>(StandardNormal)
+            })
+            .collect();
+        let mut ts = TimeSeries::new_without_weight(&x[..], &y[..]);
+
+        // Create frequency grids
+        let start = 0.1;
+        let step = 0.01;
+        let size = 100;
+        let linear_grid = FreqGrid::linear(start, step, size);
+        let freqs: Vec<_> = (0..size).map(|i| start + step * i as f32).collect();
+        let arbitrary_grid = FreqGrid::try_from_sorted_array(freqs).unwrap();
+
+        // Create periodograms with different grids
+        let mut periodogram_linear: Periodogram<f32, Feature<f32>> = Periodogram::default();
+        periodogram_linear.set_freq_grid(linear_grid);
+        periodogram_linear.set_periodogram_algorithm(PeriodogramPowerDirect.into());
+
+        let mut periodogram_arbitrary: Periodogram<f32, Feature<f32>> = Periodogram::default();
+        periodogram_arbitrary.set_freq_grid(arbitrary_grid);
+        periodogram_arbitrary.set_periodogram_algorithm(PeriodogramPowerDirect.into());
+
+        // Compare results
+        let features_linear = periodogram_linear.eval(&mut ts).unwrap();
+        let features_arbitrary = periodogram_arbitrary.eval(&mut ts).unwrap();
+
+        // The results should be very close since we used the same frequency points
+        all_close(&features_linear[..], &features_arbitrary[..], 1e-10);
     }
 }

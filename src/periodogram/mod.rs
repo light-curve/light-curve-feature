@@ -305,4 +305,42 @@ mod tests {
             max_relative = 1e-10
         );
     }
+
+    // Same as the previous test, but with non-zero step and LinearGrid
+    #[test]
+    fn arbitrary_vs_linear_for_direct() {
+        let start = 0.33;
+        let step = 0.1;
+        let size = 1000;
+
+        let linear_grid = FreqGrid::linear(start, step, size);
+
+        let freqs: Vec<_> = (0..size).map(|i| start + step * i as f64).collect();
+        let freqs_from_linear_grid = (0..size).map(|i| linear_grid.get(i)).collect::<Vec<_>>();
+        assert_relative_eq!(
+            &freqs_from_linear_grid[..],
+            &freqs[..],
+            max_relative = 1e-10
+        );
+
+        let arbitrary_grid = FreqGrid::try_from_sorted_array(freqs).unwrap();
+
+        let n_points = 100;
+        let t = linspace(0.0, 10.0, n_points);
+        let m: Vec<_> = t
+            .iter()
+            .map(|&x| (x as f64 * 1.77).sin() + (x as f64 * 1756.55).cos())
+            .collect();
+        let mut ts = TimeSeries::new_without_weight(&t, &m);
+
+        let direct = PeriodogramPowerDirect;
+        let power_linear = direct.power(&linear_grid, &mut ts).unwrap();
+        let power_arbitrary = direct.power(&arbitrary_grid, &mut ts).unwrap();
+
+        assert_relative_eq!(
+            &power_linear[..],
+            &power_arbitrary[..],
+            max_relative = 1e-10
+        );
+    }
 }
