@@ -29,7 +29,7 @@ pub fn bench_periodogram(c: &mut Criterion) {
                     b.iter(|| {
                         let mut ts = TimeSeries::new_without_weight(&x, &y);
                         let periodogram =
-                            Periodogram::from_t(power.clone(), &x, &freq_grid_strategy);
+                            Periodogram::from_t(power.clone(), &x, &freq_grid_strategy).unwrap();
                         periodogram.power(black_box(&mut ts));
                     })
                 },

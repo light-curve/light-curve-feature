@@ -22,7 +22,11 @@ impl<T> PeriodogramPowerTrait<T> for PeriodogramPowerDirect
 where
     T: Float,
 {
-    fn power(&self, freq: &FreqGrid<T>, ts: &mut TimeSeries<T>) -> Vec<T> {
+    fn power(
+        &self,
+        freq: &FreqGrid<T>,
+        ts: &mut TimeSeries<T>,
+    ) -> Result<Vec<T>, PeriodogramPowerError> {
         let m_mean = ts.m.get_mean();
 
         let sin_cos_omega_tau = SinCosOmegaTau::new(freq, ts.t.as_slice().iter());
@@ -32,7 +36,7 @@ where
                 .map(|&x| freq.iter_sin_cos_mul(x))
                 .collect();
 
-        sin_cos_omega_tau
+        let power = sin_cos_omega_tau
             .take(freq.size())
             .map(|(sin_omega_tau, cos_omega_tau)| {
                 let mut sum_m_sin = T::zero();
@@ -59,7 +63,8 @@ where
                         / ts.m.get_std2()
                 }
             })
-            .collect()
+            .collect();
+        Ok(power)
     }
 }
 

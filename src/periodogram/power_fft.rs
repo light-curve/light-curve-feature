@@ -18,7 +18,7 @@ use thread_local::ThreadLocal;
 /// This algorithm spreads observer time series into uniform time grid using linear interpolation
 /// and then uses FFT to obtain periodogram sums. This implementation returns estimation of
 /// Lomb-Scargle periodogram that derives to the exact values while `max_freq_factor` grows.
-/// Asymptotic time is $O(N \log N)$, it is faster then
+/// Asymptotic time is $O(N \log N)$, it is faster than
 /// [PeriodogramPowerDirect](crate::periodogram::PeriodogramPowerDirect) even for $N \gtrsim 10$.
 /// Note that current implementation uses two-powered time grids and requires to estimate the best
 /// FFT algorithm for each pair of grid size and working thread that can take several seconds,
@@ -73,15 +73,19 @@ impl<T> PeriodogramPowerTrait<T> for PeriodogramPowerFft<T>
 where
     T: Float,
 {
-    fn power(&self, freq: &FreqGrid<T>, ts: &mut TimeSeries<T>) -> Vec<T> {
-        let freq = freq.expect_zero_based_pow2(
-            "Only FreqGrid::ZeroBasedPow2 variant is supported by PeriodogramPowerFft.power()",
-        );
+    fn power(
+        &self,
+        freq: &FreqGrid<T>,
+        ts: &mut TimeSeries<T>,
+    ) -> Result<Vec<T>, PeriodogramPowerError> {
+        let freq = freq
+            .to_zero_based_pow2()
+            .ok_or(PeriodogramPowerError::PeriodogramFftWrongFreqGrid)?;
 
         let m_std2 = ts.m.get_std2();
 
         if m_std2.is_zero() {
-            return vec![T::zero(); freq.size()];
+            return Ok(vec![T::zero(); freq.size()]);
         }
 
         let grid = TimeGrid::from_freq_grid(freq);
@@ -108,7 +112,7 @@ where
 
         let ts_size = ts.lenf();
 
-        sum_sin_cos_h
+        let power = sum_sin_cos_h
             .iter()
             .zip(sum_sin_cos_2.iter())
             .map(|(sch, sc2)| {
@@ -155,7 +159,8 @@ where
 
                 T::half() / m_std2 * sum_frac
             })
-            .collect()
+            .collect();
+        Ok(power)
     }
 }
 

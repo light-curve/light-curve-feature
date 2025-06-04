@@ -4,7 +4,7 @@ use crate::peak_indices::peak_indices_reverse_sorted;
 use crate::periodogram;
 use crate::periodogram::{
     AverageNyquistFreq, FreqGrid, FreqGridStrategy, NyquistFreq, PeriodogramPower,
-    PeriodogramPowerFft,
+    PeriodogramPowerError, PeriodogramPowerFft,
 };
 
 use std::convert::TryInto;
@@ -311,7 +311,10 @@ where
         self
     }
 
-    fn periodogram(&self, ts: &mut TimeSeries<T>) -> periodogram::Periodogram<T> {
+    fn periodogram(
+        &self,
+        ts: &mut TimeSeries<T>,
+    ) -> Result<periodogram::Periodogram<T>, PeriodogramPowerError> {
         periodogram::Periodogram::from_t(
             self.periodogram_algorithm.clone(),
             ts.t.as_slice(),
@@ -319,15 +322,18 @@ where
         )
     }
 
-    pub fn power(&self, ts: &mut TimeSeries<T>) -> Vec<T> {
-        self.periodogram(ts).power(ts)
+    pub fn power(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, PeriodogramPowerError> {
+        Ok(self.periodogram(ts)?.power(ts))
     }
 
-    pub fn freq_power(&self, ts: &mut TimeSeries<T>) -> (Vec<T>, Vec<T>) {
-        let p = self.periodogram(ts);
+    pub fn freq_power(
+        &self,
+        ts: &mut TimeSeries<T>,
+    ) -> Result<(Vec<T>, Vec<T>), PeriodogramPowerError> {
+        let p = self.periodogram(ts)?;
         let power = p.power(ts);
         let freq = (0..power.len()).map(|i| p.freq(i)).collect::<Vec<_>>();
-        (freq, power)
+        Ok((freq, power))
     }
 }
 
@@ -382,11 +388,11 @@ impl<T, F> Periodogram<T, F>
 where
     T: Float,
     F: FeatureEvaluator<T> + From<PeriodogramPeaks> + TryInto<PeriodogramPeaks>,
-    <F as std::convert::TryInto<PeriodogramPeaks>>::Error: Debug,
+    <F as TryInto<PeriodogramPeaks>>::Error: Debug,
 {
     fn transform_ts(&self, ts: &mut TimeSeries<T>) -> Result<TmArrays<T>, EvaluatorError> {
         self.check_ts_length(ts)?;
-        let (freq, power) = self.freq_power(ts);
+        let (freq, power) = self.freq_power(ts)?;
         Ok(TmArrays {
             t: freq.into(),
             m: power.into(),

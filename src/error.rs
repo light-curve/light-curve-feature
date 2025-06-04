@@ -1,3 +1,5 @@
+use crate::periodogram::PeriodogramPowerError;
+
 /// Error returned from [crate::FeatureEvaluator]
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum EvaluatorError {
@@ -9,6 +11,9 @@ pub enum EvaluatorError {
 
     #[error("zero division: {0}")]
     ZeroDivision(&'static str),
+
+    #[error("periodogram error: {0}")]
+    Periodogram(#[from] PeriodogramPowerError),
 }
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
