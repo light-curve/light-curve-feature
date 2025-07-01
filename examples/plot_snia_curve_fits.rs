@@ -153,7 +153,7 @@ fn main() {
         .take(n)
         .par_bridge()
         .for_each(|(ztf_id, mut ts)| {
-            let filename = format!("{}.png", ztf_id);
+            let filename = format!("{ztf_id}.png");
             let path = {
                 let mut path = std::path::PathBuf::from(&dir);
                 path.push(filename);
@@ -243,7 +243,7 @@ fn fit_and_plot<P>(
                 &Palette99::pick(i),
             ))
             .unwrap()
-            .label(format!("{}, reduced chi2 = {:.2}", name, reduced_chi2))
+            .label(format!("{name}, reduced chi2 = {reduced_chi2:.2}"))
             .legend(move |(x, y)| PathElement::new(vec![(x, y), (x + 10, y)], Palette99::pick(i)));
     }
 

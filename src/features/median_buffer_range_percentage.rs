@@ -54,8 +54,7 @@ where
             ),
             description: format!(
                 "fraction of observations which magnitudes differ from median by no more than \
-                {:.3e} of amplitude",
-                quantile,
+                {quantile:.3e} of amplitude",
             ),
         }
     }

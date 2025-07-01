@@ -25,13 +25,13 @@ pub fn bench_recurrent_sin_cos(c: &mut Criterion) {
     const COUNTS: [usize; 4] = [1, 10, 100, 1000];
 
     for &n in COUNTS.iter() {
-        c.bench_function(format!("Plain sin_cos {}", n).as_str(), |b| {
+        c.bench_function(format!("Plain sin_cos {n}").as_str(), |b| {
             b.iter(|| plain(black_box(n), 0.01))
         });
-        c.bench_function(format!("Rec sin_cos {}", n).as_str(), |b| {
+        c.bench_function(format!("Rec sin_cos {n}").as_str(), |b| {
             b.iter(|| rec(black_box(n), 0.01))
         });
-        c.bench_function(format!("Wrapped Rec sin_cos {}", n).as_str(), |b| {
+        c.bench_function(format!("Wrapped Rec sin_cos {n}").as_str(), |b| {
             b.iter(|| wrap_rec(black_box(n), 0.01))
         });
     }

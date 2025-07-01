@@ -42,7 +42,7 @@ where
 
     #[inline]
     fn transform_one_name(&self, name: &str) -> String {
-        format!("clipped_lg_{}", name)
+        format!("clipped_lg_{name}")
     }
 
     #[inline]

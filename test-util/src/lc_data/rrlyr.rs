@@ -1,9 +1,9 @@
+use crate::lc_data::MagLightCurveRecord;
 use crate::lc_data::csv_parser::mclc_from_reader;
 use crate::lc_data::types::MultiColorLightCurve;
-use crate::lc_data::MagLightCurveRecord;
 use conv::ConvAsUtil;
 
-use include_dir::{include_dir, Dir};
+use include_dir::{Dir, include_dir};
 use lazy_static::lazy_static;
 use light_curve_feature::Float;
 
@@ -45,7 +45,7 @@ where
             let subtype: String = record[1].parse().unwrap();
             let period: f64 = record[2].parse().unwrap();
             let period: T = period.approx_by().unwrap();
-            let filename = format!("{}.csv", id);
+            let filename = format!("{id}.csv");
             let file = LC_DIR.get_file(&filename).unwrap();
             let mclc =
                 mclc_from_reader::<T, _, _, MagLightCurveRecord, _>(file.contents(), |_| true)

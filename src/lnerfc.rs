@@ -85,9 +85,7 @@ mod tests {
         let from_direct = log_erfc_direct(x);
         assert!(
             f64::abs(1.0 - from_series / from_direct) < 1e-14,
-            "from_series = {}, from_direct = {}",
-            from_series,
-            from_direct
+            "from_series = {from_series}, from_direct = {from_direct}"
         );
     }
 
@@ -98,9 +96,7 @@ mod tests {
         let from_direct = log_erfc_direct(x);
         assert!(
             f64::abs(1.0 - from_series / from_direct) < 1e-14,
-            "from_series = {}, from_direct = {}",
-            from_series,
-            from_direct
+            "from_series = {from_series}, from_direct = {from_direct}"
         );
     }
 }
