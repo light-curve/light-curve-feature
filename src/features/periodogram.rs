@@ -552,6 +552,17 @@ mod tests {
         },
     );
 
+    serde_json_test!(
+        periodogram_ser_json_de_freq_grid,
+        Periodogram<f64, Feature<f64>>,
+        {
+            let freq_grid = FreqGrid::linear(0.5, 50.0, 200);
+            let mut periodogram = Periodogram::with_freq_frid_strategy(4, freq_grid);
+            periodogram.set_periodogram_algorithm(PeriodogramPowerDirect.into());
+            periodogram
+        },
+    );
+
     eval_info_test!(periodogram_info_1, {
         let mut periodogram = Periodogram::default();
         periodogram.set_periodogram_algorithm(PeriodogramPowerDirect.into());
