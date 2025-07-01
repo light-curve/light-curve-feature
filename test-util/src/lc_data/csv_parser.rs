@@ -1,6 +1,6 @@
 use crate::lc_data::{Error, MultiColorLightCurve, Record};
 
-use itertools::{process_results, Itertools};
+use itertools::{Itertools, process_results};
 use light_curve_feature::Float;
 use std::io::Read;
 

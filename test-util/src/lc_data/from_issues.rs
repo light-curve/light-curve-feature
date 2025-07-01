@@ -3,7 +3,7 @@ use crate::lc_data::{
     Error, FluxLightCurveRecord, MagLightCurveRecord, MultiColorLightCurve, Record,
 };
 
-use include_dir::{include_dir, Dir};
+use include_dir::{Dir, include_dir};
 use lazy_static::lazy_static;
 use light_curve_feature::Float;
 use light_curve_feature::TimeSeries;

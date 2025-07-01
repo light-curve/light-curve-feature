@@ -1,4 +1,4 @@
-use itertools::{izip, Itertools};
+use itertools::{Itertools, izip};
 use light_curve_feature::ndarray::Array1;
 use light_curve_feature::ndarray::Zip;
 use light_curve_feature::{Float, TimeSeries};
