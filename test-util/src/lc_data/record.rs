@@ -1,7 +1,7 @@
 use conv::ConvUtil;
 use light_curve_feature::Float;
-use serde::de::DeserializeOwned;
 use serde::Deserialize;
+use serde::de::DeserializeOwned;
 
 pub(super) trait Record<T, B>: DeserializeOwned {
     #[allow(dead_code)]

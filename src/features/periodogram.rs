@@ -297,7 +297,7 @@ where
             feature
                 .get_descriptions()
                 .into_iter()
-                .map(|desc| format!("{} of periodogram", desc)),
+                .map(|desc| format!("{desc} of periodogram")),
         );
         self.feature_extractor.add_feature(feature);
         self

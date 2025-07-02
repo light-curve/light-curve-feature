@@ -3,7 +3,7 @@ use crate::float_trait::Float;
 use conv::prelude::*;
 use ndarray::{Array1, ArrayView1};
 use schemars::schema::Schema;
-use schemars::{JsonSchema, SchemaGenerator};
+use schemars::{JsonSchema, r#gen::SchemaGenerator};
 use serde::{Deserialize, Serialize};
 use std::ops::Deref;
 

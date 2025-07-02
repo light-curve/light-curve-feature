@@ -250,17 +250,16 @@ fn eval_info_sorting_required_test(
     ) {
         (Ok(result), _) => result.unwrap(),
         (Err(_), true) => return None,
-        (Err(err), false) => panic!("{:?}", err),
+        (Err(err), false) => panic!("{err:?}"),
     };
 
     let neq_baseline = !simeq(&v, baseline, 1e-12);
     assert_eq!(
         neq_baseline, is_sorting_required,
         "is_sorting_required() returns wrong value, \
-                    unsorted result: {:?}, \
-                    sorted result: {:?}, \
-                    is_sorting_required: {}",
-        v, baseline, is_sorting_required,
+                    unsorted result: {v:?}, \
+                    sorted result: {baseline:?}, \
+                    is_sorting_required: {is_sorting_required}",
     );
     Some(v)
 }

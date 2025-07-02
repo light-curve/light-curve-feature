@@ -1,7 +1,7 @@
 use crate::lc_data::csv_parser::mclc_from_reader;
 use crate::lc_data::{MagLightCurveRecord, MultiColorLightCurve};
 
-use include_dir::{include_dir, Dir};
+use include_dir::{Dir, include_dir};
 use lazy_static::lazy_static;
 use light_curve_feature::{Float, TimeSeries};
 
@@ -16,7 +16,7 @@ where
     const LC_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/../test-data/SNIa/light-curves");
 
     ZTF_IDS_CSV.split_terminator('\n').map(move |ztf_id| {
-        let filename = format!("{}.csv", ztf_id);
+        let filename = format!("{ztf_id}.csv");
         let file = LC_DIR.get_file(&filename).unwrap();
         let mclc_mag =
             mclc_from_reader::<T, _, _, MagLightCurveRecord, _>(file.contents(), |_| true).unwrap();

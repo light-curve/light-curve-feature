@@ -59,11 +59,10 @@ where
         assert!(nstd > T::zero(), "nstd should be positive");
         Self {
             nstd,
-            name: format!("beyond_{:.0}_std", nstd),
+            name: format!("beyond_{nstd:.0}_std"),
             description: format!(
-                "fraction of observations which magnitudes are beyond {:.3e} standard deviations \
-                from the mean magnitude",
-                nstd
+                "fraction of observations which magnitudes are beyond {nstd:.3e} standard deviations \
+                from the mean magnitude"
             ),
         }
     }

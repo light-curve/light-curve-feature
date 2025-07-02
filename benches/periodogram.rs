@@ -25,7 +25,7 @@ pub fn bench_periodogram(c: &mut Criterion) {
                 .map(|&x| 3.0 * f32::sin(2.0 * std::f32::consts::PI / PERIOD * x + 0.5) + 4.0)
                 .collect();
             c.bench_function(
-                format!("Periodogram: {} length, {:?}", n, power).as_str(),
+                format!("Periodogram: {n} length, {power:?}").as_str(),
                 |b| {
                     b.iter(|| {
                         let mut ts = TimeSeries::new_without_weight(&x, &y);

@@ -5,7 +5,8 @@ description = "Common test utilities for light-curve-feature tests, benchmarks a
 repository = "https://github.com/light-curve/light-curve-feature"
 authors = ["Konstantin Malanchev <hombit@gmail.com>"]
 license = "MIT"
-edition = "2018"
+rust-version = "1.85"
+edition = "2024"
 
 [dependencies]
 csv = "1.1"

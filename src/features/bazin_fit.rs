@@ -445,7 +445,7 @@ mod tests {
             })
             .collect();
         let w: Vec<_> = model.iter().copied().map(f64::recip).collect();
-        println!("t = {:?}\nmodel = {:?}\nm = {:?}\nw = {:?}", t, model, m, w);
+        println!("t = {t:?}\nmodel = {model:?}\nm = {m:?}\nw = {w:?}");
         let mut ts = TimeSeries::new(&t, &m, &w);
 
         // curve_fit(lambda t, a, b, t0, rise, fall: b + a * np.exp(-(t-t0)/fall) / (1 + np.exp(-(t-t0) / rise)), xdata=t, ydata=m, sigma=np.array(w)**-0.5, p0=[1e4, 1e3, 30, 10, 30])

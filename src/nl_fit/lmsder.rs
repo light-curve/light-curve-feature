@@ -515,7 +515,7 @@ mod tests {
                 nonlinear_func(&param_true, x) + NOISE * eps
             })
             .collect();
-        println!("t = {:?}\ny = {:?}", t, y);
+        println!("t = {t:?}\ny = {y:?}");
         let data = Rc::new(Data { t, y, err: None });
 
         let function = {
@@ -595,7 +595,7 @@ mod tests {
                 nonlinear_func(&param_true, x) + NOISE * eps
             })
             .collect();
-        println!("t = {:?}\ny = {:?}", t, y);
+        println!("t = {t:?}\ny = {y:?}");
         let data = Rc::new(Data { t, y, err: None });
         let data_real = data.clone();
         let data_dual = data;
