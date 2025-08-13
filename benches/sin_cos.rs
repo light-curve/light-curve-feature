@@ -21,7 +21,18 @@ fn wrap_rec(n: usize, x: f64) {
     }
 }
 
-pub fn bench_recurrent_sin_cos(c: &mut Criterion) {
+fn values(iter: impl Iterator<Item = f32>) {
+    for s_c in SinCosIterator::from_angles(iter) {
+        black_box(s_c);
+    }
+}
+
+fn vector(v: &[f32]) {
+    let result = v.iter().map(|x| x.sin_cos()).collect::<Vec<_>>();
+    black_box(result);
+}
+
+pub fn bench_sin_cos(c: &mut Criterion) {
     const COUNTS: [usize; 4] = [1, 10, 100, 1000];
 
     for &n in COUNTS.iter() {
@@ -33,6 +44,14 @@ pub fn bench_recurrent_sin_cos(c: &mut Criterion) {
         });
         c.bench_function(format!("Wrapped Rec sin_cos {n}").as_str(), |b| {
             b.iter(|| wrap_rec(black_box(n), 0.01))
+        });
+        c.bench_function(format!("Iterator sin_cos {}", n).as_str(), |b| {
+            let vec: Vec<_> = (0..n).map(|i| i as f32 * 0.01).collect();
+            b.iter(|| values(vec.iter().cloned()))
+        });
+        c.bench_function(format!("Vector f32 sin_cos {}", n).as_str(), |b| {
+            let vec: Vec<_> = (0..n).map(|i| i as f32 * 0.01).collect();
+            b.iter(|| vector(&vec))
         });
     }
 }
