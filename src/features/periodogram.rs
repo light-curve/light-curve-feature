@@ -314,7 +314,7 @@ where
     fn periodogram(
         &self,
         ts: &mut TimeSeries<T>,
-    ) -> Result<periodogram::Periodogram<T>, PeriodogramPowerError> {
+    ) -> Result<periodogram::Periodogram<'_, T>, PeriodogramPowerError> {
         periodogram::Periodogram::from_t(
             self.periodogram_algorithm.clone(),
             ts.t.as_slice(),

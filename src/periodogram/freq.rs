@@ -135,7 +135,7 @@ pub trait FreqGridTrait<T>: Send + Sync + Clone + Debug {
     fn minimum(&self) -> T;
     fn maximum(&self) -> T;
     /// Iterator of (sin(freq * time), cos(freq * time)) over the freq values
-    fn iter_sin_cos_mul(&self, time: T) -> SinCosIterator<T>;
+    fn iter_sin_cos_mul(&self, time: T) -> SinCosIterator<'_, T>;
 }
 
 #[enum_dispatch(FreqGridTrait<T>)]
@@ -209,7 +209,7 @@ impl<T: Float> FreqGridTrait<T> for SortedArray<T> {
         self.0[self.0.len() - 1]
     }
 
-    fn iter_sin_cos_mul(&self, time: T) -> SinCosIterator<T> {
+    fn iter_sin_cos_mul(&self, time: T) -> SinCosIterator<'_, T> {
         let angle_iter = self.iter().copied().map(move |freq| freq * time);
         SinCosIterator::from_angles(angle_iter)
     }
@@ -348,7 +348,7 @@ impl<T: Float> FreqGridTrait<T> for LinearFreqGrid<T> {
         self.start + self.step * (self.size - 1).approx().unwrap()
     }
 
-    fn iter_sin_cos_mul(&self, time: T) -> SinCosIterator<T> {
+    fn iter_sin_cos_mul(&self, time: T) -> SinCosIterator<'_, T> {
         RecurrentSinCos::new(self.start * time, self.step * time).into()
     }
 }
@@ -441,7 +441,7 @@ impl<T: Float> FreqGridStrategy<T> {
         ))
     }
 
-    pub fn freq_grid(&self, t: &[T], zero_base: bool) -> Cow<FreqGrid<T>> {
+    pub fn freq_grid(&self, t: &[T], zero_base: bool) -> Cow<'_, FreqGrid<T>> {
         match self {
             Self::Fixed(freq_grid) => Cow::Borrowed(freq_grid),
             Self::Dynamic(params) => {
