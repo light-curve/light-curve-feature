@@ -27,7 +27,7 @@ fn values(iter: impl Iterator<Item = f32>) {
     }
 }
 
-fn vector(v: &Vec<f32>) {
+fn vector(v: &[f32]) {
     let result = v.iter().map(|x| x.sin_cos()).collect::<Vec<_>>();
     black_box(result);
 }
