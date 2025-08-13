@@ -81,7 +81,7 @@ where
         }
     }
 
-    pub fn into_time_series(self, band: Option<&str>) -> TimeSeries<T> {
+    pub fn into_time_series(self, band: Option<&str>) -> TimeSeries<'_, T> {
         let (time, brightness, weight) = self.into_triple(band);
         TimeSeries::new(time, brightness, weight)
     }

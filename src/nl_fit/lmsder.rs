@@ -282,11 +282,11 @@ struct NlsFitResult {
 }
 
 impl NlsFitResult {
-    fn x(&self) -> View<VectorF64> {
+    fn x(&self) -> View<'_, VectorF64> {
         self.solver.x()
     }
 
-    fn f(&self) -> View<VectorF64> {
+    fn f(&self) -> View<'_, VectorF64> {
         self.solver.f()
     }
 
