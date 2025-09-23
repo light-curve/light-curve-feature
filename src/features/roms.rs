@@ -65,7 +65,7 @@ where
             ts.m.as_slice()
                 .iter()
                 .zip(ts.w.as_slice().iter())
-                .map(|(&m, &w)| ((m - m_median).abs() * w.sqrt()))
+                .map(|(&m, &w)| (m - m_median).abs() * w.sqrt())
                 .filter(|&x| x.is_finite())
                 .sum::<T>();
         let value = tmp_sum / (n - T::one());
