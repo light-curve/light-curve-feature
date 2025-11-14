@@ -316,18 +316,13 @@ where
     fit_eval!();
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, Default)]
 #[non_exhaustive]
 pub enum BazinInitsBounds {
+    #[default]
     Default,
     Arrays(Box<FitInitsBoundsArrays<NPARAMS>>),
     OptionArrays(Box<OptionFitInitsBoundsArrays<NPARAMS>>),
-}
-
-impl Default for BazinInitsBounds {
-    fn default() -> Self {
-        Self::Default
-    }
 }
 
 impl BazinInitsBounds {
