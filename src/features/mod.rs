@@ -94,6 +94,9 @@ pub use reduced_chi2::ReducedChi2;
 mod roms;
 pub use roms::Roms;
 
+mod sb_variability;
+pub use sb_variability::SBVariability;
+
 mod skew;
 pub use skew::Skew;
 

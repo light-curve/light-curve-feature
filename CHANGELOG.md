@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
---
+- `SBVariability`: S_B variability detection statistic using median of squared successive differences (Figuera Jaimes et al. 2013, Sokolovsky et al. 2016)
 
 ### Changed
 

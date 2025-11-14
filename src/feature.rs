@@ -54,6 +54,7 @@ where
     _PeriodogramPeaks,
     ReducedChi2,
     Roms,
+    SBVariability,
     Skew,
     StandardDeviation,
     StetsonK,
