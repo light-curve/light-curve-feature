@@ -21,7 +21,7 @@ This is a good measure of variability which takes into account observations unce
 }
 
 #[doc = DOC!()]
-#[derive(Clone, Default, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Default, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash)]
 pub struct ReducedChi2 {}
 
 lazy_info!(

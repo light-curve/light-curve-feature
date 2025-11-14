@@ -17,7 +17,7 @@ Bulk feature extractor
 }
 
 #[doc = DOC!()]
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(
     into = "FeatureExtractorParameters<F>",
     from = "FeatureExtractorParameters<F>",

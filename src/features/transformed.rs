@@ -21,7 +21,7 @@ Feature extractor transforming output of other feature extractors
 }
 
 #[doc = DOC!()]
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(
     into = "TransformedParameters<F, Tr>",
     try_from = "TransformedParameters<F, Tr>",

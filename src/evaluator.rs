@@ -21,7 +21,7 @@ pub struct EvaluatorInfo {
     pub sorting_required: bool,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct EvaluatorProperties {
     pub info: EvaluatorInfo,
     pub names: Vec<String>,

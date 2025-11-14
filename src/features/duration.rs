@@ -17,7 +17,7 @@ Note: cadence-dependent feature.
 }
 
 #[doc = DOC!()]
-#[derive(Clone, Default, Debug, Deserialize, Serialize, JsonSchema)]
+#[derive(Clone, Default, Debug, Deserialize, Serialize, JsonSchema, PartialEq, Eq, Hash)]
 pub struct Duration {}
 
 impl Duration {

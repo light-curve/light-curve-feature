@@ -32,7 +32,7 @@ Peak evaluator for [Periodogram]
 
 #[doc(hidden)]
 #[doc = PERIODOGRAM_PEAK_DOC!()]
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(
     from = "PeriodogramPeaksParameters",
     into = "PeriodogramPeaksParameters"
@@ -183,7 +183,7 @@ series without observation errors (unity weights are used if required). You can 
 }
 
 #[doc = DOC!()]
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(
     bound = "T: Float, F: FeatureEvaluator<T> + From<PeriodogramPeaks> + TryInto<PeriodogramPeaks>, <F as std::convert::TryInto<PeriodogramPeaks>>::Error: Debug,",
     from = "PeriodogramParameters<T, F>",

@@ -14,7 +14,7 @@ use std::rc::Rc;
 ///
 /// Non-linear squares-based light-curve fitters. It requires the function Jacobean. It supports
 /// boundaries, but not priors.
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[serde(rename = "Ceres")]
 pub struct CeresCurveFit {
     niterations: u16,

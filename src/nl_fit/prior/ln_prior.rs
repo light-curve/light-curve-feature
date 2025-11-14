@@ -13,7 +13,7 @@ pub trait LnPriorTrait<const NPARAMS: usize>: Clone + Debug + Serialize + Deseri
 
 /// Natural logarithm of prior for non-linear curve-fit problem
 #[enum_dispatch(LnPriorTrait<NPARAMS>)]
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[non_exhaustive]
 pub enum LnPrior<const NPARAMS: usize> {
     None(NoneLnPrior),

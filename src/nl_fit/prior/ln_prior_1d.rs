@@ -11,7 +11,7 @@ pub trait LnPrior1DTrait: Clone + Debug + Serialize + DeserializeOwned {
 
 /// Natural logarithm of prior for a single parameter of the curve-fit problem
 #[enum_dispatch(LnPrior1DTrait)]
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[non_exhaustive]
 pub enum LnPrior1D {
     None(NoneLnPrior1D),

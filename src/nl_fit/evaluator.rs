@@ -127,7 +127,7 @@ impl<T, const NPARAMS: usize> TryFrom<FitArraySerde<T>> for FitArray<T, NPARAMS>
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, PartialEq)]
 pub struct FitInitsBoundsArrays<const NPARAMS: usize> {
     pub init: FitArray<f64, NPARAMS>,
     pub lower: FitArray<f64, NPARAMS>,
@@ -144,7 +144,7 @@ impl<const NPARAMS: usize> FitInitsBoundsArrays<NPARAMS> {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, PartialEq)]
 pub struct OptionFitInitsBoundsArrays<const NPARAMS: usize> {
     pub init: FitArray<Option<f64>, NPARAMS>,
     pub lower: FitArray<Option<f64>, NPARAMS>,

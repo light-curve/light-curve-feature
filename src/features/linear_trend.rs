@@ -21,7 +21,7 @@ $\sigma_\mathrm{slope}$ and $\Sigma$ are returned.
 }
 
 #[doc = DOC!()]
-#[derive(Clone, Default, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Default, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash)]
 pub struct LinearTrend {}
 
 impl LinearTrend {

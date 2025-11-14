@@ -421,7 +421,7 @@ impl DynamicFreqGridParams {
 /// Defines a strategy of FreqGrid selection.
 ///
 /// It is either a fixed grid, or a grid defined dynamically for each input time series.
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[serde(bound = "T: Float")]
 pub enum FreqGridStrategy<T: Float> {
     Fixed(FreqGrid<T>),

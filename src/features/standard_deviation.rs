@@ -20,7 +20,7 @@ and $\langle m \rangle$ is the mean magnitude.
 }
 
 #[doc = DOC!()]
-#[derive(Clone, Default, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Default, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash)]
 pub struct StandardDeviation {}
 
 lazy_info!(

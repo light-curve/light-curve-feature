@@ -16,7 +16,7 @@ See [Mean](crate::Mean) for non-weighted mean.
 }
 
 #[doc = DOC!()]
-#[derive(Clone, Default, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Default, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash)]
 pub struct WeightedMean {}
 
 lazy_info!(

@@ -22,7 +22,7 @@ P. B. Stetson, 1996. [DOI:10.1086/133808](https://doi.org/10.1086/133808)
 }
 
 #[doc = DOC!()]
-#[derive(Clone, Default, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Default, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash)]
 pub struct StetsonK {}
 
 lazy_info!(

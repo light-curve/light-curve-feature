@@ -12,7 +12,7 @@ use std::fmt::Debug;
 ///
 /// Consider to import [crate::FeatureEvaluator] as well
 #[enum_dispatch(FeatureEvaluator<T>, FeatureNamesDescriptionsTrait, EvaluatorInfoTrait)]
-#[derive(Clone, Debug, Deserialize, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
 #[serde(bound = "T: Float")]
 #[non_exhaustive]
 pub enum Feature<T>
