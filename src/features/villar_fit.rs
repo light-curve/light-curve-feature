@@ -432,18 +432,13 @@ where
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, Default)]
 #[non_exhaustive]
 pub enum VillarInitsBounds {
+    #[default]
     Default,
     Arrays(Box<FitInitsBoundsArrays<NPARAMS>>),
     OptionArrays(Box<OptionFitInitsBoundsArrays<NPARAMS>>),
-}
-
-impl Default for VillarInitsBounds {
-    fn default() -> Self {
-        Self::Default
-    }
 }
 
 impl VillarInitsBounds {
