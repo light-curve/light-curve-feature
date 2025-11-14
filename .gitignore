@@ -1,2 +1,4 @@
 **/Cargo.lock
 **/target/
+/tmp/
+test_is_sorted
