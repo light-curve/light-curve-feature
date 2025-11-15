@@ -18,7 +18,7 @@ pub enum ComposedTransformerConstructionError {
 }
 
 #[doc = DOC!()]
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub struct ComposedTransformer<Tr> {
     transformers: Vec<(Tr, usize)>,
     input_size: usize,

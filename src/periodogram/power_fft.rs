@@ -60,6 +60,17 @@ where
     }
 }
 
+impl<T> PartialEq for PeriodogramPowerFft<T>
+where
+    T: Float,
+{
+    fn eq(&self, _other: &Self) -> bool {
+        // PeriodogramPowerFft instances are stateless from the user's perspective
+        // The Arc<ThreadLocal<...>> fields are internal caches
+        true
+    }
+}
+
 impl<T> Default for PeriodogramPowerFft<T>
 where
     T: Float,

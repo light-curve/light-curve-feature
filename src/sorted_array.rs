@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::ops::Deref;
 
 // Underlying array is guaranteed to be sorted and contiguous
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct SortedArray<T>(pub Array1<T>);
 
 impl<T> SortedArray<T>

@@ -63,3 +63,32 @@ where
     VillarFit,
     WeightedMean,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tests::*;
+
+    #[test]
+    fn test_feature_partial_eq() {
+        // Test unit struct features
+        let amplitude1: Feature<f64> = Amplitude::default().into();
+        let amplitude2: Feature<f64> = Amplitude::default().into();
+        assert_eq!(amplitude1, amplitude2);
+
+        let mean1: Feature<f64> = Mean::default().into();
+        let mean2: Feature<f64> = Mean::default().into();
+        assert_eq!(mean1, mean2);
+
+        // Test that different features are not equal
+        assert_ne!(amplitude1, mean1);
+
+        // Test parametric features
+        let beyond1: Feature<f64> = BeyondNStd::default().into();
+        let beyond2: Feature<f64> = BeyondNStd::default().into();
+        assert_eq!(beyond1, beyond2);
+
+        let beyond3: Feature<f64> = BeyondNStd::new(2.0).into();
+        assert_ne!(beyond1, beyond3);
+    }
+}

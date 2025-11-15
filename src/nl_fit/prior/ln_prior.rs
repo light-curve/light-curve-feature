@@ -58,7 +58,7 @@ impl<const NPARAMS: usize> LnPrior<NPARAMS> {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub struct NoneLnPrior {}
 
 impl<const NPARAMS: usize> LnPriorTrait<NPARAMS> for NoneLnPrior {
@@ -67,7 +67,7 @@ impl<const NPARAMS: usize> LnPriorTrait<NPARAMS> for NoneLnPrior {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(
     into = "IndComponentsLnPriorSerde",
     try_from = "IndComponentsLnPriorSerde"

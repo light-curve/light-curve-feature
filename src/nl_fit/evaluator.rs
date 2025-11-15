@@ -35,7 +35,7 @@ pub trait FitDerivalivesTrait<T: Float, const NPARAMS: usize> {
     fn derivatives(t: T, param: &[T; NPARAMS], jac: &mut [T; NPARAMS]);
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 #[serde(
     into = "FitArraySerde<T>",
     try_from = "FitArraySerde<T>",
