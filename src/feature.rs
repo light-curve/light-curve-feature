@@ -67,7 +67,6 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tests::*;
 
     #[test]
     fn test_feature_partial_eq() {
