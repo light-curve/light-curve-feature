@@ -177,7 +177,7 @@ mod tests {
     use approx::assert_relative_eq;
     use ndarray::array;
 
-    check_feature!(OtsuSplit);
+    check_feature_with_hash!(OtsuSplit);
 
     feature_test!(
         otsu_split,

@@ -66,7 +66,7 @@ mod tests {
     use super::*;
     use crate::tests::*;
 
-    check_feature!(TimeMean);
+    check_feature_with_hash!(TimeMean);
 
     feature_test!(
         time_mean,

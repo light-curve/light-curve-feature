@@ -67,7 +67,7 @@ mod tests {
     use super::*;
     use crate::tests::*;
 
-    check_feature!(WeightedMean);
+    check_feature_with_hash!(WeightedMean);
 
     feature_test!(
         weighted_mean,

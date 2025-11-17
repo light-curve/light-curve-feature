@@ -74,7 +74,7 @@ mod tests {
     use super::*;
     use crate::tests::*;
 
-    check_feature!(ExcessVariance);
+    check_feature_with_hash!(ExcessVariance);
 
     feature_test!(
         mean,

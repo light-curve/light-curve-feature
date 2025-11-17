@@ -79,7 +79,7 @@ mod tests {
     use super::*;
     use crate::tests::*;
 
-    check_feature!(Skew);
+    check_feature_with_hash!(Skew);
 
     feature_test!(
         skew,

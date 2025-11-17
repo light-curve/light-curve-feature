@@ -94,7 +94,7 @@ mod tests {
     use super::*;
     use crate::tests::*;
 
-    check_feature!(AndersonDarlingNormal);
+    check_feature_with_hash!(AndersonDarlingNormal);
 
     feature_test!(
         anderson_darling_normal,

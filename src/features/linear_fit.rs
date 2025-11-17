@@ -87,7 +87,7 @@ mod tests {
     use super::*;
     use crate::tests::*;
 
-    check_feature!(LinearFit);
+    check_feature_with_hash!(LinearFit);
 
     feature_test!(
         linear_fit,

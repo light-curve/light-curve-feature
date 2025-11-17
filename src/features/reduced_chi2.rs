@@ -72,7 +72,7 @@ mod tests {
     use super::*;
     use crate::tests::*;
 
-    check_feature!(ReducedChi2);
+    check_feature_with_hash!(ReducedChi2);
 
     feature_test!(
         reduced_chi2,

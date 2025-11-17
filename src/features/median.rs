@@ -66,7 +66,7 @@ mod tests {
     use super::*;
     use crate::tests::*;
 
-    check_feature!(Median);
+    check_feature_with_hash!(Median);
 
     feature_test!(
         median_odd,

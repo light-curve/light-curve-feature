@@ -72,7 +72,7 @@ mod tests {
     use super::*;
     use crate::tests::*;
 
-    check_feature!(PercentAmplitude);
+    check_feature_with_hash!(PercentAmplitude);
 
     feature_test!(
         percent_amplitude,
