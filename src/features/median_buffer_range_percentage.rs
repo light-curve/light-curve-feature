@@ -15,8 +15,7 @@ D’Isanto et al. 2016 [DOI:10.1093/mnras/stw157](https://doi.org/10.1093/mnras/
 }
 
 #[doc = DOC!()]
-#[cfg_attr(test, derive(PartialEq, Eq))]
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(
     into = "MedianBufferRangePercentageParameters<T>",
     from = "MedianBufferRangePercentageParameters<T>",

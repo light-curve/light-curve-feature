@@ -31,7 +31,7 @@ considering bin. Bins takes any other feature evaluators to extract features fro
 }
 
 #[doc = DOC!()]
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(
     into = "BinsParameters<T, F>",
     from = "BinsParameters<T, F>",

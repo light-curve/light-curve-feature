@@ -38,8 +38,7 @@ D’Isanto et al. 2016 [DOI:10.1093/mnras/stw157](https://doi.org/10.1093/mnras/
 /// assert!((1.0 - ts.m.get_std()).abs() < 1e-15);
 /// assert_eq!(vec![4.0 / 21.0, 2.0 / 21.0], fe.eval(&mut ts).unwrap());
 /// ```
-#[cfg_attr(test, derive(PartialEq, Eq))]
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(
     from = "BeyondNStdParameters<T>",
     into = "BeyondNStdParameters<T>",

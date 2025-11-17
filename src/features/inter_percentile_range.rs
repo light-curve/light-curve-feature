@@ -21,8 +21,7 @@ inter-percentile range for $p = 0.1$.
 }
 
 #[doc = DOC!()]
-#[cfg_attr(test, derive(PartialEq))]
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(
     from = "InterPercentileRangeParameters",
     into = "InterPercentileRangeParameters"

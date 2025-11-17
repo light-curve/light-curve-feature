@@ -30,7 +30,7 @@ trait NyquistFreqTrait: Send + Sync + Clone + Debug {
 
 #[doc = NYQUIST_FREQ_DOC!()]
 #[enum_dispatch(NyquistFreqTrait)]
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[non_exhaustive]
 pub enum NyquistFreq {
     Average(AverageNyquistFreq),
@@ -62,7 +62,7 @@ impl NyquistFreq {
 /// The denominator is $(N-1)$ for compatibility with Nyquist frequency for uniform grid. Note that
 /// in literature definition of "average Nyquist" frequency usually differ and place $N$ to the
 /// denominator
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[serde(rename = "Average")]
 pub struct AverageNyquistFreq;
 
@@ -78,7 +78,7 @@ fn diff<T: Float>(x: &[T]) -> Vec<T> {
 }
 
 /// $\Delta t$ is the median time interval between observations
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[serde(rename = "Median")]
 pub struct MedianNyquistFreq;
 
@@ -91,7 +91,7 @@ impl NyquistFreqTrait for MedianNyquistFreq {
 }
 
 /// $\Delta t$ is the $q$th quantile of time intervals between subsequent observations
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[serde(rename = "Quantile")]
 pub struct QuantileNyquistFreq {
     pub quantile: f32,
@@ -109,7 +109,7 @@ impl NyquistFreqTrait for QuantileNyquistFreq {
 ///
 /// Note, that the actual maximum periodogram frequency provided by `FreqGrid` differs from this
 /// value because of `max_freq_factor` and maximum value to step ratio rounding
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[serde(rename = "Fixed")]
 pub struct FixedNyquistFreq(pub f32);
 
@@ -139,7 +139,7 @@ pub trait FreqGridTrait<T>: Send + Sync + Clone + Debug {
 }
 
 #[enum_dispatch(FreqGridTrait<T>)]
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[serde(bound = "T: Float")]
 #[non_exhaustive]
 pub enum FreqGrid<T: Float> {
@@ -215,7 +215,7 @@ impl<T: Float> FreqGridTrait<T> for SortedArray<T> {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[serde(bound = "T: Float")]
 pub struct ZeroBasedPow2FreqGrid<T: Float> {
     /// Step between the points
@@ -288,7 +288,7 @@ impl<T: Float> FreqGridTrait<T> for ZeroBasedPow2FreqGrid<T> {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[serde(bound = "T: Float")]
 pub struct LinearFreqGrid<T: Float> {
     /// Grid start point
@@ -387,7 +387,7 @@ mod tests {
     }
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub struct DynamicFreqGridParams {
     pub resolution: f32,
     pub max_freq_factor: f32,
@@ -421,7 +421,7 @@ impl DynamicFreqGridParams {
 /// Defines a strategy of FreqGrid selection.
 ///
 /// It is either a fixed grid, or a grid defined dynamically for each input time series.
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[serde(bound = "T: Float")]
 pub enum FreqGridStrategy<T: Float> {
     Fixed(FreqGrid<T>),

@@ -20,7 +20,7 @@ Sánchez et al. 2017 [DOI:10.3847/1538-4357/aa9188](https://doi.org/10.3847/1538
 }
 
 #[doc = DOC!()]
-#[derive(Clone, Default, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Default, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash)]
 pub struct ExcessVariance {}
 
 lazy_info!(

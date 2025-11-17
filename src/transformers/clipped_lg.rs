@@ -9,7 +9,7 @@ Decimal logarithm of a value clipped to a minimum value
 }
 
 #[doc = DOC!()]
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub struct ClippedLgTransformer<T> {
     pub min_value: T,
 }

@@ -23,7 +23,7 @@ $\frac{\sum{((m_i - c - \mathrm{slope} t_i) / \delta_i)^2}}{N - 2}$.
 }
 
 #[doc = DOC!()]
-#[derive(Clone, Default, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Default, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash)]
 pub struct LinearFit {}
 
 impl LinearFit {

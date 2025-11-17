@@ -38,7 +38,7 @@ pub trait CurveFitTrait: Clone + Debug + Serialize + DeserializeOwned {
 
 /// Optimization algorithm for non-linear least squares
 #[enum_dispatch(CurveFitTrait)]
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[non_exhaustive]
 pub enum CurveFitAlgorithm {
     #[cfg(any(feature = "ceres-source", feature = "ceres-system"))]

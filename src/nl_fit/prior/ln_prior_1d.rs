@@ -11,7 +11,7 @@ pub trait LnPrior1DTrait: Clone + Debug + Serialize + DeserializeOwned {
 
 /// Natural logarithm of prior for a single parameter of the curve-fit problem
 #[enum_dispatch(LnPrior1DTrait)]
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[non_exhaustive]
 pub enum LnPrior1D {
     None(NoneLnPrior1D),
@@ -48,7 +48,7 @@ impl LnPrior1D {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub struct NoneLnPrior1D {}
 
 impl LnPrior1DTrait for NoneLnPrior1D {
@@ -57,7 +57,7 @@ impl LnPrior1DTrait for NoneLnPrior1D {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[serde(
     into = "LogNormalLnPrior1DParameters",
     from = "LogNormalLnPrior1DParameters"
@@ -107,7 +107,7 @@ impl From<LogNormalLnPrior1DParameters> for LogNormalLnPrior1D {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[serde(
     into = "LogUniformLnPrior1DParameters",
     from = "LogUniformLnPrior1DParameters"
@@ -163,7 +163,7 @@ impl From<LogUniformLnPrior1DParameters> for LogUniformLnPrior1D {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[serde(into = "NormalLnPrior1DParameters", from = "NormalLnPrior1DParameters")]
 pub struct NormalLnPrior1D {
     mu: f64,
@@ -209,7 +209,7 @@ impl From<NormalLnPrior1DParameters> for NormalLnPrior1D {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[serde(
     into = "UniformLnPrior1DParameters",
     from = "UniformLnPrior1DParameters"
@@ -257,7 +257,7 @@ impl From<UniformLnPrior1DParameters> for UniformLnPrior1D {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub struct MixLnPrior1D {
     mix: Vec<(f64, LnPrior1D)>,
 }

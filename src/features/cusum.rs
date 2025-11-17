@@ -24,7 +24,7 @@ Kim et al. 2014, [DOI:10.1051/0004-6361/201323252](https://doi.org/10.1051/0004-
 }
 
 #[doc = DOC!()]
-#[derive(Clone, Default, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Default, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash)]
 pub struct Cusum {}
 
 impl Cusum {

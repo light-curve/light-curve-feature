@@ -369,6 +369,31 @@ macro_rules! check_finite {
 }
 
 #[macro_export]
+macro_rules! check_partial_eq {
+    ($name: ident, $feature_type: ty, $feature_expr: expr_2021 $(,)?) => {
+        #[test]
+        fn $name() {
+            // Test that two instances with the same parameters are equal
+            let feature1 = $feature_expr;
+            let feature2 = $feature_expr;
+            assert_eq!(
+                feature1, feature2,
+                "Two instances with same parameters should be equal"
+            );
+
+            // Test reflexivity: a == a
+            assert_eq!(feature1, feature1, "PartialEq should be reflexive");
+
+            // Test symmetry: if a == b then b == a
+            assert_eq!(feature2, feature1, "PartialEq should be symmetric");
+        }
+    };
+    ($feature_type: ty) => {
+        check_partial_eq!(partial_eq, $feature_type, <$feature_type>::default());
+    };
+}
+
+#[macro_export]
 macro_rules! check_feature {
     ($feature: ty) => {
         eval_info_test!(info_default, <$feature>::default());
@@ -376,6 +401,7 @@ macro_rules! check_feature {
         serde_json_test!(ser_json_de, $feature, <$feature>::default());
         check_doc_static_method!(doc_static_method, $feature);
         check_finite!(check_values_finite, <$feature>::default());
+        check_partial_eq!($feature);
     };
 }
 

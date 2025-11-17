@@ -15,7 +15,7 @@ $$
 }
 
 #[doc = DOC!()]
-#[derive(Clone, Debug, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash)]
 pub struct MeanVariance {}
 
 lazy_info!(

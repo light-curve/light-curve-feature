@@ -15,7 +15,7 @@ macro_rules! transformer {
         pub mod $module {
             use super::*;
 
-            #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+            #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash)]
             pub struct $structure {}
 
             impl $structure {

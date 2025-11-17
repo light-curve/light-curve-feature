@@ -21,7 +21,7 @@ $\sigma_m = \sqrt{\sum_i (m_i - \langle m \rangle)^2 / (N-1)}$ is the magnitude 
 }
 
 #[doc = DOC!()]
-#[derive(Clone, Default, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Default, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash)]
 pub struct Kurtosis {}
 
 impl Kurtosis {

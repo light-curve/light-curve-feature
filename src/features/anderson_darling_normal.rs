@@ -24,7 +24,7 @@ and $\sigma_m = \sqrt{\sum_i (m_i - \langle m \rangle)^2 / (N-1)}$ is the magnit
 }
 
 #[doc = DOC!()]
-#[derive(Clone, Default, Debug, Deserialize, Serialize, JsonSchema)]
+#[derive(Clone, Default, Debug, Deserialize, Serialize, JsonSchema, PartialEq, Eq, Hash)]
 pub struct AndersonDarlingNormal {}
 
 impl AndersonDarlingNormal {

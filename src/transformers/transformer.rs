@@ -31,7 +31,7 @@ pub trait TransformerTrait<T: Float>:
 }
 
 #[enum_dispatch(TransformerTrait<T>, TransformerPropsTrait)]
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[serde(bound = "T: Float")]
 #[non_exhaustive]
 pub enum Transformer<T: Float> {

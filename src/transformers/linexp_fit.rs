@@ -21,7 +21,7 @@ The LinexpFit feature extractor returns the following features:
 }
 
 #[doc = DOC!()]
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub struct LinexpFitTransformer<T> {
     /// Magnitude zero point to use for amplitude transformation
     pub mag_zp: T,

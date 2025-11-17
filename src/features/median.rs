@@ -15,7 +15,7 @@ $$
 }
 
 #[doc = DOC!()]
-#[derive(Clone, Default, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Default, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash)]
 pub struct Median {}
 
 lazy_info!(

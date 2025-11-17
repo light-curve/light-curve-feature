@@ -19,8 +19,7 @@ D’Isanto et al. 2016 [DOI:10.1093/mnras/stw157](https://doi.org/10.1093/mnras/
 }
 
 #[doc = DOC!()]
-#[cfg_attr(test, derive(PartialEq))]
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[serde(
     from = "MagnitudePercentageRatioParameters",
     into = "MagnitudePercentageRatioParameters"
