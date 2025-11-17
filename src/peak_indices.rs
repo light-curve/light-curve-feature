@@ -41,7 +41,7 @@ mod tests {
     use light_curve_common::linspace;
 
     macro_rules! peak_indices {
-        ($name: ident, $desired: expr_2021, $x: expr_2021 $(,)?) => {
+        ($name: ident, $desired: expr, $x: expr $(,)?) => {
             #[test]
             fn $name() {
                 assert_eq!(peak_indices_reverse_sorted(&$x), $desired);

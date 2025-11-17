@@ -5,14 +5,14 @@ use light_curve_feature::peak_indices;
 use std::hint::black_box;
 
 macro_rules! gen_bench {
-    ($c: expr_2021, $name: expr_2021, $func: ident, $x: expr_2021 $(,)?) => {
+    ($c: expr, $name: expr, $func: ident, $x: expr $(,)?) => {
         $c.bench_function($name, move |b| b.iter(|| black_box($func(&$x))));
     };
 }
 
 pub fn bench_peak_indices(c: &mut Criterion) {
     macro_rules! b {
-        ($name: expr_2021, $x: expr_2021 $(,)?) => {
+        ($name: expr, $x: expr $(,)?) => {
             gen_bench!(c, $name, peak_indices, $x);
         };
     }

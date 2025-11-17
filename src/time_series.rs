@@ -24,7 +24,7 @@ where
 }
 
 macro_rules! data_sample_getter {
-    ($attr: ident, $getter: ident, $func: expr_2021, $method_sorted: ident) => {
+    ($attr: ident, $getter: ident, $func: expr, $method_sorted: ident) => {
         // This lint is false-positive in macros
         // https://github.com/rust-lang/rust-clippy/issues/1553
         #[allow(clippy::redundant_closure_call)]
@@ -41,7 +41,7 @@ macro_rules! data_sample_getter {
             }
         }
     };
-    ($attr: ident, $getter: ident, $func: expr_2021) => {
+    ($attr: ident, $getter: ident, $func: expr) => {
         // This lint is false-positive in macros
         // https://github.com/rust-lang/rust-clippy/issues/1553
         #[allow(clippy::redundant_closure_call)]
@@ -216,7 +216,7 @@ where
 }
 
 macro_rules! time_series_getter {
-    ($t: ty, $attr: ident, $getter: ident, $func: expr_2021) => {
+    ($t: ty, $attr: ident, $getter: ident, $func: expr) => {
         // This lint is false-positive in macros
         // https://github.com/rust-lang/rust-clippy/issues/1553
         #[allow(clippy::redundant_closure_call)]
@@ -231,7 +231,7 @@ macro_rules! time_series_getter {
         }
     };
 
-    ($attr: ident, $getter: ident, $func: expr_2021) => {
+    ($attr: ident, $getter: ident, $func: expr) => {
         time_series_getter!(T, $attr, $getter, $func);
     };
 }
