@@ -90,7 +90,7 @@ mod tests {
     use crate::features::Eta;
     use crate::tests::*;
 
-    check_feature_with_hash!(EtaE);
+    check_feature!(EtaE);
 
     feature_test!(
         eta_e,

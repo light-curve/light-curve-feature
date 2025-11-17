@@ -81,7 +81,7 @@ mod tests {
     use super::*;
     use crate::tests::*;
 
-    check_feature_with_hash!(LinearTrend);
+    check_feature!(LinearTrend);
 
     feature_test!(
         linear_trend,

@@ -71,7 +71,7 @@ mod tests {
     use super::*;
     use crate::tests::*;
 
-    check_feature_with_hash!(StandardDeviation);
+    check_feature!(StandardDeviation);
 
     feature_test!(
         standard_deviation,

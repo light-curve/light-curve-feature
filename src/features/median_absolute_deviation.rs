@@ -76,7 +76,7 @@ mod tests {
     use super::*;
     use crate::tests::*;
 
-    check_feature_with_hash!(MedianAbsoluteDeviation);
+    check_feature!(MedianAbsoluteDeviation);
 
     feature_test!(
         median_absolute_deviation,

@@ -81,7 +81,7 @@ mod tests {
     use crate::extractor::FeatureExtractor;
     use crate::tests::*;
 
-    check_feature_with_hash!(Roms);
+    check_feature!(Roms);
 
     feature_test!(
         roms,

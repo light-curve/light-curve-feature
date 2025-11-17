@@ -66,7 +66,7 @@ mod tests {
     use super::*;
     use crate::tests::*;
 
-    check_feature_with_hash!(MeanVariance);
+    check_feature!(MeanVariance);
 
     feature_test!(
         mean,

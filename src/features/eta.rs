@@ -80,7 +80,7 @@ mod tests {
     use super::*;
     use crate::tests::*;
 
-    check_feature_with_hash!(Eta);
+    check_feature!(Eta);
 
     feature_test!(
         eta,

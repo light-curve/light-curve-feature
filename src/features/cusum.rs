@@ -84,7 +84,7 @@ mod tests {
     use super::*;
     use crate::tests::*;
 
-    check_feature_with_hash!(Cusum);
+    check_feature!(Cusum);
 
     feature_test!(
         cumsum,

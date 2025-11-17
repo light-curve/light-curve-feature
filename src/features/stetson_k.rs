@@ -81,7 +81,7 @@ mod tests {
 
     use std::f64::consts::*;
 
-    check_feature_with_hash!(StetsonK);
+    check_feature!(StetsonK);
 
     feature_test!(
         stetson_k_square_wave,

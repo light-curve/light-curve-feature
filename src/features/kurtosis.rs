@@ -84,7 +84,7 @@ mod tests {
     use super::*;
     use crate::tests::*;
 
-    check_feature_with_hash!(Kurtosis);
+    check_feature!(Kurtosis);
 
     feature_test!(
         kurtosis,

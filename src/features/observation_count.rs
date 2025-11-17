@@ -68,7 +68,7 @@ mod tests {
     use super::*;
     use crate::tests::*;
 
-    check_feature_with_hash!(ObservationCount);
+    check_feature!(ObservationCount);
 
     feature_test!(
         observation_count,

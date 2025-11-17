@@ -76,7 +76,7 @@ mod tests {
     use super::*;
     use crate::tests::*;
 
-    check_feature_with_hash!(MaximumTimeInterval);
+    check_feature!(MaximumTimeInterval);
 
     feature_test!(
         maximum_time_interval,

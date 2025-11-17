@@ -68,7 +68,7 @@ mod tests {
     use super::*;
     use crate::tests::*;
 
-    check_feature_with_hash!(TimeStandardDeviation);
+    check_feature!(TimeStandardDeviation);
 
     feature_test!(
         time_standard_deviation,

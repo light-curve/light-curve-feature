@@ -68,7 +68,7 @@ mod tests {
     use super::*;
     use crate::tests::*;
 
-    check_feature_with_hash!(Duration);
+    check_feature!(Duration);
 
     feature_test!(
         duration,

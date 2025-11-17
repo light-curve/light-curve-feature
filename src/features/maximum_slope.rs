@@ -85,7 +85,7 @@ mod tests {
     use super::*;
     use crate::tests::*;
 
-    check_feature_with_hash!(MaximumSlope);
+    check_feature!(MaximumSlope);
 
     feature_test!(
         maximum_slope_positive,

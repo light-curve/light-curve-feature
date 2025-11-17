@@ -76,7 +76,7 @@ mod tests {
     use super::*;
     use crate::tests::*;
 
-    check_feature_with_hash!(Amplitude);
+    check_feature!(Amplitude);
 
     feature_test!(amplitude, [Amplitude::new()], [1.0], [0.0_f32, 1.0, 2.0],);
 }

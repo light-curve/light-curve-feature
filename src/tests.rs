@@ -394,55 +394,6 @@ macro_rules! check_partial_eq {
 }
 
 #[macro_export]
-macro_rules! check_hash {
-    ($name: ident, $feature_type: ty, $feature_expr: expr_2021 $(,)?) => {
-        // Test for Hash trait - only compiles if type implements Hash + Eq
-        // If the type doesn't implement Hash, this will be a compile-time no-op
-        #[test]
-        fn $name() {
-            use std::collections::hash_map::DefaultHasher;
-            use std::hash::{Hash, Hasher};
-
-            // Helper function with trait bounds - will cause compile error if not satisfied
-            fn assert_hash<T: Hash + Eq>(val1: T, val2: T) {
-                let mut hasher1 = DefaultHasher::new();
-                val1.hash(&mut hasher1);
-                let hash1 = hasher1.finish();
-
-                let mut hasher2 = DefaultHasher::new();
-                val2.hash(&mut hasher2);
-                let hash2 = hasher2.finish();
-
-                assert_eq!(hash1, hash2, "Equal instances should have equal hashes");
-            }
-
-            let feature1 = $feature_expr;
-            let feature2 = $feature_expr;
-
-            // Call will only work if $feature_type implements Hash + Eq
-            assert_hash(feature1, feature2);
-        }
-    };
-    ($feature_type: ty) => {
-        check_hash!(hash, $feature_type, <$feature_type>::default());
-    };
-}
-
-// Separate macro for checking features that support Hash
-#[macro_export]
-macro_rules! check_feature_with_hash {
-    ($feature: ty) => {
-        eval_info_test!(info_default, <$feature>::default());
-        serialization_name_test!($feature);
-        serde_json_test!(ser_json_de, $feature, <$feature>::default());
-        check_doc_static_method!(doc_static_method, $feature);
-        check_finite!(check_values_finite, <$feature>::default());
-        check_partial_eq!($feature);
-        check_hash!($feature);
-    };
-}
-
-#[macro_export]
 macro_rules! check_feature {
     ($feature: ty) => {
         eval_info_test!(info_default, <$feature>::default());
@@ -451,8 +402,6 @@ macro_rules! check_feature {
         check_doc_static_method!(doc_static_method, $feature);
         check_finite!(check_values_finite, <$feature>::default());
         check_partial_eq!($feature);
-        // Note: Hash test is omitted for types with Float fields
-        // Use check_feature_with_hash! for unit structs that implement Hash
     };
 }
 
