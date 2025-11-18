@@ -2,6 +2,7 @@ use crate::evaluator::*;
 use crate::extractor::FeatureExtractor;
 
 use itertools::Itertools;
+use ordered_float::NotNan;
 use unzip3::Unzip3;
 
 macro_const! {
@@ -35,15 +36,18 @@ considering bin. Bins takes any other feature evaluators to extract features fro
 #[serde(
     into = "BinsParameters<T, F>",
     from = "BinsParameters<T, F>",
-    bound = "T: Float, F: FeatureEvaluator<T>"
+    bound(
+        serialize = "F: FeatureEvaluator<T>",
+        deserialize = "T: Float, F: FeatureEvaluator<T>"
+    )
 )]
 pub struct Bins<T, F>
 where
     T: Float,
     F: FeatureEvaluator<T>,
 {
-    window: T,
-    offset: T,
+    window: NotNan<f64>,
+    offset: NotNan<f64>,
     feature_extractor: FeatureExtractor<T, F>,
     properties: Box<EvaluatorProperties>,
 }
@@ -53,8 +57,10 @@ where
     T: Float,
     F: FeatureEvaluator<T>,
 {
-    pub fn new(window: T, offset: T) -> Self {
-        assert!(window.is_sign_positive(), "window must be positive");
+    pub fn new(window: f64, offset: f64) -> Self {
+        assert!(window > 0.0, "window must be positive");
+        let window = NotNan::new(window).expect("window must not be NaN");
+        let offset = NotNan::new(offset).expect("offset must not be NaN");
         let info = EvaluatorInfo {
             size: 0,
             min_ts_length: 1,
@@ -76,21 +82,21 @@ where
         }
     }
 
-    pub fn set_window(&mut self, window: T) -> &mut Self {
-        assert!(window.is_sign_positive(), "window must be positive");
-        self.window = window;
+    pub fn set_window(&mut self, window: f64) -> &mut Self {
+        assert!(window > 0.0, "window must be positive");
+        self.window = NotNan::new(window).expect("window must not be NaN");
         self
     }
 
-    pub fn set_offset(&mut self, offset: T) -> &mut Self {
-        self.offset = offset;
+    pub fn set_offset(&mut self, offset: f64) -> &mut Self {
+        self.offset = NotNan::new(offset).expect("offset must not be NaN");
         self
     }
 
     /// Extend a feature to extract from binned time series
     pub fn add_feature(&mut self, feature: F) -> &mut Self {
-        let window = self.window;
-        let offset = self.offset;
+        let window = self.window.into_inner();
+        let offset = self.offset.into_inner();
         self.properties.info.size += feature.size_hint();
         self.properties.info.min_ts_length =
             usize::max(self.properties.info.min_ts_length, feature.min_ts_length());
@@ -110,13 +116,13 @@ where
     }
 
     #[inline]
-    pub fn default_window() -> T {
-        T::one()
+    pub fn default_window() -> f64 {
+        1.0
     }
 
     #[inline]
-    pub fn default_offset() -> T {
-        T::zero()
+    pub fn default_offset() -> f64 {
+        0.0
     }
 }
 
@@ -131,6 +137,8 @@ where
 
     fn transform_ts(&self, ts: &mut TimeSeries<T>) -> Result<TmwArrays<T>, EvaluatorError> {
         self.check_ts_length(ts)?;
+        let window = T::from(self.window.into_inner()).unwrap();
+        let offset = T::from(self.offset.into_inner()).unwrap();
         let (t, m, w): (Vec<_>, Vec<_>, Vec<_>) =
             ts.t.as_slice()
                 .iter()
@@ -138,10 +146,10 @@ where
                 .zip(ts.m.as_slice().iter().copied())
                 .zip(ts.w.as_slice().iter().copied())
                 .map(|((t, m), w)| (t, m, w))
-                .chunk_by(|(t, _, _)| ((*t - self.offset) / self.window).floor())
+                .chunk_by(|(t, _, _)| ((*t - offset) / window).floor())
                 .into_iter()
                 .map(|(x, chunk)| {
-                    let bin_t = (x + T::half()) * self.window;
+                    let bin_t = (x + T::half()) * window;
                     let (n, bin_m, norm) = chunk
                         .fold((T::zero(), T::zero(), T::zero()), |acc, (_, m, w)| {
                             (acc.0 + T::one(), acc.1 + m * w, acc.2 + w)
@@ -211,8 +219,8 @@ where
     T: Float,
     F: FeatureEvaluator<T>,
 {
-    window: T,
-    offset: T,
+    window: f64,
+    offset: f64,
     feature_extractor: FeatureExtractor<T, F>,
 }
 
@@ -223,8 +231,8 @@ where
 {
     fn from(f: Bins<T, F>) -> Self {
         Self {
-            window: f.window,
-            offset: f.offset,
+            window: f.window.into_inner(),
+            offset: f.offset.into_inner(),
             feature_extractor: f.feature_extractor,
         }
     }
