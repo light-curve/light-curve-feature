@@ -1,5 +1,7 @@
 use crate::evaluator::*;
 
+use ordered_float::NotNan;
+
 macro_const! {
     const DOC: &'static str = r#"
 Inter-percentile range
@@ -27,7 +29,7 @@ inter-percentile range for $p = 0.1$.
     into = "InterPercentileRangeParameters"
 )]
 pub struct InterPercentileRange {
-    quantile: f32,
+    quantile: NotNan<f32>,
     name: String,
     description: String,
 }
@@ -49,13 +51,14 @@ impl InterPercentileRange {
             (quantile > 0.0) && (quantile < 0.5),
             "Quantile should be in range (0.0, 0.5)"
         );
+        let quantile = NotNan::new(quantile).expect("quantile must not be NaN");
         Self {
             quantile,
-            name: format!("inter_percentile_range_{:.0}", 100.0 * quantile),
+            name: format!("inter_percentile_range_{:.0}", 100.0 * quantile.into_inner()),
             description: format!(
                 "range between {:.3e}% and {:.3e}% magnitude percentiles",
-                100.0 * quantile,
-                100.0 * (1.0 - quantile)
+                100.0 * quantile.into_inner(),
+                100.0 * (1.0 - quantile.into_inner())
             ),
         }
     }
@@ -92,8 +95,9 @@ where
 {
     fn eval(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
         self.check_ts_length(ts)?;
-        let ppf_low = ts.m.get_sorted().ppf(self.quantile);
-        let ppf_high = ts.m.get_sorted().ppf(1.0 - self.quantile);
+        let quantile = self.quantile.into_inner();
+        let ppf_low = ts.m.get_sorted().ppf(quantile);
+        let ppf_high = ts.m.get_sorted().ppf(1.0 - quantile);
         let value = ppf_high - ppf_low;
         Ok(vec![value])
     }
@@ -108,7 +112,7 @@ struct InterPercentileRangeParameters {
 impl From<InterPercentileRange> for InterPercentileRangeParameters {
     fn from(f: InterPercentileRange) -> Self {
         Self {
-            quantile: f.quantile,
+            quantile: f.quantile.into_inner(),
         }
     }
 }

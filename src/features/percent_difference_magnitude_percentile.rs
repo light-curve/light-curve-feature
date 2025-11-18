@@ -1,5 +1,7 @@
 use crate::evaluator::*;
 
+use ordered_float::NotNan;
+
 macro_const! {
     const DOC: &str = r"
 Ratio of $p$th inter-percentile range to the median
@@ -23,7 +25,7 @@ D’Isanto et al. 2016 [DOI:10.1093/mnras/stw157](https://doi.org/10.1093/mnras/
     from = "PercentDifferenceMagnitudePercentileParameters"
 )]
 pub struct PercentDifferenceMagnitudePercentile {
-    quantile: f32,
+    quantile: NotNan<f32>,
     name: String,
     description: String,
 }
@@ -45,16 +47,17 @@ impl PercentDifferenceMagnitudePercentile {
             (quantile > 0.0) && (quantile < 0.5),
             "quantiles should be between zero and half"
         );
+        let quantile = NotNan::new(quantile).expect("quantile must not be NaN");
         Self {
             quantile,
             name: format!(
                 "percent_difference_magnitude_percentile_{:.0}",
-                100.0 * quantile
+                100.0 * quantile.into_inner()
             ),
             description: format!(
                 "ratio of inter-percentile {:.3e}% - {:.3e}% range of magnitude to its mdeian",
-                100.0 * quantile,
-                100.0 * (1.0 - quantile),
+                100.0 * quantile.into_inner(),
+                100.0 * (1.0 - quantile.into_inner()),
             ),
         }
     }
@@ -95,8 +98,9 @@ where
 {
     fn eval(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
         self.check_ts_length(ts)?;
+        let quantile = self.quantile.into_inner();
         let nominator =
-            ts.m.get_sorted().ppf(1.0 - self.quantile) - ts.m.get_sorted().ppf(self.quantile);
+            ts.m.get_sorted().ppf(1.0 - quantile) - ts.m.get_sorted().ppf(quantile);
         let denominator = ts.m.get_median();
         if nominator.is_zero() & denominator.is_zero() {
             Err(EvaluatorError::ZeroDivision("median magnitude is zero"))
@@ -115,7 +119,7 @@ struct PercentDifferenceMagnitudePercentileParameters {
 impl From<PercentDifferenceMagnitudePercentile> for PercentDifferenceMagnitudePercentileParameters {
     fn from(f: PercentDifferenceMagnitudePercentile) -> Self {
         Self {
-            quantile: f.quantile,
+            quantile: f.quantile.into_inner(),
         }
     }
 }

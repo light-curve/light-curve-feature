@@ -1,5 +1,7 @@
 use crate::evaluator::*;
 
+use ordered_float::NotNan;
+
 macro_const! {
     const DOC: &str = r"
 Magnitude percentage ratio
@@ -25,8 +27,8 @@ D’Isanto et al. 2016 [DOI:10.1093/mnras/stw157](https://doi.org/10.1093/mnras/
     into = "MagnitudePercentageRatioParameters"
 )]
 pub struct MagnitudePercentageRatio {
-    quantile_numerator: f32,
-    quantile_denominator: f32,
+    quantile_numerator: NotNan<f32>,
+    quantile_denominator: NotNan<f32>,
     name: String,
     description: String,
 }
@@ -51,21 +53,23 @@ impl MagnitudePercentageRatio {
                 && (quantile_denominator < 0.5),
             "quantiles should be between zero and half"
         );
+        let quantile_numerator = NotNan::new(quantile_numerator).expect("quantile_numerator must not be NaN");
+        let quantile_denominator = NotNan::new(quantile_denominator).expect("quantile_denominator must not be NaN");
         Self {
             quantile_numerator,
             quantile_denominator,
             name: format!(
                 "magnitude_percentage_ratio_{:.0}_{:.0}",
-                100.0 * quantile_numerator,
-                100.0 * quantile_denominator
+                100.0 * quantile_numerator.into_inner(),
+                100.0 * quantile_denominator.into_inner()
             ),
             description: format!(
                 "ratio of {:.3e}% - {:.3e}% and {:.3e}% - {:.3e}% percentile ranges of magnitude \
                 sample",
-                100.0 * quantile_numerator,
-                100.0 * (1.0 - quantile_numerator),
-                100.0 * quantile_denominator,
-                100.0 * (1.0 - quantile_denominator),
+                100.0 * quantile_numerator.into_inner(),
+                100.0 * (1.0 - quantile_numerator.into_inner()),
+                100.0 * quantile_denominator.into_inner(),
+                100.0 * (1.0 - quantile_denominator.into_inner()),
             ),
         }
     }
@@ -114,10 +118,12 @@ where
     fn eval(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
         self.check_ts_length(ts)?;
         let m_sorted = ts.m.get_sorted();
+        let quantile_numerator = self.quantile_numerator.into_inner();
+        let quantile_denominator = self.quantile_denominator.into_inner();
         let numerator =
-            m_sorted.ppf(1.0 - self.quantile_numerator) - m_sorted.ppf(self.quantile_numerator);
+            m_sorted.ppf(1.0 - quantile_numerator) - m_sorted.ppf(quantile_numerator);
         let denumerator =
-            m_sorted.ppf(1.0 - self.quantile_denominator) - m_sorted.ppf(self.quantile_denominator);
+            m_sorted.ppf(1.0 - quantile_denominator) - m_sorted.ppf(quantile_denominator);
         if numerator.is_zero() & denumerator.is_zero() {
             Err(EvaluatorError::FlatTimeSeries)
         } else {
@@ -136,8 +142,8 @@ struct MagnitudePercentageRatioParameters {
 impl From<MagnitudePercentageRatio> for MagnitudePercentageRatioParameters {
     fn from(f: MagnitudePercentageRatio) -> Self {
         Self {
-            quantile_numerator: f.quantile_numerator,
-            quantile_denominator: f.quantile_denominator,
+            quantile_numerator: f.quantile_numerator.into_inner(),
+            quantile_denominator: f.quantile_denominator.into_inner(),
         }
     }
 }
