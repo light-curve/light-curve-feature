@@ -23,7 +23,7 @@ inter-percentile range for $p = 0.1$.
 }
 
 #[doc = DOC!()]
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(
     from = "InterPercentileRangeParameters",
     into = "InterPercentileRangeParameters"
