@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Implement `PartialEq` for `Feature` enum and all constituent types, enabling equality comparisons between feature instances https://github.com/light-curve/light-curve-feature/issues/228
+- Use `ordered_float::NotNan` for float parameters in feature structs (`InterPercentileRange`, `MagnitudePercentageRatio`, `PercentDifferenceMagnitudePercentile`, `VillarLnPrior::Hosseinzadeh2020`), enabling `Eq` and `Hash` trait derivation and ensuring parameters cannot be NaN https://github.com/light-curve/light-curve-feature/issues/233
 
 ### Changed
 
