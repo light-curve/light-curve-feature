@@ -5,6 +5,7 @@ use crate::nl_fit::{
 };
 
 use conv::ConvUtil;
+use ordered_float::NotNan;
 
 const NPARAMS: usize = 7;
 
@@ -531,8 +532,8 @@ pub enum VillarLnPrior {
     /// should be `1` for days, `86400` for seconds, etc. `min_amplitude` is a lower bound for
     /// the log-uniform prior of amplitude, the original paper used unity
     Hosseinzadeh2020 {
-        time_units_in_day: f64,
-        min_amplitude: f64,
+        time_units_in_day: NotNan<f64>,
+        min_amplitude: NotNan<f64>,
     },
 }
 
@@ -543,8 +544,9 @@ impl VillarLnPrior {
 
     pub fn hosseinzadeh2020(time_units_in_day: f64, min_flux: f64) -> Self {
         Self::Hosseinzadeh2020 {
-            time_units_in_day,
-            min_amplitude: min_flux,
+            time_units_in_day: NotNan::new(time_units_in_day)
+                .expect("time_units_in_day must not be NaN"),
+            min_amplitude: NotNan::new(min_flux).expect("min_flux must not be NaN"),
         }
     }
 
@@ -559,9 +561,11 @@ impl VillarLnPrior {
                 let m_min: f64 = ts.m.get_min().value_into().unwrap();
                 let m_max: f64 = ts.m.get_max().value_into().unwrap();
                 let m_amplitude = m_max - m_min;
+                let day = day.into_inner();
+                let min_amplitude = min_amplitude.into_inner();
 
                 LnPrior::ind_components([
-                    LnPrior1D::log_uniform(*min_amplitude, 100.0 * m_amplitude), // amplitude
+                    LnPrior1D::log_uniform(min_amplitude, 100.0 * m_amplitude), // amplitude
                     LnPrior1D::none(), // offset, not used in the original paper
                     LnPrior1D::uniform(t_peak - 50.0 * day, t_peak + 300.0 * day), // reference time
                     LnPrior1D::uniform(0.01 * day, 50.0 * day), // tau_rise

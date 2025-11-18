@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
---
+- **Breaking** Float parameters in feature structs now use `ordered_float::NotNan` type, enabling `Eq` and `Hash` trait derivation and ensuring parameters cannot be NaN https://github.com/light-curve/light-curve-feature/issues/233
 
 ### Deprecated
 
