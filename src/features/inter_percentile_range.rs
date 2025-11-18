@@ -54,7 +54,10 @@ impl InterPercentileRange {
         let quantile = NotNan::new(quantile).expect("quantile must not be NaN");
         Self {
             quantile,
-            name: format!("inter_percentile_range_{:.0}", 100.0 * quantile.into_inner()),
+            name: format!(
+                "inter_percentile_range_{:.0}",
+                100.0 * quantile.into_inner()
+            ),
             description: format!(
                 "range between {:.3e}% and {:.3e}% magnitude percentiles",
                 100.0 * quantile.into_inner(),

@@ -53,8 +53,10 @@ impl MagnitudePercentageRatio {
                 && (quantile_denominator < 0.5),
             "quantiles should be between zero and half"
         );
-        let quantile_numerator = NotNan::new(quantile_numerator).expect("quantile_numerator must not be NaN");
-        let quantile_denominator = NotNan::new(quantile_denominator).expect("quantile_denominator must not be NaN");
+        let quantile_numerator =
+            NotNan::new(quantile_numerator).expect("quantile_numerator must not be NaN");
+        let quantile_denominator =
+            NotNan::new(quantile_denominator).expect("quantile_denominator must not be NaN");
         Self {
             quantile_numerator,
             quantile_denominator,
@@ -120,8 +122,7 @@ where
         let m_sorted = ts.m.get_sorted();
         let quantile_numerator = self.quantile_numerator.into_inner();
         let quantile_denominator = self.quantile_denominator.into_inner();
-        let numerator =
-            m_sorted.ppf(1.0 - quantile_numerator) - m_sorted.ppf(quantile_numerator);
+        let numerator = m_sorted.ppf(1.0 - quantile_numerator) - m_sorted.ppf(quantile_numerator);
         let denumerator =
             m_sorted.ppf(1.0 - quantile_denominator) - m_sorted.ppf(quantile_denominator);
         if numerator.is_zero() & denumerator.is_zero() {

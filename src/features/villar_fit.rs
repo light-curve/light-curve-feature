@@ -544,7 +544,8 @@ impl VillarLnPrior {
 
     pub fn hosseinzadeh2020(time_units_in_day: f64, min_flux: f64) -> Self {
         Self::Hosseinzadeh2020 {
-            time_units_in_day: NotNan::new(time_units_in_day).expect("time_units_in_day must not be NaN"),
+            time_units_in_day: NotNan::new(time_units_in_day)
+                .expect("time_units_in_day must not be NaN"),
             min_amplitude: NotNan::new(min_flux).expect("min_flux must not be NaN"),
         }
     }

@@ -99,8 +99,7 @@ where
     fn eval(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
         self.check_ts_length(ts)?;
         let quantile = self.quantile.into_inner();
-        let nominator =
-            ts.m.get_sorted().ppf(1.0 - quantile) - ts.m.get_sorted().ppf(quantile);
+        let nominator = ts.m.get_sorted().ppf(1.0 - quantile) - ts.m.get_sorted().ppf(quantile);
         let denominator = ts.m.get_median();
         if nominator.is_zero() & denominator.is_zero() {
             Err(EvaluatorError::ZeroDivision("median magnitude is zero"))
