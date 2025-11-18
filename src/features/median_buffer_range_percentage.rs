@@ -1,6 +1,7 @@
 use crate::evaluator::*;
 
 use conv::prelude::*;
+use ordered_float::NotNan;
 
 macro_const! {
     const DOC: &str = r"
@@ -17,14 +18,19 @@ D’Isanto et al. 2016 [DOI:10.1093/mnras/stw157](https://doi.org/10.1093/mnras/
 #[doc = DOC!()]
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(
-    into = "MedianBufferRangePercentageParameters<T>",
-    from = "MedianBufferRangePercentageParameters<T>",
-    bound = "T: Float"
+    into = "MedianBufferRangePercentageParameters",
+    from = "MedianBufferRangePercentageParameters",
+    bound(serialize = "", deserialize = "T: Float")
 )]
-pub struct MedianBufferRangePercentage<T> {
-    quantile: T,
+pub struct MedianBufferRangePercentage<T>
+where
+    T: Float,
+{
+    quantile: NotNan<f32>,
     name: String,
     description: String,
+    #[serde(skip)]
+    _phantom: std::marker::PhantomData<T>,
 }
 
 lazy_info!(
@@ -43,18 +49,21 @@ impl<T> MedianBufferRangePercentage<T>
 where
     T: Float,
 {
-    pub fn new(quantile: T) -> Self {
-        assert!(quantile > T::zero(), "Quanitle should be positive");
+    pub fn new(quantile: f32) -> Self {
+        assert!(quantile > 0.0, "Quantile should be positive");
+        let quantile = NotNan::new(quantile).expect("quantile must not be NaN");
         Self {
             quantile,
             name: format!(
                 "median_buffer_range_percentage_{:.0}",
-                T::hundred() * quantile
+                100.0 * quantile.into_inner()
             ),
             description: format!(
                 "fraction of observations which magnitudes differ from median by no more than \
-                {quantile:.3e} of amplitude",
+                {:.3e} of amplitude",
+                quantile.into_inner()
             ),
+            _phantom: std::marker::PhantomData,
         }
     }
 
@@ -63,12 +72,15 @@ where
     }
 
     #[inline]
-    pub fn default_quantile() -> T {
-        0.1_f32.value_as::<T>().unwrap()
+    pub fn default_quantile() -> f32 {
+        0.1
     }
 }
 
-impl<T> MedianBufferRangePercentage<T> {
+impl<T> MedianBufferRangePercentage<T>
+where
+    T: Float,
+{
     pub const fn doc() -> &'static str {
         DOC
     }
@@ -104,7 +116,8 @@ where
         self.check_ts_length(ts)?;
         let m_median = ts.m.get_median();
         let amplitude = T::half() * (ts.m.get_max() - ts.m.get_min());
-        let threshold = self.quantile * amplitude;
+        let quantile = T::from(self.quantile.into_inner()).unwrap();
+        let threshold = quantile * amplitude;
         let count_under = ts.m.sample.fold(0, |count, &m| {
             let under = T::abs(m - m_median) < threshold;
             count + usize::from(under)
@@ -115,23 +128,26 @@ where
 
 #[derive(Serialize, Deserialize, JsonSchema)]
 #[serde(rename = "MedianBufferRangePercentage")]
-struct MedianBufferRangePercentageParameters<T> {
-    quantile: T,
+struct MedianBufferRangePercentageParameters {
+    quantile: f32,
 }
 
-impl<T> From<MedianBufferRangePercentage<T>> for MedianBufferRangePercentageParameters<T> {
+impl<T> From<MedianBufferRangePercentage<T>> for MedianBufferRangePercentageParameters
+where
+    T: Float,
+{
     fn from(f: MedianBufferRangePercentage<T>) -> Self {
         Self {
-            quantile: f.quantile,
+            quantile: f.quantile.into_inner(),
         }
     }
 }
 
-impl<T> From<MedianBufferRangePercentageParameters<T>> for MedianBufferRangePercentage<T>
+impl<T> From<MedianBufferRangePercentageParameters> for MedianBufferRangePercentage<T>
 where
     T: Float,
 {
-    fn from(p: MedianBufferRangePercentageParameters<T>) -> Self {
+    fn from(p: MedianBufferRangePercentageParameters) -> Self {
         Self::new(p.quantile)
     }
 }
@@ -140,7 +156,7 @@ impl<T> JsonSchema for MedianBufferRangePercentage<T>
 where
     T: Float,
 {
-    json_schema!(MedianBufferRangePercentageParameters<T>, false);
+    json_schema!(MedianBufferRangePercentageParameters, false);
 }
 
 #[cfg(test)]
@@ -174,8 +190,8 @@ mod tests {
 
     #[test]
     fn serialization() {
-        const QUANTILE: f64 = 0.432;
-        let median_buffer_range_percentage = MedianBufferRangePercentage::new(QUANTILE);
+        const QUANTILE: f32 = 0.432;
+        let median_buffer_range_percentage = MedianBufferRangePercentage::<f64>::new(QUANTILE);
         assert_tokens(
             &median_buffer_range_percentage,
             &[
@@ -184,7 +200,7 @@ mod tests {
                     name: "MedianBufferRangePercentage",
                 },
                 Token::String("quantile"),
-                Token::F64(QUANTILE),
+                Token::F32(QUANTILE),
                 Token::StructEnd,
             ],
         )
