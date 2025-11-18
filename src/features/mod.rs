@@ -1,5 +1,8 @@
 //! Feature sctructs implements [crate::FeatureEvaluator] trait
 
+mod adf;
+pub use adf::Adf;
+
 mod amplitude;
 pub use amplitude::Amplitude;
 

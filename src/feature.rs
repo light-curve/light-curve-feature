@@ -22,6 +22,7 @@ where
     // extractor
     FeatureExtractor(FeatureExtractor<T, Self>),
     // features
+    Adf,
     Amplitude,
     AndersonDarlingNormal,
     Bins(Bins<T, Self>),
