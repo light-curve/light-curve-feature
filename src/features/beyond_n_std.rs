@@ -43,7 +43,7 @@ D’Isanto et al. 2016 [DOI:10.1093/mnras/stw157](https://doi.org/10.1093/mnras/
 #[serde(
     from = "BeyondNStdParameters",
     into = "BeyondNStdParameters",
-    bound(serialize = "", deserialize = "T: Float")
+    bound(deserialize = "T: Float")
 )]
 pub struct BeyondNStd<T>
 where
@@ -135,7 +135,8 @@ where
     fn eval(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
         self.check_ts_length(ts)?;
         let m_mean = ts.m.get_mean();
-        let nstd = T::from(self.nstd.into_inner()).unwrap();
+        let nstd = T::from(self.nstd.into_inner())
+            .expect("nstd f32 value should be convertible to T (f32 or f64) without overflow");
         let threshold = ts.m.get_std() * nstd;
         let count_beyond = ts.m.sample.fold(0, |count, &m| {
             let beyond = T::abs(m - m_mean) > threshold;

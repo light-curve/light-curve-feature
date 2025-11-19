@@ -20,7 +20,7 @@ D’Isanto et al. 2016 [DOI:10.1093/mnras/stw157](https://doi.org/10.1093/mnras/
 #[serde(
     into = "MedianBufferRangePercentageParameters",
     from = "MedianBufferRangePercentageParameters",
-    bound(serialize = "", deserialize = "T: Float")
+    bound(deserialize = "T: Float")
 )]
 pub struct MedianBufferRangePercentage<T>
 where
@@ -116,7 +116,8 @@ where
         self.check_ts_length(ts)?;
         let m_median = ts.m.get_median();
         let amplitude = T::half() * (ts.m.get_max() - ts.m.get_min());
-        let quantile = T::from(self.quantile.into_inner()).unwrap();
+        let quantile = T::from(self.quantile.into_inner())
+            .expect("quantile f32 value should be convertible to T (f32 or f64) without overflow");
         let threshold = quantile * amplitude;
         let count_under = ts.m.sample.fold(0, |count, &m| {
             let under = T::abs(m - m_median) < threshold;

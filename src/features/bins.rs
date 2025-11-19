@@ -36,10 +36,7 @@ considering bin. Bins takes any other feature evaluators to extract features fro
 #[serde(
     into = "BinsParameters<T, F>",
     from = "BinsParameters<T, F>",
-    bound(
-        serialize = "F: FeatureEvaluator<T>",
-        deserialize = "T: Float, F: FeatureEvaluator<T>"
-    )
+    bound(deserialize = "T: Float, F: FeatureEvaluator<T>")
 )]
 pub struct Bins<T, F>
 where
@@ -137,8 +134,10 @@ where
 
     fn transform_ts(&self, ts: &mut TimeSeries<T>) -> Result<TmwArrays<T>, EvaluatorError> {
         self.check_ts_length(ts)?;
-        let window = T::from(self.window.into_inner()).unwrap();
-        let offset = T::from(self.offset.into_inner()).unwrap();
+        let window = T::from(self.window.into_inner())
+            .expect("window f64 value should be convertible to T (f32 or f64) without overflow");
+        let offset = T::from(self.offset.into_inner())
+            .expect("offset f64 value should be convertible to T (f32 or f64) without overflow");
         let (t, m, w): (Vec<_>, Vec<_>, Vec<_>) =
             ts.t.as_slice()
                 .iter()
