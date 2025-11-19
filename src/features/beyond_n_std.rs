@@ -62,6 +62,7 @@ where
 {
     pub fn new(nstd: f32) -> Self {
         assert!(nstd > 0.0, "nstd should be positive");
+        assert!(nstd.is_finite(), "nstd must be finite");
         let nstd = NotNan::new(nstd).expect("nstd must not be NaN");
         Self {
             nstd,
@@ -135,8 +136,8 @@ where
     fn eval(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
         self.check_ts_length(ts)?;
         let m_mean = ts.m.get_mean();
-        let nstd = T::from(self.nstd.into_inner())
-            .expect("nstd f32 value should be convertible to T (f32 or f64) without overflow");
+        // This conversion should never fail because f32 is always convertible to f32 or f64
+        let nstd = T::from(self.nstd.into_inner()).unwrap();
         let threshold = ts.m.get_std() * nstd;
         let count_beyond = ts.m.sample.fold(0, |count, &m| {
             let beyond = T::abs(m - m_mean) > threshold;

@@ -56,6 +56,18 @@ where
 {
     pub fn new(window: f64, offset: f64) -> Self {
         assert!(window > 0.0, "window must be positive");
+        // Validate that window and offset can be converted to f32 without overflow
+        // since T could be f32 or f64
+        assert!(
+            window.is_finite() && window.abs() <= f32::MAX as f64,
+            "window value {} is out of range for f32",
+            window
+        );
+        assert!(
+            offset.is_finite() && offset.abs() <= f32::MAX as f64,
+            "offset value {} is out of range for f32",
+            offset
+        );
         let window = NotNan::new(window).expect("window must not be NaN");
         let offset = NotNan::new(offset).expect("offset must not be NaN");
         let info = EvaluatorInfo {
@@ -81,11 +93,21 @@ where
 
     pub fn set_window(&mut self, window: f64) -> &mut Self {
         assert!(window > 0.0, "window must be positive");
+        assert!(
+            window.is_finite() && window.abs() <= f32::MAX as f64,
+            "window value {} is out of range for f32",
+            window
+        );
         self.window = NotNan::new(window).expect("window must not be NaN");
         self
     }
 
     pub fn set_offset(&mut self, offset: f64) -> &mut Self {
+        assert!(
+            offset.is_finite() && offset.abs() <= f32::MAX as f64,
+            "offset value {} is out of range for f32",
+            offset
+        );
         self.offset = NotNan::new(offset).expect("offset must not be NaN");
         self
     }
@@ -134,10 +156,9 @@ where
 
     fn transform_ts(&self, ts: &mut TimeSeries<T>) -> Result<TmwArrays<T>, EvaluatorError> {
         self.check_ts_length(ts)?;
-        let window = T::from(self.window.into_inner())
-            .expect("window f64 value should be convertible to T (f32 or f64) without overflow");
-        let offset = T::from(self.offset.into_inner())
-            .expect("offset f64 value should be convertible to T (f32 or f64) without overflow");
+        // These conversions should never fail because we validated the range in new() and set methods
+        let window = T::from(self.window.into_inner()).unwrap();
+        let offset = T::from(self.offset.into_inner()).unwrap();
         let (t, m, w): (Vec<_>, Vec<_>, Vec<_>) =
             ts.t.as_slice()
                 .iter()

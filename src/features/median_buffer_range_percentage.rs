@@ -51,6 +51,7 @@ where
 {
     pub fn new(quantile: f32) -> Self {
         assert!(quantile > 0.0, "Quantile should be positive");
+        assert!(quantile.is_finite(), "quantile must be finite");
         let quantile = NotNan::new(quantile).expect("quantile must not be NaN");
         Self {
             quantile,
@@ -116,8 +117,8 @@ where
         self.check_ts_length(ts)?;
         let m_median = ts.m.get_median();
         let amplitude = T::half() * (ts.m.get_max() - ts.m.get_min());
-        let quantile = T::from(self.quantile.into_inner())
-            .expect("quantile f32 value should be convertible to T (f32 or f64) without overflow");
+        // This conversion should never fail because f32 is always convertible to f32 or f64
+        let quantile = T::from(self.quantile.into_inner()).unwrap();
         let threshold = quantile * amplitude;
         let count_under = ts.m.sample.fold(0, |count, &m| {
             let under = T::abs(m - m_median) < threshold;
