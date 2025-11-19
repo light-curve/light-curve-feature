@@ -78,7 +78,18 @@ When adding or modifying features that require external libraries:
 1. Install Rust via [rustup](https://rustup.rs)
 2. Install system dependencies (see README for platform-specific commands)
 3. Clone with submodules: `git clone --recursive`
-4. Run initial checks: `cargo check` and `cargo test`
+4. Run initial checks on all packages:
+   ```bash
+   # Main package
+   cargo check --all-targets --no-default-features --features=ceres-source,fftw-source,gsl
+   cargo test --no-default-features --features=ceres-source,fftw-source,gsl
+   
+   # test-util package
+   cd test-util
+   cargo check --all-targets
+   cargo test
+   cd ..
+   ```
 
 ### Pre-commit Hooks
 - Use [pre-commit](https://pre-commit.com) for automated checks
@@ -89,8 +100,22 @@ When adding or modifying features that require external libraries:
 ### Pull Request Workflow
 1. Create feature branch from `master`
 2. Make minimal, focused changes
-3. Run `cargo fmt` before committing
-4. Run `cargo clippy` and address all warnings
+3. Run `cargo fmt` before committing on all packages:
+   ```bash
+   # Main package
+   cargo fmt -- --check
+   
+   # test-util package
+   cd test-util && cargo fmt -- --check && cd ..
+   ```
+4. Run `cargo clippy` and address all warnings on all packages:
+   ```bash
+   # Main package
+   cargo clippy --all-targets --no-default-features --features=ceres-source,fftw-source,gsl -- -D warnings
+   
+   # test-util package
+   cd test-util && cargo clippy --all-targets -- -D warnings && cd ..
+   ```
 5. Add/update tests for your changes
 6. Ensure all tests pass locally
 7. Submit PR with clear description of changes
