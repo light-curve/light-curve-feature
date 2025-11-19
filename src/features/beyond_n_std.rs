@@ -1,6 +1,7 @@
 use crate::evaluator::*;
 
 use conv::ConvUtil;
+use ordered_float::NotNan;
 
 macro_const! {
     const DOC: &str = r"
@@ -40,29 +41,38 @@ D’Isanto et al. 2016 [DOI:10.1093/mnras/stw157](https://doi.org/10.1093/mnras/
 /// ```
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(
-    from = "BeyondNStdParameters<T>",
-    into = "BeyondNStdParameters<T>",
-    bound = "T: Float"
+    from = "BeyondNStdParameters",
+    into = "BeyondNStdParameters",
+    bound(deserialize = "T: Float")
 )]
-pub struct BeyondNStd<T> {
-    nstd: T,
+pub struct BeyondNStd<T>
+where
+    T: Float,
+{
+    nstd: NotNan<f32>,
     name: String,
     description: String,
+    #[serde(skip)]
+    _phantom: std::marker::PhantomData<T>,
 }
 
 impl<T> BeyondNStd<T>
 where
     T: Float,
 {
-    pub fn new(nstd: T) -> Self {
-        assert!(nstd > T::zero(), "nstd should be positive");
+    pub fn new(nstd: f32) -> Self {
+        assert!(nstd > 0.0, "nstd should be positive");
+        assert!(nstd.is_finite(), "nstd must be finite");
+        let nstd = NotNan::new(nstd).expect("nstd must not be NaN");
         Self {
             nstd,
-            name: format!("beyond_{nstd:.0}_std"),
+            name: format!("beyond_{:.0}_std", nstd.into_inner()),
             description: format!(
-                "fraction of observations which magnitudes are beyond {nstd:.3e} standard deviations \
-                from the mean magnitude"
+                "fraction of observations which magnitudes are beyond {:.3e} standard deviations \
+                from the mean magnitude",
+                nstd.into_inner()
             ),
+            _phantom: std::marker::PhantomData,
         }
     }
 
@@ -71,12 +81,15 @@ where
     }
 
     #[inline]
-    pub fn default_nstd() -> T {
-        T::one()
+    pub fn default_nstd() -> f32 {
+        1.0
     }
 }
 
-impl<T> BeyondNStd<T> {
+impl<T> BeyondNStd<T>
+where
+    T: Float,
+{
     pub const fn doc() -> &'static str {
         DOC
     }
@@ -123,7 +136,9 @@ where
     fn eval(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
         self.check_ts_length(ts)?;
         let m_mean = ts.m.get_mean();
-        let threshold = ts.m.get_std() * self.nstd;
+        // This conversion should never fail because f32 is always convertible to f32 or f64
+        let nstd = self.nstd.into_inner().value_as::<T>().unwrap();
+        let threshold = ts.m.get_std() * nstd;
         let count_beyond = ts.m.sample.fold(0, |count, &m| {
             let beyond = T::abs(m - m_mean) > threshold;
             count + usize::from(beyond)
@@ -134,21 +149,26 @@ where
 
 #[derive(Serialize, Deserialize, JsonSchema)]
 #[serde(rename = "BeyondNStd")]
-struct BeyondNStdParameters<T> {
-    nstd: T,
+struct BeyondNStdParameters {
+    nstd: f32,
 }
 
-impl<T> From<BeyondNStd<T>> for BeyondNStdParameters<T> {
-    fn from(f: BeyondNStd<T>) -> Self {
-        Self { nstd: f.nstd }
-    }
-}
-
-impl<T> From<BeyondNStdParameters<T>> for BeyondNStd<T>
+impl<T> From<BeyondNStd<T>> for BeyondNStdParameters
 where
     T: Float,
 {
-    fn from(p: BeyondNStdParameters<T>) -> Self {
+    fn from(f: BeyondNStd<T>) -> Self {
+        Self {
+            nstd: f.nstd.into_inner(),
+        }
+    }
+}
+
+impl<T> From<BeyondNStdParameters> for BeyondNStd<T>
+where
+    T: Float,
+{
+    fn from(p: BeyondNStdParameters) -> Self {
         Self::new(p.nstd)
     }
 }
@@ -157,7 +177,7 @@ impl<T> JsonSchema for BeyondNStd<T>
 where
     T: Float,
 {
-    json_schema!(BeyondNStdParameters<T>, false);
+    json_schema!(BeyondNStdParameters, false);
 }
 
 #[cfg(test)]
@@ -184,8 +204,8 @@ mod tests {
 
     #[test]
     fn serialization() {
-        const NSTD: f64 = 2.34;
-        let beyond_n_std = BeyondNStd::new(NSTD);
+        const NSTD: f32 = 2.34;
+        let beyond_n_std = BeyondNStd::<f64>::new(NSTD);
         assert_tokens(
             &beyond_n_std,
             &[
@@ -194,7 +214,7 @@ mod tests {
                     name: "BeyondNStd",
                 },
                 Token::String("nstd"),
-                Token::F64(NSTD),
+                Token::F32(NSTD),
                 Token::StructEnd,
             ],
         )
