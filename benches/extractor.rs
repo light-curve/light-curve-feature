@@ -49,7 +49,7 @@ where
         .collect();
 
     let beyond_n_std_vec: Vec<_> = (1usize..21)
-        .map(|i| BeyondNStd::new(i.value_as::<T>().unwrap() / T::ten()).into())
+        .map(|i| BeyondNStd::new(i.value_as::<f32>().unwrap() / 10.0).into())
         .collect();
 
     let mut bins = Bins::default();
