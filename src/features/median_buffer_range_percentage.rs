@@ -118,7 +118,7 @@ where
         let m_median = ts.m.get_median();
         let amplitude = T::half() * (ts.m.get_max() - ts.m.get_min());
         // This conversion should never fail because f32 is always convertible to f32 or f64
-        let quantile = T::from(self.quantile.into_inner()).unwrap();
+        let quantile = self.quantile.into_inner().value_as::<T>().unwrap();
         let threshold = quantile * amplitude;
         let count_under = ts.m.sample.fold(0, |count, &m| {
             let under = T::abs(m - m_median) < threshold;

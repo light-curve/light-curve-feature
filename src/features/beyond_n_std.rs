@@ -137,7 +137,7 @@ where
         self.check_ts_length(ts)?;
         let m_mean = ts.m.get_mean();
         // This conversion should never fail because f32 is always convertible to f32 or f64
-        let nstd = T::from(self.nstd.into_inner()).unwrap();
+        let nstd = self.nstd.into_inner().value_as::<T>().unwrap();
         let threshold = ts.m.get_std() * nstd;
         let count_beyond = ts.m.sample.fold(0, |count, &m| {
             let beyond = T::abs(m - m_mean) > threshold;

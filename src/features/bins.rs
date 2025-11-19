@@ -1,6 +1,7 @@
 use crate::evaluator::*;
 use crate::extractor::FeatureExtractor;
 
+use conv::ConvUtil;
 use itertools::Itertools;
 use ordered_float::NotNan;
 use unzip3::Unzip3;
@@ -157,8 +158,8 @@ where
     fn transform_ts(&self, ts: &mut TimeSeries<T>) -> Result<TmwArrays<T>, EvaluatorError> {
         self.check_ts_length(ts)?;
         // These conversions should never fail because we validated the range in new() and set methods
-        let window = T::from(self.window.into_inner()).unwrap();
-        let offset = T::from(self.offset.into_inner()).unwrap();
+        let window = self.window.into_inner().approx_as::<T>().unwrap();
+        let offset = self.offset.into_inner().approx_as::<T>().unwrap();
         let (t, m, w): (Vec<_>, Vec<_>, Vec<_>) =
             ts.t.as_slice()
                 .iter()
