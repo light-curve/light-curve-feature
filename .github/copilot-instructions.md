@@ -83,7 +83,7 @@ When adding or modifying features that require external libraries:
    # Main package
    cargo check --all-targets --no-default-features --features=ceres-source,fftw-source,gsl
    cargo test --no-default-features --features=ceres-source,fftw-source,gsl
-   
+
    # test-util package
    cd test-util
    cargo check --all-targets
@@ -100,25 +100,29 @@ When adding or modifying features that require external libraries:
 ### Pull Request Workflow
 1. Create feature branch from `master`
 2. Make minimal, focused changes
-3. Run `cargo fmt` before committing on all packages:
+3. Run `pre-commit` to check for common issues:
+   ```bash
+   pre-commit run --all-files
+   ```
+4. Run `cargo fmt` before committing on all packages:
    ```bash
    # Main package
    cargo fmt -- --check
-   
+
    # test-util package
    cd test-util && cargo fmt -- --check && cd ..
    ```
-4. Run `cargo clippy` and address all warnings on all packages:
+5. Run `cargo clippy` and address all warnings on all packages:
    ```bash
    # Main package
    cargo clippy --all-targets --no-default-features --features=ceres-source,fftw-source,gsl -- -D warnings
-   
+
    # test-util package
    cd test-util && cargo clippy --all-targets -- -D warnings && cd ..
    ```
-5. Add/update tests for your changes
-6. Ensure all tests pass locally
-7. Submit PR with clear description of changes
+6. Add/update tests for your changes
+7. Ensure all tests pass locally
+8. Submit PR with clear description of changes
 
 ## Documentation Standards
 
