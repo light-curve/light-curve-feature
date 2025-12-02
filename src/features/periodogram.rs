@@ -184,7 +184,7 @@ series without observation errors (unity weights are used if required). You can 
 }
 
 #[doc = DOC!()]
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Hash)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(
     bound = "T: Float, F: FeatureEvaluator<T> + From<PeriodogramPeaks> + TryInto<PeriodogramPeaks>, <F as std::convert::TryInto<PeriodogramPeaks>>::Error: Debug,",
     from = "PeriodogramParameters<T, F>",
@@ -198,6 +198,19 @@ where
     feature_extractor: FeatureExtractor<T, F>,
     periodogram_algorithm: PeriodogramPower<T>,
     properties: Box<EvaluatorProperties>,
+}
+
+impl<T, F> std::hash::Hash for Periodogram<T, F>
+where
+    T: Float,
+    F: FeatureEvaluator<T>,
+{
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.freq_grid_strategy.hash(state);
+        self.feature_extractor.hash(state);
+        self.periodogram_algorithm.hash(state);
+        self.properties.hash(state);
+    }
 }
 
 impl<T, F> Periodogram<T, F>

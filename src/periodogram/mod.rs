@@ -30,7 +30,7 @@ pub mod sin_cos_iterator;
 
 /// Periodogram execution algorithm
 #[enum_dispatch(PeriodogramPowerTrait<T>)]
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(bound = "T: Float")]
 #[non_exhaustive]
 pub enum PeriodogramPower<T>
@@ -39,6 +39,16 @@ where
 {
     Fft(PeriodogramPowerFft<T>),
     Direct(PeriodogramPowerDirect),
+}
+
+impl<T: Float> std::hash::Hash for PeriodogramPower<T> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        core::mem::discriminant(self).hash(state);
+        match self {
+            PeriodogramPower::Fft(v) => v.hash(state),
+            PeriodogramPower::Direct(v) => v.hash(state),
+        }
+    }
 }
 
 /// Lamb-Scargle periodogram calculator on uniform frequency grid

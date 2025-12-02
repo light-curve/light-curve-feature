@@ -34,7 +34,7 @@ considering bin. Bins takes any other feature evaluators to extract features fro
 }
 
 #[doc = DOC!()]
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(
     into = "BinsParameters<T, F>",
     from = "BinsParameters<T, F>",
@@ -49,6 +49,19 @@ where
     offset: NotNan<f64>,
     feature_extractor: FeatureExtractor<T, F>,
     properties: Box<EvaluatorProperties>,
+}
+
+impl<T, F> Hash for Bins<T, F>
+where
+    T: Float,
+    F: FeatureEvaluator<T>,
+{
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.window.hash(state);
+        self.offset.hash(state);
+        self.feature_extractor.hash(state);
+        self.properties.hash(state);
+    }
 }
 
 impl<T, F> Bins<T, F>

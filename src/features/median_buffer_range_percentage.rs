@@ -16,7 +16,7 @@ D’Isanto et al. 2016 [DOI:10.1093/mnras/stw157](https://doi.org/10.1093/mnras/
 }
 
 #[doc = DOC!()]
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(
     into = "MedianBufferRangePercentageParameters",
     from = "MedianBufferRangePercentageParameters",
@@ -31,6 +31,15 @@ where
     description: String,
     #[serde(skip)]
     _phantom: std::marker::PhantomData<T>,
+}
+
+impl<T: Float> std::hash::Hash for MedianBufferRangePercentage<T> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.quantile.hash(state);
+        self.name.hash(state);
+        self.description.hash(state);
+        // PhantomData always hashes as ()
+    }
 }
 
 lazy_info!(

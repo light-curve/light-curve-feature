@@ -31,7 +31,7 @@ pub trait TransformerTrait<T: Float>:
 }
 
 #[enum_dispatch(TransformerTrait<T>, TransformerPropsTrait)]
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Hash)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[serde(bound = "T: Float")]
 #[non_exhaustive]
 pub enum Transformer<T: Float> {
@@ -45,4 +45,23 @@ pub enum Transformer<T: Float> {
     Lg(super::lg::LgTransformer),
     Sqrt(super::sqrt::SqrtTransformer),
     VillarFit(super::villar_fit::VillarFitTransformer<T>),
+}
+
+impl<T: Float> std::hash::Hash for Transformer<T> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        // Hash a discriminant first to distinguish variants
+        std::mem::discriminant(self).hash(state);
+        match self {
+            Self::Arcsinh(v) => v.hash(state),
+            Self::BazinFit(v) => v.hash(state),
+            Self::ClippedLg(v) => v.hash(state),
+            Self::Composed(v) => v.hash(state),
+            Self::Identity(v) => v.hash(state),
+            Self::LinexpFit(v) => v.hash(state),
+            Self::Ln1p(v) => v.hash(state),
+            Self::Lg(v) => v.hash(state),
+            Self::Sqrt(v) => v.hash(state),
+            Self::VillarFit(v) => v.hash(state),
+        }
+    }
 }

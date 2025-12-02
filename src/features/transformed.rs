@@ -1,7 +1,6 @@
 use crate::evaluator::*;
 use crate::transformers::TransformerTrait;
 
-use std::hash::Hash;
 use std::marker::PhantomData;
 use thiserror::Error;
 
@@ -22,7 +21,7 @@ Feature extractor transforming output of other feature extractors
 }
 
 #[doc = DOC!()]
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(
     into = "TransformedParameters<F, Tr>",
     try_from = "TransformedParameters<F, Tr>",
@@ -34,6 +33,20 @@ pub struct Transformed<T, F, Tr> {
     transformer: Tr,
     properties: Box<EvaluatorProperties>,
     phantom: PhantomData<T>,
+}
+
+impl<T, F, Tr> std::hash::Hash for Transformed<T, F, Tr>
+where
+    T: Float,
+    F: FeatureEvaluator<T>,
+    Tr: TransformerTrait<T> + std::hash::Hash,
+{
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.feature.hash(state);
+        self.transformer.hash(state);
+        self.properties.hash(state);
+        // PhantomData always hashes as ()
+    }
 }
 
 impl<T, F, Tr> Transformed<T, F, Tr>
@@ -109,7 +122,7 @@ impl<T, F, Tr> FeatureEvaluator<T> for Transformed<T, F, Tr>
 where
     T: Float,
     F: FeatureEvaluator<T>,
-    Tr: TransformerTrait<T>,
+    Tr: TransformerTrait<T> + std::hash::Hash,
 {
     fn eval(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
         Ok(self.transformer.transform(self.feature.eval(ts)?))
