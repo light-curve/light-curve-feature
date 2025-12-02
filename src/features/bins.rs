@@ -4,6 +4,7 @@ use crate::extractor::FeatureExtractor;
 use conv::ConvUtil;
 use itertools::Itertools;
 use ordered_float::NotNan;
+use std::hash::Hash;
 use unzip3::Unzip3;
 
 macro_const! {
@@ -33,7 +34,7 @@ considering bin. Bins takes any other feature evaluators to extract features fro
 }
 
 #[doc = DOC!()]
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(
     into = "BinsParameters<T, F>",
     from = "BinsParameters<T, F>",

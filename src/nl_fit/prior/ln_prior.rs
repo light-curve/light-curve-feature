@@ -5,6 +5,7 @@ use schemars::JsonSchema;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
+use std::hash::{Hash, Hasher};
 
 #[enum_dispatch]
 pub trait LnPriorTrait<const NPARAMS: usize>: Clone + Debug + Serialize + DeserializeOwned {
@@ -13,11 +14,21 @@ pub trait LnPriorTrait<const NPARAMS: usize>: Clone + Debug + Serialize + Deseri
 
 /// Natural logarithm of prior for non-linear curve-fit problem
 #[enum_dispatch(LnPriorTrait<NPARAMS>)]
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum LnPrior<const NPARAMS: usize> {
     None(NoneLnPrior),
     IndComponents(IndComponentsLnPrior<NPARAMS>),
+}
+
+impl<const NPARAMS: usize> Hash for LnPrior<NPARAMS> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        core::mem::discriminant(self).hash(state);
+        match self {
+            LnPrior::None(v) => v.hash(state),
+            LnPrior::IndComponents(v) => v.hash(state),
+        }
+    }
 }
 
 impl<const NPARAMS: usize> LnPrior<NPARAMS> {
@@ -58,7 +69,7 @@ impl<const NPARAMS: usize> LnPrior<NPARAMS> {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash)]
 pub struct NoneLnPrior {}
 
 impl<const NPARAMS: usize> LnPriorTrait<NPARAMS> for NoneLnPrior {
@@ -67,7 +78,7 @@ impl<const NPARAMS: usize> LnPriorTrait<NPARAMS> for NoneLnPrior {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(
     into = "IndComponentsLnPriorSerde",
     try_from = "IndComponentsLnPriorSerde"

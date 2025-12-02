@@ -5,6 +5,7 @@ use crate::nl_fit::{
 };
 
 use conv::ConvUtil;
+use std::hash::Hash;
 
 const NPARAMS: usize = 4;
 
@@ -29,7 +30,7 @@ Note, that the Linexp function is developed to be used with fluxes, not magnitud
 }
 
 #[doc = DOC!()]
-#[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq, Eq, Hash)]
 pub struct LinexpFit {
     algorithm: CurveFitAlgorithm,
     ln_prior: LinexpLnPrior,
@@ -289,7 +290,7 @@ where
     fit_eval!();
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, Default, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, Default, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum LinexpInitsBounds {
     #[default]
@@ -345,7 +346,7 @@ impl LinexpInitsBounds {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum LinexpLnPrior {
     Fixed(Box<LnPrior<NPARAMS>>),

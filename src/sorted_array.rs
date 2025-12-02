@@ -5,11 +5,24 @@ use ndarray::{Array1, ArrayView1};
 use schemars::schema::Schema;
 use schemars::{JsonSchema, r#gen::SchemaGenerator};
 use serde::{Deserialize, Serialize};
+use std::hash::{Hash, Hasher};
 use std::ops::Deref;
 
 // Underlying array is guaranteed to be sorted and contiguous
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct SortedArray<T>(pub Array1<T>);
+
+impl<T: Float> Hash for SortedArray<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        // Hash the length first
+        self.0.len().hash(state);
+        // Hash each element by converting to f64 bits
+        for &val in self.0.iter() {
+            let val_f64: f64 = val.value_into().unwrap();
+            val_f64.to_bits().hash(state);
+        }
+    }
+}
 
 impl<T> SortedArray<T>
 where

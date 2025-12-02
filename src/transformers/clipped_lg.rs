@@ -1,6 +1,7 @@
 use crate::transformers::transformer::*;
 
 use conv::prelude::*;
+use std::hash::{Hash, Hasher};
 
 macro_const! {
     const DOC: &str = r#"
@@ -12,6 +13,17 @@ Decimal logarithm of a value clipped to a minimum value
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub struct ClippedLgTransformer<T> {
     pub min_value: T,
+}
+
+impl<T> Hash for ClippedLgTransformer<T>
+where
+    T: Float,
+{
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        // Convert to f64 and use its bit representation for hashing
+        let min_value_f64: f64 = self.min_value.value_into().unwrap();
+        min_value_f64.to_bits().hash(state);
+    }
 }
 
 impl<T> ClippedLgTransformer<T>

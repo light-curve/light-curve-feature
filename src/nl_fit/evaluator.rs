@@ -6,6 +6,7 @@ use schemars::JsonSchema;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
+use std::hash::{Hash, Hasher};
 
 pub trait FitModelTrait<T, U, const NPARAMS: usize>
 where
@@ -42,6 +43,32 @@ pub trait FitDerivalivesTrait<T: Float, const NPARAMS: usize> {
     bound = "T: Debug + Clone + Serialize + DeserializeOwned + JsonSchema"
 )]
 pub struct FitArray<T, const NPARAMS: usize>(pub [T; NPARAMS]);
+
+impl<const NPARAMS: usize> Hash for FitArray<f64, NPARAMS> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        for val in &self.0 {
+            val.to_bits().hash(state);
+        }
+    }
+}
+
+impl<const NPARAMS: usize> Eq for FitArray<f64, NPARAMS> {}
+
+impl<const NPARAMS: usize> Hash for FitArray<Option<f64>, NPARAMS> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        for val in &self.0 {
+            match val {
+                Some(f) => {
+                    true.hash(state);
+                    f.to_bits().hash(state);
+                }
+                None => false.hash(state),
+            }
+        }
+    }
+}
+
+impl<const NPARAMS: usize> Eq for FitArray<Option<f64>, NPARAMS> {}
 
 impl<T, const NPARAMS: usize> JsonSchema for FitArray<T, NPARAMS>
 where
@@ -127,7 +154,7 @@ impl<T, const NPARAMS: usize> TryFrom<FitArraySerde<T>> for FitArray<T, NPARAMS>
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, PartialEq, Eq, Hash)]
 pub struct FitInitsBoundsArrays<const NPARAMS: usize> {
     pub init: FitArray<f64, NPARAMS>,
     pub lower: FitArray<f64, NPARAMS>,
@@ -144,7 +171,7 @@ impl<const NPARAMS: usize> FitInitsBoundsArrays<NPARAMS> {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, PartialEq, Eq, Hash)]
 pub struct OptionFitInitsBoundsArrays<const NPARAMS: usize> {
     pub init: FitArray<Option<f64>, NPARAMS>,
     pub lower: FitArray<Option<f64>, NPARAMS>,

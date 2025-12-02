@@ -22,7 +22,7 @@ use std::rc::Rc;
 ///
 /// This method supports both boundaries and priors while doesn't use the function derivatives if
 /// not required by `fine_tuning_algorithm`
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash)]
 #[serde(rename = "Mcmc")]
 pub struct McmcCurveFit {
     pub niterations: u32,

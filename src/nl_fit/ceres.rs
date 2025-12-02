@@ -6,6 +6,7 @@ use ceres_solver::{CurveFitProblem1D, CurveFunctionType, LossFunction, SolverOpt
 use ndarray::Zip;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
 /// Ceres-Solver non-linear least-squares wrapper
@@ -20,6 +21,21 @@ pub struct CeresCurveFit {
     niterations: u16,
     loss_factor: Option<f64>,
 }
+
+impl Hash for CeresCurveFit {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.niterations.hash(state);
+        match self.loss_factor {
+            Some(f) => {
+                true.hash(state);
+                f.to_bits().hash(state);
+            }
+            None => false.hash(state),
+        }
+    }
+}
+
+impl Eq for CeresCurveFit {}
 
 impl CeresCurveFit {
     /// Create a new [CeresCurveFit].

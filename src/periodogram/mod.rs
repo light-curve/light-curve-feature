@@ -30,7 +30,7 @@ pub mod sin_cos_iterator;
 
 /// Periodogram execution algorithm
 #[enum_dispatch(PeriodogramPowerTrait<T>)]
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash)]
 #[serde(bound = "T: Float")]
 #[non_exhaustive]
 pub enum PeriodogramPower<T>

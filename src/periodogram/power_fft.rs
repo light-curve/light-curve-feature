@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 use thread_local::ThreadLocal;
 
@@ -68,6 +69,19 @@ where
         // PeriodogramPowerFft instances are stateless from the user's perspective
         // The Arc<ThreadLocal<...>> fields are internal caches
         true
+    }
+}
+
+impl<T> Eq for PeriodogramPowerFft<T> where T: Float {}
+
+impl<T> Hash for PeriodogramPowerFft<T>
+where
+    T: Float,
+{
+    fn hash<H: Hasher>(&self, _state: &mut H) {
+        // PeriodogramPowerFft instances are stateless from the user's perspective
+        // The Arc<ThreadLocal<...>> fields are internal caches, so we don't hash them
+        // All instances are equivalent
     }
 }
 

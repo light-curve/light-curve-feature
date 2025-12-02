@@ -9,6 +9,7 @@ use crate::periodogram::{
 
 use std::convert::TryInto;
 use std::fmt::Debug;
+use std::hash::Hash;
 use std::iter;
 
 fn number_ending(i: usize) -> &'static str {
@@ -32,7 +33,7 @@ Peak evaluator for [Periodogram]
 
 #[doc(hidden)]
 #[doc = PERIODOGRAM_PEAK_DOC!()]
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(
     from = "PeriodogramPeaksParameters",
     into = "PeriodogramPeaksParameters"
@@ -183,7 +184,7 @@ series without observation errors (unity weights are used if required). You can 
 }
 
 #[doc = DOC!()]
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Hash)]
 #[serde(
     bound = "T: Float, F: FeatureEvaluator<T> + From<PeriodogramPeaks> + TryInto<PeriodogramPeaks>, <F as std::convert::TryInto<PeriodogramPeaks>>::Error: Debug,",
     from = "PeriodogramParameters<T, F>",

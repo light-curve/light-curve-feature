@@ -2,6 +2,7 @@ use crate::transformers::transformer::*;
 
 use conv::prelude::*;
 use macro_const::macro_const;
+use std::hash::{Hash, Hasher};
 
 const INPUT_FEATURE_SIZE: usize = 8;
 
@@ -28,6 +29,17 @@ The VillarFit feature extractor returns the following features:
 pub struct VillarFitTransformer<T> {
     /// Magnitude zero point to use for amplitude transformation
     pub mag_zp: T,
+}
+
+impl<T> Hash for VillarFitTransformer<T>
+where
+    T: Float,
+{
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        // Convert to f64 and use its bit representation for hashing
+        let mag_zp_f64: f64 = self.mag_zp.value_into().unwrap();
+        mag_zp_f64.to_bits().hash(state);
+    }
 }
 
 impl<T> VillarFitTransformer<T>

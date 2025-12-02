@@ -3,6 +3,7 @@ use schemars::JsonSchema;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
+use std::hash::{Hash, Hasher};
 
 #[enum_dispatch]
 pub trait LnPrior1DTrait: Clone + Debug + Serialize + DeserializeOwned {
@@ -11,7 +12,7 @@ pub trait LnPrior1DTrait: Clone + Debug + Serialize + DeserializeOwned {
 
 /// Natural logarithm of prior for a single parameter of the curve-fit problem
 #[enum_dispatch(LnPrior1DTrait)]
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum LnPrior1D {
     None(NoneLnPrior1D),
@@ -20,6 +21,20 @@ pub enum LnPrior1D {
     Normal(NormalLnPrior1D),
     Uniform(UniformLnPrior1D),
     Mix(MixLnPrior1D),
+}
+
+impl Hash for LnPrior1D {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        core::mem::discriminant(self).hash(state);
+        match self {
+            LnPrior1D::None(v) => v.hash(state),
+            LnPrior1D::LogNormal(v) => v.hash(state),
+            LnPrior1D::LogUniform(v) => v.hash(state),
+            LnPrior1D::Normal(v) => v.hash(state),
+            LnPrior1D::Uniform(v) => v.hash(state),
+            LnPrior1D::Mix(v) => v.hash(state),
+        }
+    }
 }
 
 impl LnPrior1D {
@@ -48,7 +63,7 @@ impl LnPrior1D {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash)]
 pub struct NoneLnPrior1D {}
 
 impl LnPrior1DTrait for NoneLnPrior1D {
@@ -66,6 +81,16 @@ pub struct LogNormalLnPrior1D {
     mu: f64,
     inv_std2: f64,
     ln_prob_coeff: f64,
+}
+
+impl Eq for LogNormalLnPrior1D {}
+
+impl Hash for LogNormalLnPrior1D {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.mu.to_bits().hash(state);
+        self.inv_std2.to_bits().hash(state);
+        self.ln_prob_coeff.to_bits().hash(state);
+    }
 }
 
 impl LogNormalLnPrior1D {
@@ -115,6 +140,16 @@ impl From<LogNormalLnPrior1DParameters> for LogNormalLnPrior1D {
 pub struct LogUniformLnPrior1D {
     ln_range: std::ops::RangeInclusive<f64>,
     ln_prob_coeff: f64,
+}
+
+impl Eq for LogUniformLnPrior1D {}
+
+impl Hash for LogUniformLnPrior1D {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.ln_range.start().to_bits().hash(state);
+        self.ln_range.end().to_bits().hash(state);
+        self.ln_prob_coeff.to_bits().hash(state);
+    }
 }
 
 impl LogUniformLnPrior1D {
@@ -171,6 +206,16 @@ pub struct NormalLnPrior1D {
     ln_prob_coeff: f64,
 }
 
+impl Eq for NormalLnPrior1D {}
+
+impl Hash for NormalLnPrior1D {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.mu.to_bits().hash(state);
+        self.inv_std2.to_bits().hash(state);
+        self.ln_prob_coeff.to_bits().hash(state);
+    }
+}
+
 impl NormalLnPrior1D {
     pub fn new(mu: f64, std: f64) -> Self {
         Self {
@@ -219,6 +264,16 @@ pub struct UniformLnPrior1D {
     ln_prob: f64,
 }
 
+impl Eq for UniformLnPrior1D {}
+
+impl Hash for UniformLnPrior1D {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.range.start().to_bits().hash(state);
+        self.range.end().to_bits().hash(state);
+        self.ln_prob.to_bits().hash(state);
+    }
+}
+
 impl UniformLnPrior1D {
     pub fn new(left: f64, right: f64) -> Self {
         assert!(left < right);
@@ -260,6 +315,18 @@ impl From<UniformLnPrior1DParameters> for UniformLnPrior1D {
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub struct MixLnPrior1D {
     mix: Vec<(f64, LnPrior1D)>,
+}
+
+impl Eq for MixLnPrior1D {}
+
+impl Hash for MixLnPrior1D {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.mix.len().hash(state);
+        for (weight, prior) in &self.mix {
+            weight.to_bits().hash(state);
+            prior.hash(state);
+        }
+    }
 }
 
 impl MixLnPrior1D {

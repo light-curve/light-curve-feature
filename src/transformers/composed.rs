@@ -1,5 +1,6 @@
 use crate::transformers::transformer::*;
 
+use std::hash::Hash;
 use thiserror::Error;
 
 macro_const! {
@@ -18,7 +19,7 @@ pub enum ComposedTransformerConstructionError {
 }
 
 #[doc = DOC!()]
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash)]
 pub struct ComposedTransformer<Tr> {
     transformers: Vec<(Tr, usize)>,
     input_size: usize,

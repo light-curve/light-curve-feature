@@ -1,6 +1,7 @@
 use crate::evaluator::*;
 use crate::transformers::TransformerTrait;
 
+use std::hash::Hash;
 use std::marker::PhantomData;
 use thiserror::Error;
 
@@ -21,7 +22,7 @@ Feature extractor transforming output of other feature extractors
 }
 
 #[doc = DOC!()]
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(
     into = "TransformedParameters<F, Tr>",
     try_from = "TransformedParameters<F, Tr>",

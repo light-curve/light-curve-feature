@@ -4,6 +4,7 @@ use crate::feature::Feature;
 use crate::float_trait::Float;
 use crate::time_series::TimeSeries;
 
+use std::hash::Hash;
 use std::marker::PhantomData;
 
 macro_const! {
@@ -17,7 +18,7 @@ Bulk feature extractor
 }
 
 #[doc = DOC!()]
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(
     into = "FeatureExtractorParameters<F>",
     from = "FeatureExtractorParameters<F>",
@@ -27,6 +28,14 @@ pub struct FeatureExtractor<T, F> {
     features: Vec<F>,
     info: Box<EvaluatorInfo>,
     phantom: PhantomData<T>,
+}
+
+impl<T, F: Hash> Hash for FeatureExtractor<T, F> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.features.hash(state);
+        self.info.hash(state);
+        // PhantomData always hashes as ()
+    }
 }
 
 impl<T, F> FeatureExtractor<T, F>

@@ -10,8 +10,9 @@ pub use schemars::JsonSchema;
 use serde::de::DeserializeOwned;
 pub use serde::{Deserialize, Serialize};
 pub use std::fmt::Debug;
+pub use std::hash::Hash;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct EvaluatorInfo {
     pub size: usize,
     pub min_ts_length: usize,
@@ -21,7 +22,7 @@ pub struct EvaluatorInfo {
     pub sorting_required: bool,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct EvaluatorProperties {
     pub info: EvaluatorInfo,
     pub names: Vec<String>,
@@ -122,6 +123,7 @@ pub trait FeatureEvaluator<T: Float>:
     + Serialize
     + DeserializeOwned
     + JsonSchema
+    + Hash
 {
     /// Vector of feature values or `EvaluatorError`
     fn eval(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError>;

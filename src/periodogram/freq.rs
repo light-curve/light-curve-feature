@@ -13,6 +13,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::fmt::Debug;
+use std::hash::{Hash, Hasher};
 
 macro_const! {
     const NYQUIST_FREQ_DOC: &'static str = r"Derive Nyquist frequency from time series
@@ -39,6 +40,18 @@ pub enum NyquistFreq {
     Fixed(FixedNyquistFreq),
 }
 
+impl Hash for NyquistFreq {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        core::mem::discriminant(self).hash(state);
+        match self {
+            NyquistFreq::Average(v) => v.hash(state),
+            NyquistFreq::Median(v) => v.hash(state),
+            NyquistFreq::Quantile(v) => v.hash(state),
+            NyquistFreq::Fixed(v) => v.hash(state),
+        }
+    }
+}
+
 impl NyquistFreq {
     pub fn average() -> Self {
         Self::Average(AverageNyquistFreq)
@@ -62,7 +75,7 @@ impl NyquistFreq {
 /// The denominator is $(N-1)$ for compatibility with Nyquist frequency for uniform grid. Note that
 /// in literature definition of "average Nyquist" frequency usually differ and place $N$ to the
 /// denominator
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash)]
 #[serde(rename = "Average")]
 pub struct AverageNyquistFreq;
 
@@ -78,7 +91,7 @@ fn diff<T: Float>(x: &[T]) -> Vec<T> {
 }
 
 /// $\Delta t$ is the median time interval between observations
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash)]
 #[serde(rename = "Median")]
 pub struct MedianNyquistFreq;
 
@@ -97,6 +110,12 @@ pub struct QuantileNyquistFreq {
     pub quantile: f32,
 }
 
+impl Hash for QuantileNyquistFreq {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.quantile.to_bits().hash(state);
+    }
+}
+
 impl NyquistFreqTrait for QuantileNyquistFreq {
     fn nyquist_freq<T: Float>(&self, t: &[T]) -> T {
         let sorted_dt: SortedArray<_> = diff(t).into();
@@ -112,6 +131,12 @@ impl NyquistFreqTrait for QuantileNyquistFreq {
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[serde(rename = "Fixed")]
 pub struct FixedNyquistFreq(pub f32);
+
+impl Hash for FixedNyquistFreq {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.0.to_bits().hash(state);
+    }
+}
 
 impl FixedNyquistFreq {
     /// pi / dt
@@ -146,6 +171,17 @@ pub enum FreqGrid<T: Float> {
     Arbitrary(SortedArray<T>),
     ZeroBasedPow2(ZeroBasedPow2FreqGrid<T>),
     Linear(LinearFreqGrid<T>),
+}
+
+impl<T: Float> Hash for FreqGrid<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        core::mem::discriminant(self).hash(state);
+        match self {
+            FreqGrid::Arbitrary(v) => v.hash(state),
+            FreqGrid::ZeroBasedPow2(v) => v.hash(state),
+            FreqGrid::Linear(v) => v.hash(state),
+        }
+    }
 }
 
 impl<T: Float> FreqGrid<T> {
@@ -226,6 +262,16 @@ pub struct ZeroBasedPow2FreqGrid<T: Float> {
     log2_size_m1: u32,
 }
 
+impl<T: Float> Hash for ZeroBasedPow2FreqGrid<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        // Convert step to f64 and use its bit representation for hashing
+        let step_f64: f64 = self.step.value_into().unwrap();
+        step_f64.to_bits().hash(state);
+        self.size.hash(state);
+        self.log2_size_m1.hash(state);
+    }
+}
+
 impl<T: Float> ZeroBasedPow2FreqGrid<T> {
     pub fn new(step: T, log2_size_m1: u32) -> Self {
         assert!(
@@ -297,6 +343,17 @@ pub struct LinearFreqGrid<T: Float> {
     step: T,
     /// Number of points
     size: usize,
+}
+
+impl<T: Float> Hash for LinearFreqGrid<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        // Convert to f64 and use bit representation for hashing
+        let start_f64: f64 = self.start.value_into().unwrap();
+        let step_f64: f64 = self.step.value_into().unwrap();
+        start_f64.to_bits().hash(state);
+        step_f64.to_bits().hash(state);
+        self.size.hash(state);
+    }
 }
 
 impl<T: Float> LinearFreqGrid<T> {
@@ -394,6 +451,14 @@ pub struct DynamicFreqGridParams {
     pub nyquist: NyquistFreq,
 }
 
+impl Hash for DynamicFreqGridParams {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.resolution.to_bits().hash(state);
+        self.max_freq_factor.to_bits().hash(state);
+        self.nyquist.hash(state);
+    }
+}
+
 impl DynamicFreqGridParams {
     pub fn new(resolution: f32, max_freq_factor: f32, nyquist: impl Into<NyquistFreq>) -> Self {
         assert!(resolution > 0.0, "Resolution must be positive");
@@ -426,6 +491,16 @@ impl DynamicFreqGridParams {
 pub enum FreqGridStrategy<T: Float> {
     Fixed(FreqGrid<T>),
     Dynamic(DynamicFreqGridParams),
+}
+
+impl<T: Float> Hash for FreqGridStrategy<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        core::mem::discriminant(self).hash(state);
+        match self {
+            FreqGridStrategy::Fixed(v) => v.hash(state),
+            FreqGridStrategy::Dynamic(v) => v.hash(state),
+        }
+    }
 }
 
 impl<T: Float> FreqGridStrategy<T> {

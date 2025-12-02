@@ -39,7 +39,7 @@ D’Isanto et al. 2016 [DOI:10.1093/mnras/stw157](https://doi.org/10.1093/mnras/
 /// assert!((1.0 - ts.m.get_std()).abs() < 1e-15);
 /// assert_eq!(vec![4.0 / 21.0, 2.0 / 21.0], fe.eval(&mut ts).unwrap());
 /// ```
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(
     from = "BeyondNStdParameters",
     into = "BeyondNStdParameters",
@@ -54,6 +54,15 @@ where
     description: String,
     #[serde(skip)]
     _phantom: std::marker::PhantomData<T>,
+}
+
+impl<T: Float> std::hash::Hash for BeyondNStd<T> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.nstd.hash(state);
+        self.name.hash(state);
+        self.description.hash(state);
+        // PhantomData always hashes as ()
+    }
 }
 
 impl<T> BeyondNStd<T>

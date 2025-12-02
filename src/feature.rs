@@ -7,6 +7,7 @@ use crate::transformers::Transformer;
 
 use enum_dispatch::enum_dispatch;
 use std::fmt::Debug;
+use std::hash::{Hash, Hasher};
 
 /// All features are available as variants of this enum
 ///
@@ -62,6 +63,55 @@ where
     Transformed(Transformed<T, Self, Transformer<T>>),
     VillarFit,
     WeightedMean,
+}
+
+impl<T: Float> Hash for Feature<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        core::mem::discriminant(self).hash(state);
+        match self {
+            Feature::FeatureExtractor(v) => v.hash(state),
+            Feature::Amplitude => {}
+            Feature::AndersonDarlingNormal => {}
+            Feature::Bins(v) => v.hash(state),
+            Feature::BazinFit => {}
+            Feature::BeyondNStd(v) => v.hash(state),
+            Feature::Cusum => {}
+            Feature::Duration => {}
+            Feature::Eta => {}
+            Feature::EtaE => {}
+            Feature::ExcessVariance => {}
+            Feature::InterPercentileRange => {}
+            Feature::Kurtosis => {}
+            Feature::LinearFit => {}
+            Feature::LinearTrend => {}
+            Feature::LinexpFit => {}
+            Feature::MagnitudePercentageRatio => {}
+            Feature::MaximumSlope => {}
+            Feature::MaximumTimeInterval => {}
+            Feature::MinimumTimeInterval => {}
+            Feature::Mean => {}
+            Feature::MeanVariance => {}
+            Feature::Median => {}
+            Feature::MedianAbsoluteDeviation => {}
+            Feature::MedianBufferRangePercentage(v) => v.hash(state),
+            Feature::ObservationCount => {}
+            Feature::OtsuSplit => {}
+            Feature::PercentAmplitude => {}
+            Feature::PercentDifferenceMagnitudePercentile => {}
+            Feature::Periodogram(v) => v.hash(state),
+            Feature::_PeriodogramPeaks => {}
+            Feature::ReducedChi2 => {}
+            Feature::Roms => {}
+            Feature::Skew => {}
+            Feature::StandardDeviation => {}
+            Feature::StetsonK => {}
+            Feature::TimeMean => {}
+            Feature::TimeStandardDeviation => {}
+            Feature::Transformed(v) => v.hash(state),
+            Feature::VillarFit => {}
+            Feature::WeightedMean => {}
+        }
+    }
 }
 
 #[cfg(test)]
