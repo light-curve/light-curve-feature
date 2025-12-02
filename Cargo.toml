@@ -44,7 +44,7 @@ itertools = "^0.14"
 lazy_static = "^1.4"
 libm = "^0.2"
 macro_const = "^0.1"
-ndarray = { version = "^0.16", features = ["serde"] }
+ndarray = { version = "^0.17", features = ["serde"] }
 ndarray-stats = "^0.6"
 num-complex = "^0.4" # the same version as used by fftw
 num-traits = "^0.2"
