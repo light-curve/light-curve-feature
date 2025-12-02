@@ -43,7 +43,7 @@ where
 
 impl<T: Float> std::hash::Hash for PeriodogramPower<T> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        core::mem::discriminant(self).hash(state);
+        std::mem::discriminant(self).hash(state);
         match self {
             PeriodogramPower::Fft(v) => v.hash(state),
             PeriodogramPower::Direct(v) => v.hash(state),

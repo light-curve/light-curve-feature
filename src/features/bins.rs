@@ -4,7 +4,6 @@ use crate::extractor::FeatureExtractor;
 use conv::ConvUtil;
 use itertools::Itertools;
 use ordered_float::NotNan;
-use std::hash::Hash;
 use unzip3::Unzip3;
 
 macro_const! {
@@ -51,7 +50,7 @@ where
     properties: Box<EvaluatorProperties>,
 }
 
-impl<T, F> Hash for Bins<T, F>
+impl<T, F> std::hash::Hash for Bins<T, F>
 where
     T: Float,
     F: FeatureEvaluator<T>,
