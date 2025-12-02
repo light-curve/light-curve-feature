@@ -12,16 +12,16 @@ where
         return None;
     }
 
-    let (idx, _) = arr.iter().enumerate().fold(
-        (0, arr[0]),
-        |(max_idx, max_val), (idx, &val)| {
+    let (idx, _) = arr
+        .iter()
+        .enumerate()
+        .fold((0, arr[0]), |(max_idx, max_val), (idx, &val)| {
             if val > max_val {
                 (idx, val)
             } else {
                 (max_idx, max_val)
             }
-        },
-    );
+        });
 
     Some(idx)
 }
@@ -35,10 +35,11 @@ where
         return None;
     }
 
-    let (sum, weight_sum) = Zip::from(values).and(weights).fold(
-        (T::zero(), T::zero()),
-        |(sum, weight_sum), &v, &w| (sum + v * w, weight_sum + w),
-    );
+    let (sum, weight_sum) = Zip::from(values)
+        .and(weights)
+        .fold((T::zero(), T::zero()), |(sum, weight_sum), &v, &w| {
+            (sum + v * w, weight_sum + w)
+        });
 
     if weight_sum.is_zero() {
         None

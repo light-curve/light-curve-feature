@@ -64,7 +64,11 @@ mod tests {
         [] as [usize; 0],
         vec![0.0_f32, -1.0, 0.0],
     );
-    peak_indices!(peak_indices_long_plateau, [] as [usize; 0], vec![0.0_f32; 100]);
+    peak_indices!(
+        peak_indices_long_plateau,
+        [] as [usize; 0],
+        vec![0.0_f32; 100]
+    );
     peak_indices!(
         peak_indices_sawtooth,
         (1..=99) // the first and the last point cannot be peak
