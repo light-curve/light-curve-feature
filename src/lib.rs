@@ -7,6 +7,8 @@ mod tests;
 #[macro_use]
 mod macros;
 
+mod array_stats;
+
 mod evaluator;
 pub use evaluator::{EvaluatorInfoTrait, FeatureEvaluator, FeatureNamesDescriptionsTrait};
 

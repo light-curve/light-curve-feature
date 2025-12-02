@@ -230,10 +230,12 @@ mod tests {
         let fft = Periodogram::from_t(PeriodogramPowerFft::new().into(), &t, &freq_grid_strategy)
             .unwrap()
             .power(&mut ts);
+        let fft_arr: Array1<_> = fft.into();
+        let direct_arr: Array1<_> = direct.into();
 
         assert_eq!(
-            peak_indices_reverse_sorted(&fft)[..2],
-            peak_indices_reverse_sorted(&direct)[..2]
+            peak_indices_reverse_sorted(&fft_arr)[..2],
+            peak_indices_reverse_sorted(&direct_arr)[..2]
         );
     }
 
@@ -269,10 +271,12 @@ mod tests {
         let fft = Periodogram::from_t(PeriodogramPowerFft::new().into(), &t, &freq_grid_strategy)
             .unwrap()
             .power(&mut ts);
+        let fft_arr: Array1<_> = fft.into();
+        let direct_arr: Array1<_> = direct.into();
 
         assert_eq!(
-            peak_indices_reverse_sorted(&fft)[..2],
-            peak_indices_reverse_sorted(&direct)[..2]
+            peak_indices_reverse_sorted(&fft_arr)[..2],
+            peak_indices_reverse_sorted(&direct_arr)[..2]
         );
     }
 

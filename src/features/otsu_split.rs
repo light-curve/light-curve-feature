@@ -1,8 +1,8 @@
+use crate::array_stats::argmax;
 use crate::evaluator::*;
 use crate::time_series::DataSample;
 use conv::prelude::*;
 use ndarray::{Array1, ArrayView1, Axis, Zip, s};
-use ndarray_stats::QuantileExt;
 
 macro_const! {
     const DOC: &'static str = r#"
@@ -107,7 +107,7 @@ impl OtsuSplit {
                     w1 * w2 * (m1 - m2).powi(2)
                 });
 
-        let index = inter_class_variance.argmax().unwrap();
+        let index = argmax(&inter_class_variance).unwrap();
 
         let (lower, upper) = sorted.0.view().split_at(Axis(0), index + 1);
         Ok((sorted.0[index + 1], lower, upper))

@@ -1,14 +1,13 @@
 use crate::float_trait::Float;
 
-use ndarray::ArrayView1;
+use ndarray::ArrayRef1;
 
 /// Find local maxima of the array and return their indices
-pub fn peak_indices<'a, T>(a: impl Into<ArrayView1<'a, T>>) -> Vec<usize>
+pub fn peak_indices<T>(a: &ArrayRef1<T>) -> Vec<usize>
 where
     T: Float,
 {
-    let view: ArrayView1<'a, T> = a.into();
-    view.iter()
+    a.iter()
         .enumerate()
         .fold(
             (vec![], T::infinity(), false),
@@ -24,13 +23,12 @@ where
 }
 
 /// Find local maxima of the array and return their indices sorted in descending peak value
-pub fn peak_indices_reverse_sorted<'a, T>(a: impl Into<ArrayView1<'a, T>>) -> Vec<usize>
+pub fn peak_indices_reverse_sorted<T>(a: &ArrayRef1<T>) -> Vec<usize>
 where
     T: Float,
 {
-    let view: ArrayView1<'a, T> = a.into();
-    let mut v = peak_indices(view);
-    v[..].sort_unstable_by(|&y, &x| view[x].partial_cmp(&view[y]).unwrap());
+    let mut v = peak_indices(a);
+    v[..].sort_unstable_by(|&y, &x| a[x].partial_cmp(&a[y]).unwrap());
     v
 }
 
@@ -39,12 +37,14 @@ where
 mod tests {
     use super::*;
     use light_curve_common::linspace;
+    use ndarray::Array1;
 
     macro_rules! peak_indices {
         ($name: ident, $desired: expr, $x: expr $(,)?) => {
             #[test]
             fn $name() {
-                assert_eq!(peak_indices_reverse_sorted(&$x), $desired);
+                let arr: Array1<_> = $x.into();
+                assert_eq!(peak_indices_reverse_sorted(&arr), $desired);
             }
         };
     }
@@ -52,19 +52,19 @@ mod tests {
     peak_indices!(
         peak_indices_three_points_peak,
         [1_usize],
-        [0.0_f32, 1.0, 0.0]
+        vec![0.0_f32, 1.0, 0.0],
     );
     peak_indices!(
         peak_indices_three_points_plateau,
         [] as [usize; 0],
-        [0.0_f32, 0.0, 0.0]
+        vec![0.0_f32, 0.0, 0.0],
     );
     peak_indices!(
         peak_indices_three_points_dip,
         [] as [usize; 0],
-        [0.0_f32, -1.0, 0.0]
+        vec![0.0_f32, -1.0, 0.0],
     );
-    peak_indices!(peak_indices_long_plateau, [] as [usize; 0], [0.0_f32; 100]);
+    peak_indices!(peak_indices_long_plateau, [] as [usize; 0], vec![0.0_f32; 100]);
     peak_indices!(
         peak_indices_sawtooth,
         (1..=99) // the first and the last point cannot be peak

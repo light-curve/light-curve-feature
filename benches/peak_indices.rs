@@ -1,12 +1,14 @@
 use criterion::Criterion;
 
 use light_curve_common::linspace;
+use light_curve_feature::ndarray::Array1;
 use light_curve_feature::peak_indices;
 use std::hint::black_box;
 
 macro_rules! gen_bench {
     ($c: expr, $name: expr, $func: ident, $x: expr $(,)?) => {
-        $c.bench_function($name, move |b| b.iter(|| black_box($func(&$x))));
+        let arr: Array1<_> = $x.into();
+        $c.bench_function($name, move |b| b.iter(|| black_box($func(&arr))));
     };
 }
 
@@ -17,9 +19,9 @@ pub fn bench_peak_indices(c: &mut Criterion) {
         };
     }
 
-    b!("peak_indices_three_points_f32", [0.0_f32, 1.0, 0.0]);
-    b!("peak_indices_three_points_f64", [0.0_f64, 1.0, 0.0]);
-    b!("peak_indices_plateau", [0.0_f32; 100]);
+    b!("peak_indices_three_points_f32", vec![0.0_f32, 1.0, 0.0]);
+    b!("peak_indices_three_points_f64", vec![0.0_f64, 1.0, 0.0]);
+    b!("peak_indices_plateau", vec![0.0_f32; 100]);
     b!(
         "peak_indices_gauss",
         linspace(-5.0_f32, 3.0, 100)

@@ -1,3 +1,4 @@
+use crate::array_stats::weighted_mean;
 use crate::float_trait::Float;
 use crate::sorted_array::SortedArray;
 use crate::types::CowArray1;
@@ -5,7 +6,6 @@ use crate::types::CowArray1;
 use conv::prelude::*;
 use itertools::Itertools;
 use ndarray::{Array1, ArrayView1, Zip, s};
-use ndarray_stats::SummaryStatisticsExt;
 
 /// A [`TimeSeries`] component
 #[derive(Clone, Debug)]
@@ -325,7 +325,7 @@ where
     time_series_getter!(
         m_weighted_mean,
         get_m_weighted_mean,
-        |ts: &mut TimeSeries<T>| { ts.m.sample.weighted_mean(&ts.w.sample).unwrap() }
+        |ts: &mut TimeSeries<T>| { weighted_mean(&ts.m.sample, &ts.w.sample).unwrap() }
     );
 
     time_series_getter!(m_reduced_chi2, get_m_reduced_chi2, |ts: &mut TimeSeries<
