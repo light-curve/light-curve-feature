@@ -571,7 +571,7 @@ impl VillarLnPrior {
                     LnPrior1D::uniform(0.01 * day, 50.0 * day), // tau_rise
                     LnPrior1D::uniform(1.0 * day, 300.0 * day), // tau_fall
                     LnPrior1D::none(), // relative plateau amplitude, original paper used slope in day^-1
-                    LnPrior1D::mix(vec![
+                    LnPrior1D::mix(&[
                         (2.0, LnPrior1D::normal(5.0 * day, 5.0 * day)),
                         (1.0, LnPrior1D::normal(60.0 * day, 30.0 * day)),
                     ]), // plateau duration

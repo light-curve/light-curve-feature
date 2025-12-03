@@ -9,11 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Implement `PartialEq` for `Feature` enum and all constituent types, enabling equality comparisons between feature instances https://github.com/light-curve/light-curve-feature/issues/228
+- Implement `PartialEq` for `Feature` enum and all constituent types, enabling equality comparisons between feature
+  instances https://github.com/light-curve/light-curve-feature/issues/228
 
 ### Changed
 
-- **Breaking** Float parameters in feature structs now use `ordered_float::NotNan` type, enabling `Eq` and `Hash` trait derivation and ensuring parameters cannot be NaN https://github.com/light-curve/light-curve-feature/issues/233
+- **Breaking** Float parameters in many places now use `ordered_float::NotNan` type, enabling `Eq` and `Hash` trait
+  derivation and
+  ensuring parameters cannot be
+  NaN https://github.com/light-curve/light-curve-feature/issues/233 https://github.com/light-curve/light-curve-feature/pull/242
+- **Breaking** `MixLnPrior1D::new` signature changed from accepting `Vec` to
+  slice. https://github.com/light-curve/light-curve-feature/pull/242
 
 ### Deprecated
 

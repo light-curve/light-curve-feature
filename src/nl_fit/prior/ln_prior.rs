@@ -13,7 +13,7 @@ pub trait LnPriorTrait<const NPARAMS: usize>: Clone + Debug + Serialize + Deseri
 
 /// Natural logarithm of prior for non-linear curve-fit problem
 #[enum_dispatch(LnPriorTrait<NPARAMS>)]
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum LnPrior<const NPARAMS: usize> {
     None(NoneLnPrior),
@@ -58,7 +58,7 @@ impl<const NPARAMS: usize> LnPrior<NPARAMS> {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash)]
 pub struct NoneLnPrior {}
 
 impl<const NPARAMS: usize> LnPriorTrait<NPARAMS> for NoneLnPrior {
@@ -67,7 +67,7 @@ impl<const NPARAMS: usize> LnPriorTrait<NPARAMS> for NoneLnPrior {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(
     into = "IndComponentsLnPriorSerde",
     try_from = "IndComponentsLnPriorSerde"
