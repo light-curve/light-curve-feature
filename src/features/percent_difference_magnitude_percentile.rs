@@ -19,11 +19,12 @@ D’Isanto et al. 2016 [DOI:10.1093/mnras/stw157](https://doi.org/10.1093/mnras/
 }
 
 #[doc = DOC!()]
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash)]
 #[serde(
     into = "PercentDifferenceMagnitudePercentileParameters",
     from = "PercentDifferenceMagnitudePercentileParameters"
 )]
+#[schemars(with = "PercentDifferenceMagnitudePercentileParameters")]
 pub struct PercentDifferenceMagnitudePercentile {
     quantile: NotNan<f32>,
     name: String,
@@ -127,10 +128,6 @@ impl From<PercentDifferenceMagnitudePercentileParameters> for PercentDifferenceM
     fn from(p: PercentDifferenceMagnitudePercentileParameters) -> Self {
         Self::new(p.quantile)
     }
-}
-
-impl JsonSchema for PercentDifferenceMagnitudePercentile {
-    json_schema!(PercentDifferenceMagnitudePercentileParameters, false);
 }
 
 #[cfg(test)]

@@ -16,12 +16,13 @@ D’Isanto et al. 2016 [DOI:10.1093/mnras/stw157](https://doi.org/10.1093/mnras/
 }
 
 #[doc = DOC!()]
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[serde(
     into = "MedianBufferRangePercentageParameters",
     from = "MedianBufferRangePercentageParameters",
     bound(deserialize = "T: Float")
 )]
+#[schemars(with = "MedianBufferRangePercentageParameters")]
 pub struct MedianBufferRangePercentage<T>
 where
     T: Float,
@@ -152,13 +153,6 @@ where
     fn from(p: MedianBufferRangePercentageParameters) -> Self {
         Self::new(p.quantile)
     }
-}
-
-impl<T> JsonSchema for MedianBufferRangePercentage<T>
-where
-    T: Float,
-{
-    json_schema!(MedianBufferRangePercentageParameters, false);
 }
 
 #[cfg(test)]

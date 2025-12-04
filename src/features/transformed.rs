@@ -156,7 +156,17 @@ where
     F: FeatureEvaluator<T>,
     Tr: TransformerTrait<T>,
 {
-    json_schema!(TransformedParameters<F, Tr>, false);
+    fn inline_schema() -> bool {
+        true
+    }
+
+    fn schema_name() -> std::borrow::Cow<'static, str> {
+        <TransformedParameters<F, Tr>>::schema_name()
+    }
+
+    fn json_schema(r#gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
+        <TransformedParameters<F, Tr>>::json_schema(r#gen)
+    }
 }
 
 #[cfg(test)]
