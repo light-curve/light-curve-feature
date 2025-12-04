@@ -370,7 +370,7 @@ impl BazinInitsBounds {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum BazinLnPrior {
     Fixed(Box<LnPrior<NPARAMS>>),

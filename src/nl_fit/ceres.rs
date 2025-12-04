@@ -4,6 +4,7 @@ use crate::nl_fit::data::Data;
 
 use ceres_solver::{CurveFitProblem1D, CurveFunctionType, LossFunction, SolverOptions};
 use ndarray::Zip;
+use ordered_float::NotNan;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::rc::Rc;
@@ -14,11 +15,11 @@ use std::rc::Rc;
 ///
 /// Non-linear squares-based light-curve fitters. It requires the function Jacobean. It supports
 /// boundaries, but not priors.
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash)]
 #[serde(rename = "Ceres")]
 pub struct CeresCurveFit {
     niterations: u16,
-    loss_factor: Option<f64>,
+    loss_factor: Option<NotNan<f64>>,
 }
 
 impl CeresCurveFit {
@@ -31,7 +32,9 @@ impl CeresCurveFit {
     pub fn new(niterations: u16, loss_factor: Option<f64>) -> Self {
         if let Some(loss_factor) = loss_factor {
             assert!(loss_factor > 0.0, "loss_factor must be positive");
+            assert!(loss_factor.is_finite(), "loss_factor must be finite");
         }
+        let loss_factor = loss_factor.map(|v| NotNan::new(v).expect("loss_factor must be not NaN"));
         Self {
             niterations,
             loss_factor,
@@ -117,7 +120,7 @@ impl CurveFitTrait for CeresCurveFit {
             .lower_bounds(&lower_bounds)
             .upper_bounds(&upper_bounds);
         if let Some(loss_factor) = self.loss_factor {
-            problem_builder = problem_builder.loss(LossFunction::cauchy(loss_factor));
+            problem_builder = problem_builder.loss(LossFunction::cauchy(loss_factor.into()));
         };
         let solution = problem_builder.build().unwrap().solve(&options);
         let x = solution.parameters.try_into().unwrap();
