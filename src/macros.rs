@@ -100,15 +100,15 @@ macro_rules! transformer_eval {
 /// Helper implementing JsonSchema crate
 macro_rules! json_schema {
     ($parameters: ty, $is_referenceable: expr) => {
-        fn is_referenceable() -> bool {
-            $is_referenceable
+        fn inline_schema() -> bool {
+            !$is_referenceable
         }
 
-        fn schema_name() -> String {
+        fn schema_name() -> std::borrow::Cow<'static, str> {
             <$parameters>::schema_name()
         }
 
-        fn json_schema(r#gen: &mut schemars::r#gen::SchemaGenerator) -> schemars::schema::Schema {
+        fn json_schema(r#gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
             <$parameters>::json_schema(r#gen)
         }
     };

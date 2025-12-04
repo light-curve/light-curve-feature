@@ -48,9 +48,9 @@ ndarray = { version = "^0.16", features = ["serde"] }
 ndarray-stats = "^0.6"
 num-complex = "^0.4" # the same version as used by fftw
 num-traits = "^0.2"
-ordered-float = { version = "5", features = ["serde", "schemars"] }
+ordered-float = { git = "https://github.com/mdepta42/rust-ordered-float", rev = "3e80f4219129ae98b2d29ec58286f754cd17a254", features = ["serde", "schemars"] }
 paste = "1"
-schemars = "^0.8"
+schemars = "^1"
 serde = { version = "1", features = ["derive"] }
 thiserror = "2"
 thread_local = "1.1"

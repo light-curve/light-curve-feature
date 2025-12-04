@@ -87,15 +87,15 @@ impl<const NPARAMS: usize> LnPriorTrait<NPARAMS> for IndComponentsLnPrior<NPARAM
 }
 
 impl<const NPARAMS: usize> JsonSchema for IndComponentsLnPrior<NPARAMS> {
-    fn is_referenceable() -> bool {
-        false
+    fn inline_schema() -> bool {
+        true
     }
 
-    fn schema_name() -> String {
+    fn schema_name() -> std::borrow::Cow<'static, str> {
         IndComponentsLnPriorSerde::schema_name()
     }
 
-    fn json_schema(r#gen: &mut schemars::r#gen::SchemaGenerator) -> schemars::schema::Schema {
+    fn json_schema(r#gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
         IndComponentsLnPriorSerde::json_schema(r#gen)
     }
 }

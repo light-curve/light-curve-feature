@@ -47,15 +47,15 @@ impl<T, const NPARAMS: usize> JsonSchema for FitArray<T, NPARAMS>
 where
     T: schemars::JsonSchema,
 {
-    fn is_referenceable() -> bool {
-        false
+    fn inline_schema() -> bool {
+        true
     }
 
-    fn schema_name() -> String {
+    fn schema_name() -> std::borrow::Cow<'static, str> {
         FitArraySerde::<T>::schema_name()
     }
 
-    fn json_schema(r#gen: &mut schemars::r#gen::SchemaGenerator) -> schemars::schema::Schema {
+    fn json_schema(r#gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
         FitArraySerde::<T>::json_schema(r#gen)
     }
 }
