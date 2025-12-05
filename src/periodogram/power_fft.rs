@@ -25,12 +25,13 @@ use thread_local::ThreadLocal;
 /// especially for large grids.
 ///
 /// The implementation is inspired by Numerical Recipes, Press et al., 1997, Section 13.8
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(
     into = "PeriodogramPowerFftParameters",
     from = "PeriodogramPowerFftParameters",
     bound = "T: Float"
 )]
+#[schemars(with = "PeriodogramPowerFftParameters")]
 pub struct PeriodogramPowerFft<T>
 where
     T: Float,
@@ -195,13 +196,6 @@ where
     fn from(_: PeriodogramPowerFftParameters) -> Self {
         Self::new()
     }
-}
-
-impl<T> JsonSchema for PeriodogramPowerFft<T>
-where
-    T: Float,
-{
-    json_schema!(PeriodogramPowerFftParameters, false);
 }
 
 struct PeriodogramArrays<T>

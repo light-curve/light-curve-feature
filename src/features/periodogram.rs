@@ -32,11 +32,12 @@ Peak evaluator for [Periodogram]
 
 #[doc(hidden)]
 #[doc = PERIODOGRAM_PEAK_DOC!()]
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[serde(
     from = "PeriodogramPeaksParameters",
     into = "PeriodogramPeaksParameters"
 )]
+#[schemars(with = "PeriodogramPeaksParameters")]
 pub struct PeriodogramPeaks {
     peaks: usize,
     properties: Box<EvaluatorProperties>,
@@ -156,10 +157,6 @@ impl From<PeriodogramPeaksParameters> for PeriodogramPeaks {
     }
 }
 
-impl JsonSchema for PeriodogramPeaks {
-    json_schema!(PeriodogramPeaksParameters, false);
-}
-
 macro_const! {
     const DOC: &str = r#"
 Peaks of Lomb–Scargle periodogram and periodogram as a meta-feature
@@ -183,11 +180,15 @@ series without observation errors (unity weights are used if required). You can 
 }
 
 #[doc = DOC!()]
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
 #[serde(
     bound = "T: Float, F: FeatureEvaluator<T> + From<PeriodogramPeaks> + TryInto<PeriodogramPeaks>, <F as std::convert::TryInto<PeriodogramPeaks>>::Error: Debug,",
     from = "PeriodogramParameters<T, F>",
     into = "PeriodogramParameters<T, F>"
+)]
+#[schemars(
+    with = "PeriodogramParameters::<T, F>",
+    bound = "T: Float, F: FeatureEvaluator<T>"
 )]
 pub struct Periodogram<T, F>
 where
@@ -519,14 +520,6 @@ where
         periodogram.set_periodogram_algorithm(periodogram_algorithm);
         periodogram
     }
-}
-
-impl<T, F> JsonSchema for Periodogram<T, F>
-where
-    T: Float,
-    F: FeatureEvaluator<T>,
-{
-    json_schema!(PeriodogramParameters<T, F>, false);
 }
 
 #[cfg(test)]
