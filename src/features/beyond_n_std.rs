@@ -39,12 +39,13 @@ D’Isanto et al. 2016 [DOI:10.1093/mnras/stw157](https://doi.org/10.1093/mnras/
 /// assert!((1.0 - ts.m.get_std()).abs() < 1e-15);
 /// assert_eq!(vec![4.0 / 21.0, 2.0 / 21.0], fe.eval(&mut ts).unwrap());
 /// ```
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[serde(
     from = "BeyondNStdParameters",
     into = "BeyondNStdParameters",
     bound(deserialize = "T: Float")
 )]
+#[schemars(with = "BeyondNStdParameters")]
 pub struct BeyondNStd<T>
 where
     T: Float,
@@ -171,13 +172,6 @@ where
     fn from(p: BeyondNStdParameters) -> Self {
         Self::new(p.nstd)
     }
-}
-
-impl<T> JsonSchema for BeyondNStd<T>
-where
-    T: Float,
-{
-    json_schema!(BeyondNStdParameters, false);
 }
 
 #[cfg(test)]

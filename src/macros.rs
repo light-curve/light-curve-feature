@@ -97,23 +97,6 @@ macro_rules! transformer_eval {
     };
 }
 
-/// Helper implementing JsonSchema crate
-macro_rules! json_schema {
-    ($parameters: ty, $is_referenceable: expr) => {
-        fn is_referenceable() -> bool {
-            $is_referenceable
-        }
-
-        fn schema_name() -> String {
-            <$parameters>::schema_name()
-        }
-
-        fn json_schema(r#gen: &mut schemars::r#gen::SchemaGenerator) -> schemars::schema::Schema {
-            <$parameters>::json_schema(r#gen)
-        }
-    };
-}
-
 /// Helper implementing *Fit feature evaluators
 /// You must:
 /// - implement all traits of [nl_fit::evaluator]

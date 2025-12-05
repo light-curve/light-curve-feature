@@ -23,11 +23,12 @@ inter-percentile range for $p = 0.1$.
 }
 
 #[doc = DOC!()]
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash)]
 #[serde(
     from = "InterPercentileRangeParameters",
     into = "InterPercentileRangeParameters"
 )]
+#[schemars(with = "InterPercentileRangeParameters")]
 pub struct InterPercentileRange {
     quantile: NotNan<f32>,
     name: String,
@@ -124,10 +125,6 @@ impl From<InterPercentileRangeParameters> for InterPercentileRange {
     fn from(p: InterPercentileRangeParameters) -> Self {
         Self::new(p.quantile)
     }
-}
-
-impl JsonSchema for InterPercentileRange {
-    json_schema!(InterPercentileRangeParameters, false);
 }
 
 #[cfg(test)]
