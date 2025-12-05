@@ -35,30 +35,14 @@ pub trait FitDerivalivesTrait<T: Float, const NPARAMS: usize> {
     fn derivatives(t: T, param: &[T; NPARAMS], jac: &mut [T; NPARAMS]);
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, PartialEq)]
 #[serde(
     into = "FitArraySerde<T>",
     try_from = "FitArraySerde<T>",
     bound = "T: Debug + Clone + Serialize + DeserializeOwned + JsonSchema"
 )]
+#[schemars(with = "FitArraySerde::<T>", bound = "T: JsonSchema")]
 pub struct FitArray<T, const NPARAMS: usize>(pub [T; NPARAMS]);
-
-impl<T, const NPARAMS: usize> JsonSchema for FitArray<T, NPARAMS>
-where
-    T: schemars::JsonSchema,
-{
-    fn inline_schema() -> bool {
-        true
-    }
-
-    fn schema_name() -> std::borrow::Cow<'static, str> {
-        FitArraySerde::<T>::schema_name()
-    }
-
-    fn json_schema(r#gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
-        FitArraySerde::<T>::json_schema(r#gen)
-    }
-}
 
 impl<T, const NPARAMS: usize> From<[T; NPARAMS]> for FitArray<T, NPARAMS> {
     fn from(item: [T; NPARAMS]) -> Self {
