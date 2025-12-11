@@ -95,4 +95,4 @@ rustdoc-args = [
     "katex-header.html",
 ]
 no-default-features = true
-features = ["ceres-source", "fftw-system", "gsl"]
+features = ["ceres-source", "cobyla", "fftw-system", "gsl"]
