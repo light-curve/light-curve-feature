@@ -95,6 +95,7 @@ impl CurveFitTrait for CobylaCurveFit {
         let objective = {
             let ts = ts.clone();
             move |x: &[f64], _user_data: &mut ()| -> f64 {
+                // Safety: COBYLA guarantees that x has the same length as x0 (NPARAMS)
                 let params: [f64; NPARAMS] = x.try_into().unwrap();
                 let mut chi2 = 0.0;
                 Zip::from(&ts.t)
@@ -139,6 +140,7 @@ impl CurveFitTrait for CobylaCurveFit {
 
         match result {
             Ok((status, x_vec, chi2)) => {
+                // Safety: COBYLA returns a vector with the same length as x0 (NPARAMS)
                 let x: [f64; NPARAMS] = x_vec.try_into().unwrap();
                 let reduced_chi2 = chi2 / ((nsamples - NPARAMS) as f64);
                 let success = matches!(
@@ -154,6 +156,7 @@ impl CurveFitTrait for CobylaCurveFit {
                 }
             }
             Err((_status, x_vec, chi2)) => {
+                // Safety: COBYLA returns a vector with the same length as x0 (NPARAMS)
                 let x: [f64; NPARAMS] = x_vec.try_into().unwrap();
                 let reduced_chi2 = chi2 / ((nsamples - NPARAMS) as f64);
                 CurveFitResult {

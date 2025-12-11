@@ -13,8 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   instances https://github.com/light-curve/light-curve-feature/issues/228
 - Add COBYLA (Constrained Optimization BY Linear Approximations) as a new optimization algorithm for non-linear curve
   fitting. COBYLA is a derivative-free optimizer that can serve as an alternative to MCMC, particularly useful when
-  function derivatives are not available or expensive to
-  compute https://github.com/light-curve/light-curve-feature/issues/XXX
+  function derivatives are not available or expensive to compute
 - New `cobyla` Cargo feature to enable COBYLA support
 
 ### Changed
