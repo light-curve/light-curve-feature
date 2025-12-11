@@ -1,7 +1,7 @@
 use crate::nl_fit::curve_fit::{CurveFitResult, CurveFitTrait};
 use crate::nl_fit::data::Data;
 
-use cobyla::{minimize, Func, RhoBeg, StopTols};
+use cobyla::{Func, RhoBeg, StopTols, minimize};
 use ndarray::Zip;
 use ordered_float::NotNan;
 use schemars::JsonSchema;
@@ -233,19 +233,19 @@ mod tests {
     fn simple_quadratic() {
         // Test with a simple quadratic function
         const N: usize = 50;
-        
+
         let param_true = [1.0, 2.0, 0.5];
         let param_init = [0.5, 1.0, 0.0];
-        
+
         let t = Array1::linspace(0.0, 5.0, N);
         let y = t.mapv(|x: f64| param_true[0] + param_true[1] * x + param_true[2] * x.powi(2));
         let inv_err: Array1<_> = vec![1.0; N].into();
         let ts = Rc::new(Data { t, m: y, inv_err });
-        
+
         let quadratic_func = |t: f64, p: &[f64; 3]| p[0] + p[1] * t + p[2] * t.powi(2);
         let dummy_derivatives = |_t: f64, _p: &[f64; 3], _d: &mut [f64; 3]| {};
         let dummy_prior = |_p: &[f64; 3]| 0.0;
-        
+
         let fitter = CobylaCurveFit::new(2000, 0.5, 1e-9);
         let result = fitter.curve_fit(
             ts,
@@ -255,16 +255,19 @@ mod tests {
             dummy_derivatives,
             dummy_prior,
         );
-        
+
         println!("Quadratic result: {:?}", result.x);
         println!("Expected: {:?}", param_true);
         println!("Success: {}", result.success);
         println!("Reduced chi2: {}", result.reduced_chi2);
-        
+
         // COBYLA is derivative-free and may not converge as tightly as gradient-based methods
         // Check that the solution is close enough for practical purposes
         assert_abs_diff_eq!(&result.x[..], &param_true[..], epsilon = 0.5);
         // For a perfect fit (no noise), chi2 should be very small
-        assert!(result.reduced_chi2 < 0.1, "Chi2 should be small for perfect fit");
+        assert!(
+            result.reduced_chi2 < 0.1,
+            "Chi2 should be small for perfect fit"
+        );
     }
 }
