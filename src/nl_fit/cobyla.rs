@@ -43,8 +43,8 @@ impl CobylaCurveFit {
         assert!(ftol_rel.is_finite(), "ftol_rel must be finite");
         Self {
             niterations,
-            rhobeg: NotNan::new(rhobeg).expect("rhobeg must not be NaN"),
-            ftol_rel: NotNan::new(ftol_rel).expect("ftol_rel must not be NaN"),
+            rhobeg: NotNan::new(rhobeg).expect("rhobeg must be finite and not NaN"),
+            ftol_rel: NotNan::new(ftol_rel).expect("ftol_rel must be finite and not NaN"),
         }
     }
 
