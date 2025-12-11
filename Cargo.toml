@@ -18,6 +18,7 @@ bench = false
 default = ["fftw-source"]
 ceres-system = ["ceres-solver/system"]
 ceres-source = ["ceres-solver/source"]
+cobyla = ["dep:cobyla"]
 fftw-system = ["fftw/system"]
 fftw-source = ["fftw/source"]
 fftw-mkl = ["fftw/intel-mkl"]
@@ -33,6 +34,7 @@ debug = true
 
 [dependencies]
 ceres-solver = { version = "0.4.0", optional = true }
+cobyla = { version = "0.8", optional = true }
 conv = "^0.3.3"
 emcee = "^0.3.0"
 # Transitive dependency of emcee
