@@ -26,6 +26,11 @@ pub use lmsder::LmsderCurveFit;
 pub mod mcmc;
 pub use mcmc::McmcCurveFit;
 
+#[cfg(feature = "nuts")]
+pub mod nuts;
+#[cfg(feature = "nuts")]
+pub use nuts::NutsCurveFit;
+
 pub mod prior;
 pub use prior::ln_prior::LnPrior;
 pub use prior::ln_prior_1d::LnPrior1D;

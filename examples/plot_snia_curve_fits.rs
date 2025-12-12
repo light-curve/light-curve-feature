@@ -1,4 +1,8 @@
 use clap::Parser;
+#[cfg(all(feature = "nuts", not(all(feature = "ceres-source", feature = "gsl"))))]
+use light_curve_feature::LnPrior;
+#[cfg(feature = "nuts")]
+use light_curve_feature::NutsCurveFit;
 use light_curve_feature::{
     BazinFit, Feature, FeatureEvaluator, LinexpFit, McmcCurveFit, TimeSeries, VillarFit,
     features::VillarLnPrior, prelude::*,
@@ -145,6 +149,29 @@ fn main() {
             )
             .into(),
         ));
+
+        #[cfg(feature = "nuts")]
+        {
+            features.push((
+                "BazinFit NUTS",
+                BazinFit::new(
+                    NutsCurveFit::default().into(),
+                    LnPrior::none(),
+                    BazinFit::default_inits_bounds(),
+                )
+                .into(),
+            ));
+            #[cfg(feature = "ceres-source")]
+            features.push((
+                "BazinFit NUTS+Ceres",
+                BazinFit::new(
+                    NutsCurveFit::new(50, 50, Some(CeresCurveFit::default().into())).into(),
+                    LnPrior::none(),
+                    BazinFit::default_inits_bounds(),
+                )
+                .into(),
+            ));
+        }
 
         features
     };

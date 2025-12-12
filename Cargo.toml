@@ -22,6 +22,7 @@ fftw-system = ["fftw/system"]
 fftw-source = ["fftw/source"]
 fftw-mkl = ["fftw/intel-mkl"]
 gsl = ["GSL/v2_1"]
+nuts = ["dep:nuts-rs", "dep:nuts-storable", "dep:rand"]
 
 [profile.release]
 lto = true
@@ -48,8 +49,11 @@ ndarray = { version = "^0.16", features = ["serde"] }
 ndarray-stats = "^0.6"
 num-complex = "^0.4" # the same version as used by fftw
 num-traits = "^0.2"
+nuts-rs = { version = "^0.17", optional = true }
+nuts-storable = { version = "^0.2", optional = true }
 ordered-float = { version = "5", features = ["serde", "schemars"] }
 paste = "1"
+rand = { version = "0.9", optional = true }
 schemars = "^0.8"
 serde = { version = "1", features = ["derive"] }
 thiserror = "2"

@@ -520,4 +520,28 @@ mod tests {
         );
         let _result = linexp.eval(&mut ts).unwrap();
     }
+
+    #[cfg(feature = "nuts")]
+    #[test]
+    fn linexp_fit_noisy_nuts() {
+        use crate::NutsCurveFit;
+        linexp_fit_noisy(LinexpFit::new(
+            NutsCurveFit::new(500, 500, None).into(),
+            LnPrior::none(),
+            LinexpInitsBounds::Default,
+        ));
+    }
+
+    #[cfg(all(feature = "nuts", feature = "gsl"))]
+    #[test]
+    fn linexp_fit_noisy_nuts_plus_lmsder() {
+        use crate::NutsCurveFit;
+        let lmsder = LmsderCurveFit::default();
+        let nuts = NutsCurveFit::new(50, 50, Some(lmsder.into()));
+        linexp_fit_noisy(LinexpFit::new(
+            nuts.into(),
+            LnPrior::none(),
+            LinexpInitsBounds::Default,
+        ));
+    }
 }
