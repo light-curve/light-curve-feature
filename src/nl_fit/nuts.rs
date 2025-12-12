@@ -228,27 +228,15 @@ impl CurveFitTrait for NutsCurveFit {
         let mut best_lnprob = f64::NEG_INFINITY;
 
         for _ in 0..(self.num_tune + self.num_draws) {
-            match sampler.draw() {
-                Ok((draw, _info)) => {
-                    // Calculate log probability for this draw
-                    // draw is a Box<[f64]>, convert to array
-                    let params: [f64; NPARAMS] = draw
-                        .iter()
-                        .copied()
-                        .collect::<Vec<f64>>()
+            match sampler.expanded_draw() {
+                Ok((draw, _expanded, stats, _progress)) => {
+                    // Convert draw to array
+                    let params: [f64; NPARAMS] = Vec::from(draw)
                         .try_into()
                         .expect("Failed to convert draw to array");
 
-                    let mut residual = 0.0;
-                    Zip::from(&ts.t)
-                        .and(&ts.m)
-                        .and(&ts.inv_err)
-                        .for_each(|&t, &m, &inv_err| {
-                            residual += (inv_err * (model(t, &params) - m)).powi(2);
-                        });
-                    let lnlike = -0.5 * residual;
-                    let lnprior = ln_prior(&params);
-                    let lnprob = lnlike + lnprior;
+                    // Use the log probability from the sampler stats
+                    let lnprob = stats.logp;
 
                     if lnprob > best_lnprob {
                         best_x = params;
