@@ -35,6 +35,8 @@ pub use nl_fit::CurveFitResult;
 pub use nl_fit::LmsderCurveFit;
 pub use nl_fit::evaluator::FitFeatureEvaluatorGettersTrait;
 pub use nl_fit::{CurveFitAlgorithm, McmcCurveFit};
+#[cfg(feature = "nuts")]
+pub use nl_fit::NutsCurveFit;
 pub use nl_fit::{LnPrior, LnPrior1D, prior};
 
 #[doc(hidden)]
