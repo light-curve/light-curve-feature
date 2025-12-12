@@ -43,12 +43,12 @@ impl NutsCurveFit {
 
     #[inline]
     pub fn default_num_tune() -> u32 {
-        100
+        200
     }
 
     #[inline]
     pub fn default_num_draws() -> u32 {
-        100
+        200
     }
 
     #[inline]

@@ -640,13 +640,12 @@ mod tests {
         let mut ts = TimeSeries::new(&t, &m, &w);
 
         let eval = BazinFit::new(
-            NutsCurveFit::new(200, 200, None).into(),
+            NutsCurveFit::new(400, 400, None).into(),
             LnPrior::none(),
             BazinInitsBounds::Default,
         );
         let values = eval.eval(&mut ts).unwrap();
-        // NUTS is stochastic and may need more relaxed tolerance
-        assert_relative_eq!(&values[..5], &param_true[..], max_relative = 0.05);
+        assert_relative_eq!(&values[..5], &param_true[..], max_relative = 0.03);
     }
 
     #[cfg(all(feature = "nuts", any(feature = "ceres-source", feature = "ceres-system")))]

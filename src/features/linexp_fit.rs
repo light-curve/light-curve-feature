@@ -548,21 +548,20 @@ mod tests {
         let mut ts = TimeSeries::new(&t, &m, &w);
 
         let eval = LinexpFit::new(
-            NutsCurveFit::new(200, 200, None).into(),
+            NutsCurveFit::new(500, 500, None).into(),
             LnPrior::none(),
             LinexpInitsBounds::Default,
         );
         let values = eval.eval(&mut ts).unwrap();
-        // NUTS is stochastic and may need more relaxed tolerance
-        assert_relative_eq!(&values[..NPARAMS], &param_true[..], max_relative = 0.08);
+        assert_relative_eq!(&values[..NPARAMS], &param_true[..], max_relative = 0.07);
     }
 
-    #[cfg(all(feature = "nuts", any(feature = "ceres-source", feature = "ceres-system")))]
+    #[cfg(all(feature = "nuts", feature = "gsl"))]
     #[test]
-    fn linexp_fit_noisy_nuts_plus_ceres() {
+    fn linexp_fit_noisy_nuts_plus_lmsder() {
         use crate::NutsCurveFit;
-        let ceres = CeresCurveFit::default();
-        let nuts = NutsCurveFit::new(50, 50, Some(ceres.into()));
+        let lmsder = LmsderCurveFit::default();
+        let nuts = NutsCurveFit::new(50, 50, Some(lmsder.into()));
         linexp_fit_noisy(LinexpFit::new(
             nuts.into(),
             LnPrior::none(),
