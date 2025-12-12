@@ -1,10 +1,10 @@
 use clap::Parser;
 use light_curve_feature::{
-    BazinFit, CobylaCurveFit, Feature, FeatureEvaluator, LinexpFit, McmcCurveFit, TimeSeries,
-    VillarFit, features::VillarLnPrior, prelude::*,
+    BazinFit, CobylaCurveFit, Feature, FeatureEvaluator, LinexpFit, LnPrior, McmcCurveFit,
+    TimeSeries, VillarFit, features::VillarLnPrior, prelude::*,
 };
 #[cfg(all(feature = "ceres-source", feature = "gsl"))]
-use light_curve_feature::{CeresCurveFit, LmsderCurveFit, LnPrior};
+use light_curve_feature::{CeresCurveFit, LmsderCurveFit};
 use light_curve_feature_test_util::iter_sn1a_flux_ts;
 use ndarray::{Array1, ArrayView1};
 use plotters::prelude::*;

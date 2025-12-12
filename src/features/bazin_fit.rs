@@ -537,23 +537,13 @@ mod tests {
 
     #[test]
     fn bazin_fit_cobyla() {
-        // Test that pure COBYLA runs without crashing
-        // COBYLA is derivative-free and may not converge as well as gradient-based methods
-        // on complex non-linear problems like Bazin fit with 5 parameters
-        const N: usize = 50;
-
-        let param_true = [1e4, 1e3, 30.0, 10.0, 30.0];
-        let t = linspace(0.0, 100.0, N);
-        let m: Vec<_> = t.iter().map(|&x| BazinFit::model(x, &param_true)).collect();
-        let w: Vec<_> = vec![1.0; N];
-        let mut ts = TimeSeries::new(&t, &m, &w);
-
-        let cobyla = CobylaCurveFit::new(1000, 0.5, 1e-6, None);
-        let bazin = BazinFit::new(cobyla.into(), LnPrior::none(), BazinInitsBounds::Default);
-
-        // Just verify it runs and returns results
-        let values = bazin.eval(&mut ts).unwrap();
-        assert_eq!(values.len(), 6); // 5 parameters + reduced chi2
+        // Test pure COBYLA on noisy data
+        // COBYLA is derivative-free and requires very tight convergence for this test
+        bazin_fit_noisy(BazinFit::new(
+            CobylaCurveFit::new(20000, 0.1, 1e-15, None).into(),
+            LnPrior::none(),
+            BazinInitsBounds::Default,
+        ));
     }
 
     #[test]
