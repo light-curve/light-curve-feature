@@ -617,38 +617,17 @@ mod tests {
     #[test]
     fn bazin_fit_noisy_nuts() {
         use crate::NutsCurveFit;
-        const N: usize = 50;
-
-        let mut rng = StdRng::seed_from_u64(42);
-
-        let param_true = [10000.0, 1000.0, 30.0, 10.0, 30.0];
-
-        let t = linspace(0.0, 100.0, N);
-        let model: Vec<_> = t
-            .iter()
-            .map(|&x| BazinFit::model(x, &param_true))
-            .collect();
-        let m: Vec<_> = model
-            .iter()
-            .map(|&y| {
-                let std = f64::sqrt(y);
-                let err = std * rng.sample::<f64, _>(StandardNormal);
-                y + err
-            })
-            .collect();
-        let w: Vec<_> = model.iter().copied().map(f64::recip).collect();
-        let mut ts = TimeSeries::new(&t, &m, &w);
-
-        let eval = BazinFit::new(
+        bazin_fit_noisy(BazinFit::new(
             NutsCurveFit::new(400, 400, None).into(),
             LnPrior::none(),
             BazinInitsBounds::Default,
-        );
-        let values = eval.eval(&mut ts).unwrap();
-        assert_relative_eq!(&values[..5], &param_true[..], max_relative = 0.03);
+        ));
     }
 
-    #[cfg(all(feature = "nuts", any(feature = "ceres-source", feature = "ceres-system")))]
+    #[cfg(all(
+        feature = "nuts",
+        any(feature = "ceres-source", feature = "ceres-system")
+    ))]
     #[test]
     fn bazin_fit_noisy_nuts_plus_ceres() {
         use crate::NutsCurveFit;

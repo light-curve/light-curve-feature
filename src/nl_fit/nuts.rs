@@ -214,16 +214,14 @@ impl CurveFitTrait for NutsCurveFit {
         let mut sampler = settings.new_chain(0, math, &mut rng);
 
         // Set initial position
-        sampler
-            .set_position(&x0[..])
-            .unwrap_or_else(|e| {
-                panic!(
-                    "Failed to set initial position for NUTS sampler. \
+        sampler.set_position(&x0[..]).unwrap_or_else(|e| {
+            panic!(
+                "Failed to set initial position for NUTS sampler. \
                      This may be due to invalid parameters or boundary violations. \
                      Initial parameters: {:?}, Error: {:?}",
-                    x0, e
-                )
-            });
+                x0, e
+            )
+        });
 
         // Collect samples
         let mut best_x = *x0;
