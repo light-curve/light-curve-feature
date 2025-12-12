@@ -5,6 +5,8 @@ use light_curve_feature::{
 };
 #[cfg(all(feature = "ceres-source", feature = "gsl"))]
 use light_curve_feature::{CeresCurveFit, LmsderCurveFit, LnPrior};
+#[cfg(feature = "nuts")]
+use light_curve_feature::NutsCurveFit;
 use light_curve_feature_test_util::iter_sn1a_flux_ts;
 use ndarray::{Array1, ArrayView1};
 use plotters::prelude::*;
@@ -145,6 +147,29 @@ fn main() {
             )
             .into(),
         ));
+
+        #[cfg(feature = "nuts")]
+        {
+            features.push((
+                "BazinFit NUTS",
+                BazinFit::new(
+                    NutsCurveFit::new(100, 100, None).into(),
+                    LnPrior::none(),
+                    BazinFit::default_inits_bounds(),
+                )
+                .into(),
+            ));
+            #[cfg(feature = "ceres-source")]
+            features.push((
+                "BazinFit NUTS+Ceres",
+                BazinFit::new(
+                    NutsCurveFit::new(50, 50, Some(CeresCurveFit::default().into())).into(),
+                    LnPrior::none(),
+                    BazinFit::default_inits_bounds(),
+                )
+                .into(),
+            ));
+        }
 
         features
     };

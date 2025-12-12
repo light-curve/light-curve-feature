@@ -520,4 +520,28 @@ mod tests {
         );
         let _result = linexp.eval(&mut ts).unwrap();
     }
+
+    #[cfg(feature = "nuts")]
+    #[test]
+    fn linexp_fit_noisy_nuts() {
+        use crate::NutsCurveFit;
+        linexp_fit_noisy(LinexpFit::new(
+            NutsCurveFit::new(100, 100, None).into(),
+            LnPrior::none(),
+            LinexpInitsBounds::Default,
+        ));
+    }
+
+    #[cfg(all(feature = "nuts", any(feature = "ceres-source", feature = "ceres-system")))]
+    #[test]
+    fn linexp_fit_noisy_nuts_plus_ceres() {
+        use crate::NutsCurveFit;
+        let ceres = CeresCurveFit::default();
+        let nuts = NutsCurveFit::new(50, 50, Some(ceres.into()));
+        linexp_fit_noisy(LinexpFit::new(
+            nuts.into(),
+            LnPrior::none(),
+            LinexpInitsBounds::Default,
+        ));
+    }
 }
