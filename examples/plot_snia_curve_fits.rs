@@ -1,7 +1,7 @@
 use clap::Parser;
 use light_curve_feature::{
-    BazinFit, Feature, FeatureEvaluator, LinexpFit, McmcCurveFit, TimeSeries, VillarFit,
-    features::VillarLnPrior, prelude::*,
+    BazinFit, CobylaCurveFit, Feature, FeatureEvaluator, LinexpFit, McmcCurveFit, TimeSeries,
+    VillarFit, features::VillarLnPrior, prelude::*,
 };
 #[cfg(all(feature = "ceres-source", feature = "gsl"))]
 use light_curve_feature::{CeresCurveFit, LmsderCurveFit, LnPrior};
@@ -59,6 +59,24 @@ fn main() {
                 .into(),
             ));
             features.push((
+                "BazinFit COBYLA",
+                BazinFit::new(
+                    CobylaCurveFit::default().into(),
+                    LnPrior::none(),
+                    BazinFit::default_inits_bounds(),
+                )
+                .into(),
+            ));
+            features.push((
+                "BazinFit MCMC+COBYLA",
+                BazinFit::new(
+                    McmcCurveFit::new(1024, Some(CobylaCurveFit::default().into())).into(),
+                    LnPrior::none(),
+                    BazinFit::default_inits_bounds(),
+                )
+                .into(),
+            ));
+            features.push((
                 "VillarFit LMSDER",
                 VillarFit::new(
                     LmsderCurveFit::default().into(),
@@ -89,6 +107,24 @@ fn main() {
                 "VillarFit MCMC+Ceres",
                 VillarFit::new(
                     McmcCurveFit::new(1024, Some(CeresCurveFit::default().into())).into(),
+                    LnPrior::none(),
+                    VillarFit::default_inits_bounds(),
+                )
+                .into(),
+            ));
+            features.push((
+                "VillarFit COBYLA",
+                VillarFit::new(
+                    CobylaCurveFit::default().into(),
+                    LnPrior::none(),
+                    VillarFit::default_inits_bounds(),
+                )
+                .into(),
+            ));
+            features.push((
+                "VillarFit MCMC+COBYLA",
+                VillarFit::new(
+                    McmcCurveFit::new(1024, Some(CobylaCurveFit::default().into())).into(),
                     LnPrior::none(),
                     VillarFit::default_inits_bounds(),
                 )

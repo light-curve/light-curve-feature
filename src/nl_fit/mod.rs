@@ -5,9 +5,7 @@ pub mod ceres;
 #[cfg(any(feature = "ceres-source", feature = "ceres-system"))]
 pub use ceres::CeresCurveFit;
 
-#[cfg(feature = "cobyla")]
 pub mod cobyla;
-#[cfg(feature = "cobyla")]
 pub use cobyla::CobylaCurveFit;
 
 #[cfg(any(

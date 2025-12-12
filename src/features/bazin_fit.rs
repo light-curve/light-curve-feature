@@ -401,6 +401,7 @@ mod tests {
     use super::*;
     #[cfg(any(feature = "ceres-source", feature = "ceres-system"))]
     use crate::CeresCurveFit;
+    use crate::CobylaCurveFit;
     #[cfg(feature = "gsl")]
     use crate::LmsderCurveFit;
     use crate::TimeSeries;
@@ -527,6 +528,18 @@ mod tests {
     fn bazin_fit_noizy_mcmc_plus_lmsder() {
         let lmsder = LmsderCurveFit::new(1);
         let mcmc = McmcCurveFit::new(512, Some(lmsder.into()));
+        bazin_fit_noisy(BazinFit::new(
+            mcmc.into(),
+            LnPrior::none(),
+            BazinInitsBounds::Default,
+        ));
+    }
+
+    #[test]
+    fn bazin_fit_noizy_mcmc_plus_cobyla() {
+        // COBYLA works well as a fine-tuning algorithm after MCMC exploration
+        let cobyla = CobylaCurveFit::new(2000, 0.5, 1e-9);
+        let mcmc = McmcCurveFit::new(512, Some(cobyla.into()));
         bazin_fit_noisy(BazinFit::new(
             mcmc.into(),
             LnPrior::none(),
