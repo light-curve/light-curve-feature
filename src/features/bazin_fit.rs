@@ -536,12 +536,12 @@ mod tests {
     }
 
     #[test]
-    fn bazin_fit_noizy_mcmc_plus_cobyla() {
-        // COBYLA works well as a fine-tuning algorithm after MCMC exploration
-        let cobyla = CobylaCurveFit::new(2000, 0.5, 1e-9);
-        let mcmc = McmcCurveFit::new(512, Some(cobyla.into()));
+    fn bazin_fit_cobyla_plus_mcmc() {
+        // Test COBYLA with MCMC as fine-tuning algorithm
+        let mcmc = McmcCurveFit::new(1024, None);
+        let cobyla = CobylaCurveFit::new(2000, 0.5, 1e-9, Some(mcmc.into()));
         bazin_fit_noisy(BazinFit::new(
-            mcmc.into(),
+            cobyla.into(),
             LnPrior::none(),
             BazinInitsBounds::Default,
         ));

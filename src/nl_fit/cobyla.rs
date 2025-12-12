@@ -1,4 +1,4 @@
-use crate::nl_fit::curve_fit::{CurveFitResult, CurveFitTrait};
+use crate::nl_fit::curve_fit::{CurveFitAlgorithm, CurveFitResult, CurveFitTrait};
 use crate::nl_fit::data::Data;
 
 use cobyla::{Func, RhoBeg, StopTols, minimize};
@@ -10,12 +10,14 @@ use std::rc::Rc;
 
 /// COBYLA (Constrained Optimization BY Linear Approximations) non-linear least-squares wrapper
 ///
-/// Requires `cobyla` Cargo feature
-///
 /// COBYLA is a derivative-free optimization algorithm that can handle constraints. Unlike LMSDER
 /// and Ceres, it doesn't require function derivatives (Jacobian). It supports boundaries through
 /// constraints but doesn't support priors directly. COBYLA is particularly useful as a drop-in
 /// replacement for MCMC when you need constraint-aware optimization without derivatives.
+///
+/// Optionally, if `fine_tuning_algorithm` is `Some`, it sends the best guess from COBYLA to the
+/// next optimization as an initial guess and returns its result. This allows chaining optimizers
+/// similar to MCMC's fine-tuning capability.
 ///
 /// The algorithm works by building linear approximations to the objective and constraint functions
 /// and is described in M.J.D. Powell's 1994 paper "A direct search optimization method that models
@@ -26,6 +28,7 @@ pub struct CobylaCurveFit {
     pub niterations: u32,
     pub rhobeg: NotNan<f64>,
     pub ftol_rel: NotNan<f64>,
+    pub fine_tuning_algorithm: Option<Box<CurveFitAlgorithm>>,
 }
 
 impl CobylaCurveFit {
@@ -35,7 +38,13 @@ impl CobylaCurveFit {
     /// - `niterations`: maximum number of function evaluations
     /// - `rhobeg`: initial change to parameters (controls initial simplex size)
     /// - `ftol_rel`: relative tolerance on function value for convergence
-    pub fn new(niterations: u32, rhobeg: f64, ftol_rel: f64) -> Self {
+    /// - `fine_tuning_algorithm`: optional algorithm to refine COBYLA's result
+    pub fn new(
+        niterations: u32,
+        rhobeg: f64,
+        ftol_rel: f64,
+        fine_tuning_algorithm: Option<CurveFitAlgorithm>,
+    ) -> Self {
         assert!(niterations > 0, "niterations must be positive");
         assert!(rhobeg > 0.0, "rhobeg must be positive");
         assert!(rhobeg.is_finite(), "rhobeg must be finite");
@@ -45,6 +54,7 @@ impl CobylaCurveFit {
             niterations,
             rhobeg: NotNan::new(rhobeg).expect("rhobeg must be finite and not NaN"),
             ftol_rel: NotNan::new(ftol_rel).expect("ftol_rel must be finite and not NaN"),
+            fine_tuning_algorithm: fine_tuning_algorithm.map(|x| x.into()),
         }
     }
 
@@ -62,6 +72,11 @@ impl CobylaCurveFit {
     pub fn default_ftol_rel() -> f64 {
         1e-6
     }
+
+    #[inline]
+    pub fn default_fine_tuning_algorithm() -> Option<CurveFitAlgorithm> {
+        None
+    }
 }
 
 impl Default for CobylaCurveFit {
@@ -70,6 +85,7 @@ impl Default for CobylaCurveFit {
             Self::default_niterations(),
             Self::default_rhobeg(),
             Self::default_ftol_rel(),
+            Self::default_fine_tuning_algorithm(),
         )
     }
 }
@@ -81,8 +97,8 @@ impl CurveFitTrait for CobylaCurveFit {
         x0: &[f64; NPARAMS],
         bounds: (&[f64; NPARAMS], &[f64; NPARAMS]),
         model: F,
-        _derivatives: DF,
-        _ln_prior: LP,
+        derivatives: DF,
+        ln_prior: LP,
     ) -> CurveFitResult<f64, NPARAMS>
     where
         F: 'static + Clone + Fn(f64, &[f64; NPARAMS]) -> f64,
@@ -94,6 +110,7 @@ impl CurveFitTrait for CobylaCurveFit {
         // Objective function: sum of squared weighted residuals (chi-squared)
         let objective = {
             let ts = ts.clone();
+            let model = model.clone();
             move |x: &[f64], _user_data: &mut ()| -> f64 {
                 // Safety: COBYLA guarantees that x has the same length as x0 (NPARAMS)
                 let params: [f64; NPARAMS] = x.try_into().unwrap();
@@ -149,10 +166,23 @@ impl CurveFitTrait for CobylaCurveFit {
                         | cobyla::SuccessStatus::FtolReached
                         | cobyla::SuccessStatus::XtolReached
                 );
-                CurveFitResult {
+                let cobyla_result = CurveFitResult {
                     x,
                     reduced_chi2,
                     success,
+                };
+
+                // Apply fine-tuning algorithm if provided
+                match &self.fine_tuning_algorithm {
+                    Some(fine_tuning_algorithm) => fine_tuning_algorithm.curve_fit(
+                        ts,
+                        &cobyla_result.x,
+                        bounds,
+                        model,
+                        derivatives,
+                        ln_prior,
+                    ),
+                    None => cobyla_result,
                 }
             }
             Err((_status, x_vec, chi2)) => {
@@ -208,7 +238,7 @@ mod tests {
         let inv_err: Array1<_> = vec![1.0 / NOISE; N].into();
         let ts = Rc::new(Data { t, m: y, inv_err });
 
-        let fitter = CobylaCurveFit::new(2000, 0.5, 1e-6);
+        let fitter = CobylaCurveFit::new(2000, 0.5, 1e-6, None);
         let result = fitter.curve_fit(
             ts,
             &param_init,
@@ -249,7 +279,7 @@ mod tests {
         let dummy_derivatives = |_t: f64, _p: &[f64; 3], _d: &mut [f64; 3]| {};
         let dummy_prior = |_p: &[f64; 3]| 0.0;
 
-        let fitter = CobylaCurveFit::new(2000, 0.5, 1e-9);
+        let fitter = CobylaCurveFit::new(2000, 0.5, 1e-9, None);
         let result = fitter.curve_fit(
             ts,
             &param_init,
