@@ -159,12 +159,12 @@ where
         // Gradient is d(lnlike + lnprior)/d(params)
         // We have grad_array = d(-chi^2)/d(params) = -2 * d(lnlike)/d(params)
         // So d(lnlike)/d(params) = -grad_array / 2
+        // Note: This implementation does not include the gradient of the prior.
+        // For non-uniform priors, this may lead to less efficient sampling,
+        // but the sampler will still converge to the correct distribution.
         for i in 0..NPARAMS {
             grad[i] = -grad_array[i] / 2.0;
         }
-
-        // Note: We're not including the gradient of the prior here
-        // This is a simplification and could be improved
 
         Ok(lnlike + lnprior)
     }
@@ -216,7 +216,14 @@ impl CurveFitTrait for NutsCurveFit {
         // Set initial position
         sampler
             .set_position(&x0[..])
-            .expect("Failed to set initial position");
+            .unwrap_or_else(|e| {
+                panic!(
+                    "Failed to set initial position for NUTS sampler. \
+                     This may be due to invalid parameters or boundary violations. \
+                     Initial parameters: {:?}, Error: {:?}",
+                    x0, e
+                )
+            });
 
         // Collect samples
         let mut best_x = *x0;
@@ -259,11 +266,23 @@ impl CurveFitTrait for NutsCurveFit {
 
         match self.fine_tuning_algorithm.as_ref() {
             Some(algo) => algo.curve_fit(ts, &best_x, bounds, model, derivatives, ln_prior),
-            None => CurveFitResult {
-                x: best_x,
-                reduced_chi2: -best_lnprob / ((nsamples - NPARAMS) as f64),
-                success: true,
-            },
+            None => {
+                // Calculate chi-squared for the best parameters
+                let mut residual = 0.0;
+                Zip::from(&ts.t)
+                    .and(&ts.m)
+                    .and(&ts.inv_err)
+                    .for_each(|&t, &m, &inv_err| {
+                        residual += (inv_err * (model(t, &best_x) - m)).powi(2);
+                    });
+                let reduced_chi2 = residual / ((nsamples - NPARAMS) as f64);
+
+                CurveFitResult {
+                    x: best_x,
+                    reduced_chi2,
+                    success: true,
+                }
+            }
         }
     }
 }
