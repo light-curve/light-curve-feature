@@ -172,48 +172,6 @@ fn main() {
                 .into(),
             ));
         }
-        #[cfg(feature = "nuts")]
-        features.push((
-            "VillarFit NUTS+prior",
-            VillarFit::new(
-                NutsCurveFit::default().into(),
-                // We set minimum amplitude to be corresponded to 21 mag
-                VillarLnPrior::hosseinzadeh2020(1.0, f64::powf(10.0, -0.4 * 21.0)),
-                VillarInitsBounds::option_arrays(
-                    // init
-                    [
-                        None,        // amplitude
-                        None,        // offset
-                        None,        // t0
-                        Some(30.0),  // tau_rise
-                        Some(100.0), // tau_fall
-                        Some(0.0),   // nu
-                        Some(20.0),  // gamma
-                    ],
-                    // lower
-                    [
-                        None,
-                        None,
-                        None,
-                        Some(0.01),
-                        Some(1.0),
-                        Some(0.0),
-                        Some(0.0),
-                    ],
-                    // upper
-                    [
-                        None,
-                        None,
-                        None,
-                        Some(50.0),
-                        Some(300.0),
-                        Some(1.0),
-                        Some(180.0),
-                    ],
-                ),
-            )
-            .into(),
-        ));
 
         features
     };
