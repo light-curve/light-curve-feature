@@ -1,5 +1,5 @@
 use clap::Parser;
-#[cfg(all(feature = "nuts", not(all(feature = "ceres-source", feature = "gsl"))))]
+#[cfg(any(feature = "nuts", all(feature = "ceres-source", feature = "gsl")))]
 use light_curve_feature::LnPrior;
 #[cfg(feature = "nuts")]
 use light_curve_feature::NutsCurveFit;
@@ -8,7 +8,7 @@ use light_curve_feature::{
     features::VillarLnPrior, prelude::*,
 };
 #[cfg(all(feature = "ceres-source", feature = "gsl"))]
-use light_curve_feature::{CeresCurveFit, LmsderCurveFit, LnPrior};
+use light_curve_feature::{CeresCurveFit, LmsderCurveFit};
 use light_curve_feature_test_util::iter_sn1a_flux_ts;
 use ndarray::{Array1, ArrayView1};
 use plotters::prelude::*;
