@@ -33,6 +33,8 @@ pub use nl_fit::CeresCurveFit;
 pub use nl_fit::CurveFitResult;
 #[cfg(feature = "gsl")]
 pub use nl_fit::LmsderCurveFit;
+#[cfg(feature = "nuts")]
+pub use nl_fit::NutsCurveFit;
 pub use nl_fit::evaluator::FitFeatureEvaluatorGettersTrait;
 pub use nl_fit::{CurveFitAlgorithm, McmcCurveFit};
 pub use nl_fit::{LnPrior, LnPrior1D, prior};

@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Implement `PartialEq` for `Feature` enum and all constituent types, enabling equality comparisons between feature
   instances https://github.com/light-curve/light-curve-feature/issues/228
+- Add NUTS (No-U-Turn Sampler) as an alternative fitting algorithm via `NutsCurveFit`, providing gradient-based Hamiltonian Monte Carlo optimization, gated behind the `nuts` cargo feature https://github.com/light-curve/light-curve-feature/pull/245
 
 ### Changed
 
