@@ -1,6 +1,7 @@
 use crate::nl_fit::constants::PARAMETER_TOLERANCE;
 use crate::nl_fit::curve_fit::{CurveFitResult, CurveFitTrait};
 use crate::nl_fit::data::Data;
+use crate::nl_fit::prior::ln_prior::LnPriorEvaluator;
 
 use ceres_solver::{CurveFitProblem1D, CurveFunctionType, LossFunction, SolverOptions};
 use ndarray::Zip;
@@ -71,7 +72,7 @@ impl CurveFitTrait for CeresCurveFit {
     where
         F: 'static + Clone + Fn(f64, &[f64; NPARAMS]) -> f64,
         DF: 'static + Clone + Fn(f64, &[f64; NPARAMS], &mut [f64; NPARAMS]),
-        LP: Clone + Fn(&[f64; NPARAMS]) -> f64,
+        LP: LnPriorEvaluator<NPARAMS>,
     {
         let func: CurveFunctionType = {
             let model = model.clone();

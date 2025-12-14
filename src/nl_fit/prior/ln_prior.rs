@@ -6,9 +6,19 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
-#[enum_dispatch]
-pub trait LnPriorTrait<const NPARAMS: usize>: Clone + Debug + Serialize + DeserializeOwned {
+/// Core trait for evaluating the natural logarithm of a prior
+///
+/// This trait is implemented by types that can evaluate ln(prior) for a given set of parameters.
+/// Unlike [LnPriorTrait], this trait does not require serialization, making it suitable for
+/// use with closures and other non-serializable types.
+pub trait LnPriorEvaluator<const NPARAMS: usize>: Clone {
     fn ln_prior(&self, params: &[f64; NPARAMS]) -> f64;
+}
+
+#[enum_dispatch]
+pub trait LnPriorTrait<const NPARAMS: usize>:
+    LnPriorEvaluator<NPARAMS> + Debug + Serialize + DeserializeOwned
+{
 }
 
 /// Natural logarithm of prior for non-linear curve-fit problem
@@ -18,6 +28,15 @@ pub trait LnPriorTrait<const NPARAMS: usize>: Clone + Debug + Serialize + Deseri
 pub enum LnPrior<const NPARAMS: usize> {
     None(NoneLnPrior),
     IndComponents(IndComponentsLnPrior<NPARAMS>),
+}
+
+impl<const NPARAMS: usize> LnPriorEvaluator<NPARAMS> for LnPrior<NPARAMS> {
+    fn ln_prior(&self, params: &[f64; NPARAMS]) -> f64 {
+        match self {
+            LnPrior::None(p) => p.ln_prior(params),
+            LnPrior::IndComponents(p) => p.ln_prior(params),
+        }
+    }
 }
 
 impl<const NPARAMS: usize> LnPrior<NPARAMS> {
@@ -56,16 +75,31 @@ impl<const NPARAMS: usize> LnPrior<NPARAMS> {
     {
         move |params| self.ln_prior(&transform(params))
     }
+
+    pub fn with_transformation<F>(
+        self,
+        transform: F,
+    ) -> FnLnPrior<impl Clone + Fn(&[f64; NPARAMS]) -> f64, NPARAMS>
+    where
+        F: Clone + Fn(&[f64; NPARAMS]) -> [f64; NPARAMS],
+    {
+        FnLnPrior::new(move |params| {
+            let transformed = transform(params);
+            self.ln_prior(&transformed)
+        })
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash)]
 pub struct NoneLnPrior {}
 
-impl<const NPARAMS: usize> LnPriorTrait<NPARAMS> for NoneLnPrior {
+impl<const NPARAMS: usize> LnPriorEvaluator<NPARAMS> for NoneLnPrior {
     fn ln_prior(&self, _params: &[f64; NPARAMS]) -> f64 {
         0.0
     }
 }
+
+impl<const NPARAMS: usize> LnPriorTrait<NPARAMS> for NoneLnPrior {}
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(
@@ -76,7 +110,7 @@ pub struct IndComponentsLnPrior<const NPARAMS: usize> {
     pub components: [LnPrior1D; NPARAMS],
 }
 
-impl<const NPARAMS: usize> LnPriorTrait<NPARAMS> for IndComponentsLnPrior<NPARAMS> {
+impl<const NPARAMS: usize> LnPriorEvaluator<NPARAMS> for IndComponentsLnPrior<NPARAMS> {
     fn ln_prior(&self, params: &[f64; NPARAMS]) -> f64 {
         params
             .iter()
@@ -85,6 +119,8 @@ impl<const NPARAMS: usize> LnPriorTrait<NPARAMS> for IndComponentsLnPrior<NPARAM
             .sum()
     }
 }
+
+impl<const NPARAMS: usize> LnPriorTrait<NPARAMS> for IndComponentsLnPrior<NPARAMS> {}
 
 impl<const NPARAMS: usize> JsonSchema for IndComponentsLnPrior<NPARAMS> {
     fn is_referenceable() -> bool {
@@ -124,5 +160,72 @@ impl<const NPARAMS: usize> TryFrom<IndComponentsLnPriorSerde> for IndComponentsL
                 .try_into()
                 .map_err(|_| "wrong size of the IndComponentsLnPrior.components")?,
         })
+    }
+}
+
+/// A wrapper that implements LnPriorTrait for a closure
+///
+/// This is useful when you need to apply transformation to parameters before evaluating the prior,
+/// such as in curve fitting where parameters need to be converted from internal to external representation.
+#[derive(Clone)]
+pub struct FnLnPrior<F, const NPARAMS: usize>
+where
+    F: Clone + Fn(&[f64; NPARAMS]) -> f64,
+{
+    f: F,
+}
+
+impl<F, const NPARAMS: usize> FnLnPrior<F, NPARAMS>
+where
+    F: Clone + Fn(&[f64; NPARAMS]) -> f64,
+{
+    pub fn new(f: F) -> Self {
+        Self { f }
+    }
+}
+
+impl<F, const NPARAMS: usize> Debug for FnLnPrior<F, NPARAMS>
+where
+    F: Clone + Fn(&[f64; NPARAMS]) -> f64,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FnLnPrior")
+            .field("f", &"<closure>")
+            .finish()
+    }
+}
+
+impl<F, const NPARAMS: usize> Serialize for FnLnPrior<F, NPARAMS>
+where
+    F: Clone + Fn(&[f64; NPARAMS]) -> f64,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        // Cannot serialize a closure, just serialize a placeholder
+        serializer.serialize_unit()
+    }
+}
+
+impl<'de, F, const NPARAMS: usize> Deserialize<'de> for FnLnPrior<F, NPARAMS>
+where
+    F: Clone + Fn(&[f64; NPARAMS]) -> f64 + Default,
+{
+    fn deserialize<D>(_deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        // Cannot deserialize a closure, return a default
+        Ok(Self { f: F::default() })
+    }
+}
+
+impl<F, const NPARAMS: usize> LnPriorEvaluator<NPARAMS> for FnLnPrior<F, NPARAMS>
+where
+    F: Clone + Fn(&[f64; NPARAMS]) -> f64,
+{
+    fn ln_prior(&self, params: &[f64; NPARAMS]) -> f64 {
+        (self.f)(params)
     }
 }

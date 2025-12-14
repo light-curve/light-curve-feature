@@ -2,6 +2,7 @@ use crate::float_trait::Float;
 use crate::nl_fit::bounds::within_bounds;
 use crate::nl_fit::curve_fit::{CurveFitAlgorithm, CurveFitResult, CurveFitTrait};
 use crate::nl_fit::data::Data;
+use crate::nl_fit::prior::ln_prior::LnPriorEvaluator;
 
 use emcee::{EnsembleSampler, Guess, Prob};
 use emcee_rand::{distributions::IndependentSample, *};
@@ -70,7 +71,7 @@ impl CurveFitTrait for McmcCurveFit {
     where
         F: 'static + Clone + Fn(f64, &[f64; NPARAMS]) -> f64,
         DF: 'static + Clone + Fn(f64, &[f64; NPARAMS], &mut [f64; NPARAMS]),
-        LP: Clone + Fn(&[f64; NPARAMS]) -> f64,
+        LP: LnPriorEvaluator<NPARAMS>,
     {
         const NWALKERS_PER_DIMENSION: usize = 4;
         let nwalkers = NWALKERS_PER_DIMENSION * NPARAMS;
@@ -95,7 +96,7 @@ impl CurveFitTrait for McmcCurveFit {
             let ln_prior = ln_prior.clone();
             move |guess: &Guess| {
                 let params = slice_to_array(&guess.values);
-                ln_prior(&params) as f32
+                ln_prior.ln_prior(&params) as f32
             }
         };
 
