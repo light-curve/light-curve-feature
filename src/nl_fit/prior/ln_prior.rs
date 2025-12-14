@@ -15,6 +15,14 @@ pub trait LnPriorEvaluator<const NPARAMS: usize>: Clone {
     fn ln_prior(&self, params: &[f64; NPARAMS]) -> f64;
 }
 
+/// Trait for serializable prior evaluators
+///
+/// This trait extends [LnPriorEvaluator] with serialization requirements. It is used for
+/// prior types that need to be serialized/deserialized, such as the [LnPrior] enum.
+///
+/// Use [LnPriorEvaluator] directly when you don't need serialization (e.g., for closures
+/// or temporary prior objects). Use this trait when you need to serialize the prior
+/// configuration.
 #[enum_dispatch]
 pub trait LnPriorTrait<const NPARAMS: usize>:
     LnPriorEvaluator<NPARAMS> + Debug + Serialize + DeserializeOwned
