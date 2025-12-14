@@ -163,10 +163,12 @@ impl<const NPARAMS: usize> TryFrom<IndComponentsLnPriorSerde> for IndComponentsL
     }
 }
 
-/// A wrapper that implements LnPriorTrait for a closure
+/// A wrapper that implements LnPriorEvaluator for a closure
 ///
 /// This is useful when you need to apply transformation to parameters before evaluating the prior,
 /// such as in curve fitting where parameters need to be converted from internal to external representation.
+///
+/// Note: This type cannot be meaningfully serialized or deserialized since it wraps a closure.
 #[derive(Clone)]
 pub struct FnLnPrior<F, const NPARAMS: usize>
 where
@@ -192,32 +194,6 @@ where
         f.debug_struct("FnLnPrior")
             .field("f", &"<closure>")
             .finish()
-    }
-}
-
-impl<F, const NPARAMS: usize> Serialize for FnLnPrior<F, NPARAMS>
-where
-    F: Clone + Fn(&[f64; NPARAMS]) -> f64,
-{
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        // Cannot serialize a closure, just serialize a placeholder
-        serializer.serialize_unit()
-    }
-}
-
-impl<'de, F, const NPARAMS: usize> Deserialize<'de> for FnLnPrior<F, NPARAMS>
-where
-    F: Clone + Fn(&[f64; NPARAMS]) -> f64 + Default,
-{
-    fn deserialize<D>(_deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        // Cannot deserialize a closure, return a default
-        Ok(Self { f: F::default() })
     }
 }
 
