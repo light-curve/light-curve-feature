@@ -89,7 +89,7 @@ impl<const NPARAMS: usize> LnPrior<NPARAMS> {
     ///
     /// This method creates a wrapper that stores references to the prior and normalization data,
     /// allowing it to be fully debuggable. The transformation is applied using the trait's
-    /// `convert_to_external` method.
+    /// `convert_to_external` method from the `FitParametersInternalExternalTrait` trait.
     pub fn with_fit_parameters_transformation<'a, T>(
         &'a self,
         norm_data: &'a NormalizedData<f64>,
@@ -180,12 +180,12 @@ impl<const NPARAMS: usize> TryFrom<IndComponentsLnPriorSerde> for IndComponentsL
 
 /// A prior with parameter transformation using FitParametersInternalExternalTrait
 ///
-/// This type wraps a [LnPrior] and a reference to [NormalizedData], applying parameter
-/// transformation using the `convert_to_external` method from [FitParametersInternalExternalTrait].
+/// This type wraps a [`LnPrior`] and a reference to `NormalizedData`, applying parameter
+/// transformation using the `convert_to_external` method from `FitParametersInternalExternalTrait`.
 /// This allows the prior to be evaluated in the external parameter space while being
 /// fully debuggable.
 ///
-/// Note: This type stores a reference to NormalizedData which is runtime data, so it cannot
+/// Note: This type stores a reference to `NormalizedData` which is runtime data, so it cannot
 /// be serialized. However, the prior itself can be serialized separately.
 #[derive(Debug)]
 pub struct TransformedLnPrior<'a, T, const NPARAMS: usize>
