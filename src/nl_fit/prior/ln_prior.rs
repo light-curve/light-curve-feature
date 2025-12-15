@@ -1,3 +1,4 @@
+use crate::nl_fit::data::NormalizedData;
 use crate::nl_fit::prior::ln_prior_1d::{LnPrior1D, LnPrior1DTrait};
 
 use enum_dispatch::enum_dispatch;
@@ -84,17 +85,23 @@ impl<const NPARAMS: usize> LnPrior<NPARAMS> {
         move |params| self.ln_prior(&transform(params))
     }
 
-    pub fn with_transformation<F>(
-        self,
-        transform: F,
-    ) -> FnLnPrior<impl Clone + Fn(&[f64; NPARAMS]) -> f64, NPARAMS>
+    /// Create a transformed prior that applies parameter transformation using FitParametersInternalExternalTrait
+    ///
+    /// This method creates a wrapper that stores references to the prior and normalization data,
+    /// allowing it to be fully debuggable. The transformation is applied using the trait's
+    /// `convert_to_external` method.
+    pub fn with_fit_parameters_transformation<'a, T>(
+        &'a self,
+        norm_data: &'a NormalizedData<f64>,
+    ) -> TransformedLnPrior<'a, T, NPARAMS>
     where
-        F: Clone + Fn(&[f64; NPARAMS]) -> [f64; NPARAMS],
+        T: crate::nl_fit::evaluator::FitParametersInternalExternalTrait<NPARAMS>,
     {
-        FnLnPrior::new(move |params| {
-            let transformed = transform(params);
-            self.ln_prior(&transformed)
-        })
+        TransformedLnPrior {
+            prior: self.clone(),
+            norm_data,
+            _phantom: std::marker::PhantomData,
+        }
     }
 }
 
@@ -171,45 +178,44 @@ impl<const NPARAMS: usize> TryFrom<IndComponentsLnPriorSerde> for IndComponentsL
     }
 }
 
-/// A wrapper that implements LnPriorEvaluator for a closure
+/// A prior with parameter transformation using FitParametersInternalExternalTrait
 ///
-/// This is useful when you need to apply transformation to parameters before evaluating the prior,
-/// such as in curve fitting where parameters need to be converted from internal to external representation.
+/// This type wraps a [LnPrior] and a reference to [NormalizedData], applying parameter
+/// transformation using the `convert_to_external` method from [FitParametersInternalExternalTrait].
+/// This allows the prior to be evaluated in the external parameter space while being
+/// fully debuggable.
 ///
-/// Note: This type cannot be meaningfully serialized or deserialized since it wraps a closure.
-#[derive(Clone)]
-pub struct FnLnPrior<F, const NPARAMS: usize>
+/// Note: This type stores a reference to NormalizedData which is runtime data, so it cannot
+/// be serialized. However, the prior itself can be serialized separately.
+#[derive(Debug)]
+pub struct TransformedLnPrior<'a, T, const NPARAMS: usize>
 where
-    F: Clone + Fn(&[f64; NPARAMS]) -> f64,
+    T: crate::nl_fit::evaluator::FitParametersInternalExternalTrait<NPARAMS>,
 {
-    f: F,
+    prior: LnPrior<NPARAMS>,
+    norm_data: &'a NormalizedData<f64>,
+    _phantom: std::marker::PhantomData<T>,
 }
 
-impl<F, const NPARAMS: usize> FnLnPrior<F, NPARAMS>
+impl<'a, T, const NPARAMS: usize> Clone for TransformedLnPrior<'a, T, NPARAMS>
 where
-    F: Clone + Fn(&[f64; NPARAMS]) -> f64,
+    T: crate::nl_fit::evaluator::FitParametersInternalExternalTrait<NPARAMS>,
 {
-    pub fn new(f: F) -> Self {
-        Self { f }
+    fn clone(&self) -> Self {
+        Self {
+            prior: self.prior.clone(),
+            norm_data: self.norm_data,
+            _phantom: std::marker::PhantomData,
+        }
     }
 }
 
-impl<F, const NPARAMS: usize> Debug for FnLnPrior<F, NPARAMS>
+impl<'a, T, const NPARAMS: usize> LnPriorEvaluator<NPARAMS> for TransformedLnPrior<'a, T, NPARAMS>
 where
-    F: Clone + Fn(&[f64; NPARAMS]) -> f64,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("FnLnPrior")
-            .field("f", &"<closure>")
-            .finish()
-    }
-}
-
-impl<F, const NPARAMS: usize> LnPriorEvaluator<NPARAMS> for FnLnPrior<F, NPARAMS>
-where
-    F: Clone + Fn(&[f64; NPARAMS]) -> f64,
+    T: crate::nl_fit::evaluator::FitParametersInternalExternalTrait<NPARAMS>,
 {
     fn ln_prior(&self, params: &[f64; NPARAMS]) -> f64 {
-        (self.f)(params)
+        let transformed = T::convert_to_external(self.norm_data, params);
+        self.prior.ln_prior(&transformed)
     }
 }
