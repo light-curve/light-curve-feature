@@ -219,3 +219,220 @@ where
         self.prior.ln_prior(&transformed)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::nl_fit::data::Data;
+    use crate::nl_fit::prior::ln_prior_1d::UniformLnPrior1D;
+    use crate::time_series::TimeSeries;
+    use ndarray::Array1;
+    use std::rc::Rc;
+
+    #[test]
+    fn test_ln_prior_evaluator_trait_none() {
+        let prior: LnPrior<3> = LnPrior::none();
+        let params = [1.0, 2.0, 3.0];
+        assert_eq!(prior.ln_prior(&params), 0.0);
+    }
+
+    #[test]
+    fn test_ln_prior_evaluator_trait_ind_components() {
+        let components = [
+            LnPrior1D::uniform(UniformLnPrior1D::new(0.0, 10.0)),
+            LnPrior1D::uniform(UniformLnPrior1D::new(0.0, 10.0)),
+            LnPrior1D::uniform(UniformLnPrior1D::new(0.0, 10.0)),
+        ];
+        let prior: LnPrior<3> = LnPrior::ind_components(components);
+
+        // Test with valid parameters
+        let params_valid = [5.0, 5.0, 5.0];
+        assert!(prior.ln_prior(&params_valid).is_finite());
+
+        // Test with out-of-bounds parameters
+        let params_invalid = [15.0, 5.0, 5.0];
+        assert!(prior.ln_prior(&params_invalid).is_infinite());
+        assert!(prior.ln_prior(&params_invalid) < 0.0);
+    }
+
+    #[test]
+    fn test_none_ln_prior_is_zero() {
+        let prior = NoneLnPrior {};
+        let params = [100.0, -50.0, 0.0];
+        assert_eq!(prior.ln_prior(&params), 0.0);
+    }
+
+    #[test]
+    fn test_ind_components_ln_prior() {
+        let components = [
+            LnPrior1D::uniform(UniformLnPrior1D::new(0.0, 1.0)),
+            LnPrior1D::uniform(UniformLnPrior1D::new(0.0, 2.0)),
+        ];
+        let prior = IndComponentsLnPrior { components };
+
+        // Both within bounds
+        let params = [0.5, 1.0];
+        assert!(prior.ln_prior(&params).is_finite());
+
+        // First out of bounds
+        let params = [1.5, 1.0];
+        assert!(prior.ln_prior(&params).is_infinite());
+    }
+
+    #[test]
+    fn test_ln_prior_clone() {
+        let prior: LnPrior<2> = LnPrior::none();
+        let cloned = prior.clone();
+        let params = [1.0, 2.0];
+        assert_eq!(prior.ln_prior(&params), cloned.ln_prior(&params));
+    }
+
+    #[test]
+    fn test_ln_prior_debug() {
+        let prior: LnPrior<2> = LnPrior::none();
+        let debug_str = format!("{:?}", prior);
+        assert!(debug_str.contains("None"));
+    }
+
+    #[test]
+    fn test_ln_prior_into_func() {
+        let prior: LnPrior<2> = LnPrior::none();
+        let func = prior.into_func();
+        let params = [1.0, 2.0];
+        assert_eq!(func(&params), 0.0);
+    }
+
+    #[test]
+    fn test_ln_prior_into_func_with_transformation() {
+        let prior: LnPrior<2> = LnPrior::none();
+        let transform = |params: &[f64; 2]| [params[0] * 2.0, params[1] * 2.0];
+        let func = prior.into_func_with_transformation(transform);
+        let params = [1.0, 2.0];
+        // Since NoneLnPrior always returns 0, transformation doesn't affect result
+        assert_eq!(func(&params), 0.0);
+    }
+
+    #[test]
+    fn test_ln_prior_as_func() {
+        let prior: LnPrior<2> = LnPrior::none();
+        let func = prior.as_func();
+        let params = [1.0, 2.0];
+        assert_eq!(func(&params), 0.0);
+    }
+
+    // Mock struct for testing FitParametersInternalExternalTrait
+    struct MockFitParameters;
+
+    impl crate::nl_fit::evaluator::FitParametersInternalDimlessTrait<f64, 2> for MockFitParameters {
+        fn dimensionless_to_internal(params: &[f64; 2]) -> [f64; 2] {
+            *params
+        }
+
+        fn internal_to_dimensionless(params: &[f64; 2]) -> [f64; 2] {
+            *params
+        }
+    }
+
+    impl crate::nl_fit::evaluator::FitParametersOriginalDimLessTrait<2> for MockFitParameters {
+        fn orig_to_dimensionless(_norm_data: &NormalizedData<f64>, orig: &[f64; 2]) -> [f64; 2] {
+            *orig
+        }
+
+        fn dimensionless_to_orig(_norm_data: &NormalizedData<f64>, norm: &[f64; 2]) -> [f64; 2] {
+            // Simple transformation: multiply by 2
+            [norm[0] * 2.0, norm[1] * 2.0]
+        }
+    }
+
+    impl crate::nl_fit::evaluator::FitParametersInternalExternalTrait<2> for MockFitParameters {}
+
+    #[test]
+    fn test_transformed_ln_prior() {
+        // Create mock normalized data
+        let t = Array1::from_vec(vec![1.0, 2.0, 3.0]);
+        let m = Array1::from_vec(vec![1.0, 2.0, 3.0]);
+        let inv_err = Array1::from_vec(vec![1.0, 1.0, 1.0]);
+        let data = Rc::new(Data { t, m, inv_err });
+        let mut ts = TimeSeries::new_without_weight(vec![1.0, 2.0, 3.0], vec![1.0, 2.0, 3.0]);
+        let norm_data = NormalizedData::<f64>::from_ts(&mut ts);
+
+        // Create a prior with bounds [0, 2] for each parameter
+        let components = [
+            LnPrior1D::uniform(UniformLnPrior1D::new(0.0, 2.0)),
+            LnPrior1D::uniform(UniformLnPrior1D::new(0.0, 2.0)),
+        ];
+        let prior: LnPrior<2> = LnPrior::ind_components(components);
+
+        // Create transformed prior
+        let transformed_prior =
+            prior.with_fit_parameters_transformation::<MockFitParameters>(&norm_data);
+
+        // Test with internal parameters [0.5, 0.5]
+        // After transformation: [1.0, 1.0] which is within bounds
+        let internal_params = [0.5, 0.5];
+        let result = transformed_prior.ln_prior(&internal_params);
+        assert!(result.is_finite());
+
+        // Test with internal parameters [1.5, 1.5]
+        // After transformation: [3.0, 3.0] which is out of bounds
+        let internal_params = [1.5, 1.5];
+        let result = transformed_prior.ln_prior(&internal_params);
+        assert!(result.is_infinite());
+        assert!(result < 0.0);
+    }
+
+    #[test]
+    fn test_transformed_ln_prior_clone() {
+        let mut ts = TimeSeries::new_without_weight(vec![1.0, 2.0, 3.0], vec![1.0, 2.0, 3.0]);
+        let norm_data = NormalizedData::<f64>::from_ts(&mut ts);
+
+        let prior: LnPrior<2> = LnPrior::none();
+        let transformed_prior =
+            prior.with_fit_parameters_transformation::<MockFitParameters>(&norm_data);
+        let cloned = transformed_prior.clone();
+
+        let params = [1.0, 2.0];
+        assert_eq!(
+            transformed_prior.ln_prior(&params),
+            cloned.ln_prior(&params)
+        );
+    }
+
+    #[test]
+    fn test_transformed_ln_prior_debug() {
+        let mut ts = TimeSeries::new_without_weight(vec![1.0, 2.0, 3.0], vec![1.0, 2.0, 3.0]);
+        let norm_data = NormalizedData::<f64>::from_ts(&mut ts);
+
+        let prior: LnPrior<2> = LnPrior::none();
+        let transformed_prior =
+            prior.with_fit_parameters_transformation::<MockFitParameters>(&norm_data);
+
+        let debug_str = format!("{:?}", transformed_prior);
+        assert!(debug_str.contains("TransformedLnPrior"));
+    }
+
+    #[test]
+    fn test_ln_prior_serialization() {
+        let prior: LnPrior<2> = LnPrior::none();
+        let serialized = serde_json::to_string(&prior).unwrap();
+        let deserialized: LnPrior<2> = serde_json::from_str(&serialized).unwrap();
+
+        let params = [1.0, 2.0];
+        assert_eq!(prior.ln_prior(&params), deserialized.ln_prior(&params));
+    }
+
+    #[test]
+    fn test_ind_components_serialization() {
+        let components = [
+            LnPrior1D::uniform(UniformLnPrior1D::new(0.0, 10.0)),
+            LnPrior1D::uniform(UniformLnPrior1D::new(-5.0, 5.0)),
+        ];
+        let prior: LnPrior<2> = LnPrior::ind_components(components);
+
+        let serialized = serde_json::to_string(&prior).unwrap();
+        let deserialized: LnPrior<2> = serde_json::from_str(&serialized).unwrap();
+
+        let params = [5.0, 0.0];
+        assert_eq!(prior.ln_prior(&params), deserialized.ln_prior(&params));
+    }
+}
