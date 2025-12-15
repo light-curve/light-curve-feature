@@ -22,9 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   NaN https://github.com/light-curve/light-curve-feature/issues/233 https://github.com/light-curve/light-curve-feature/pull/242
 - **Breaking** `MixLnPrior1D::new` signature changed from accepting `Vec` to
   slice. https://github.com/light-curve/light-curve-feature/pull/242
-- **Breaking** `CurveFitTrait::curve_fit` now accepts priors implementing `LnPriorEvaluator` trait instead of bare `Fn` closures, providing better type safety and extensibility
+- **Breaking** `CurveFitTrait::curve_fit` now accepts priors implementing `LnPriorEvaluator` trait instead of bare `Fn` closures, providing better type safety and extensibility https://github.com/light-curve/light-curve-feature/pull/248
 - Bump `ceres-solver` from 0.4.0 to 0.5.0 https://github.com/light-curve/light-curve-feature/pull/246
-- Refactored prior transformation to use trait-based `TransformedLnPrior` wrapper instead of closures, improving debuggability and avoiding function wrapping
+- Refactored prior transformation to use trait-based `TransformedLnPrior` wrapper instead of closures, improving debuggability and avoiding function wrapping https://github.com/light-curve/light-curve-feature/pull/248
 
 ### Deprecated
 
