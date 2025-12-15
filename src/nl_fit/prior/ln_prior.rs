@@ -224,7 +224,6 @@ where
 mod tests {
     use super::*;
     use crate::nl_fit::data::Data;
-    use crate::nl_fit::prior::ln_prior_1d::UniformLnPrior1D;
     use crate::time_series::TimeSeries;
     use ndarray::Array1;
     use std::rc::Rc;
@@ -239,9 +238,9 @@ mod tests {
     #[test]
     fn test_ln_prior_evaluator_trait_ind_components() {
         let components = [
-            LnPrior1D::uniform(UniformLnPrior1D::new(0.0, 10.0)),
-            LnPrior1D::uniform(UniformLnPrior1D::new(0.0, 10.0)),
-            LnPrior1D::uniform(UniformLnPrior1D::new(0.0, 10.0)),
+            LnPrior1D::uniform(0.0, 10.0),
+            LnPrior1D::uniform(0.0, 10.0),
+            LnPrior1D::uniform(0.0, 10.0),
         ];
         let prior: LnPrior<3> = LnPrior::ind_components(components);
 
@@ -264,10 +263,7 @@ mod tests {
 
     #[test]
     fn test_ind_components_ln_prior() {
-        let components = [
-            LnPrior1D::uniform(UniformLnPrior1D::new(0.0, 1.0)),
-            LnPrior1D::uniform(UniformLnPrior1D::new(0.0, 2.0)),
-        ];
+        let components = [LnPrior1D::uniform(0.0, 1.0), LnPrior1D::uniform(0.0, 2.0)];
         let prior = IndComponentsLnPrior { components };
 
         // Both within bounds
@@ -357,10 +353,7 @@ mod tests {
         let norm_data = NormalizedData::<f64>::from_ts(&mut ts);
 
         // Create a prior with bounds [0, 2] for each parameter
-        let components = [
-            LnPrior1D::uniform(UniformLnPrior1D::new(0.0, 2.0)),
-            LnPrior1D::uniform(UniformLnPrior1D::new(0.0, 2.0)),
-        ];
+        let components = [LnPrior1D::uniform(0.0, 2.0), LnPrior1D::uniform(0.0, 2.0)];
         let prior: LnPrior<2> = LnPrior::ind_components(components);
 
         // Create transformed prior
@@ -423,10 +416,7 @@ mod tests {
 
     #[test]
     fn test_ind_components_serialization() {
-        let components = [
-            LnPrior1D::uniform(UniformLnPrior1D::new(0.0, 10.0)),
-            LnPrior1D::uniform(UniformLnPrior1D::new(-5.0, 5.0)),
-        ];
+        let components = [LnPrior1D::uniform(0.0, 10.0), LnPrior1D::uniform(-5.0, 5.0)];
         let prior: LnPrior<2> = LnPrior::ind_components(components);
 
         let serialized = serde_json::to_string(&prior).unwrap();
