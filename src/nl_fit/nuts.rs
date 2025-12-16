@@ -1,6 +1,7 @@
 use crate::nl_fit::bounds::within_bounds;
 use crate::nl_fit::curve_fit::{CurveFitAlgorithm, CurveFitResult, CurveFitTrait};
 use crate::nl_fit::data::Data;
+use crate::nl_fit::prior::ln_prior::LnPriorEvaluator;
 
 use ndarray::Zip;
 use nuts_rs::{Chain, CpuLogpFunc, CpuMath, DiagGradNutsSettings, LogpError, Settings};
@@ -110,7 +111,7 @@ impl<F, DF, LP, const NPARAMS: usize> CpuLogpFunc for LogpFunc<F, DF, LP, NPARAM
 where
     F: Clone + Fn(f64, &[f64; NPARAMS]) -> f64,
     DF: Clone + Fn(f64, &[f64; NPARAMS], &mut [f64; NPARAMS]),
-    LP: Clone + Fn(&[f64; NPARAMS]) -> f64,
+    LP: LnPriorEvaluator<NPARAMS>,
 {
     type LogpError = NutsLogpError;
     type FlowParameters = ();
@@ -154,7 +155,7 @@ where
         let lnlike = -0.5 * residual;
 
         // Add prior
-        let lnprior = (self.ln_prior)(&params_array);
+        let lnprior = self.ln_prior.ln_prior(&params_array);
 
         // Gradient is d(lnlike + lnprior)/d(params)
         // We have grad_array = d(chi^2)/d(params)
@@ -191,7 +192,7 @@ impl CurveFitTrait for NutsCurveFit {
     where
         F: 'static + Clone + Fn(f64, &[f64; NPARAMS]) -> f64,
         DF: 'static + Clone + Fn(f64, &[f64; NPARAMS], &mut [f64; NPARAMS]),
-        LP: Clone + Fn(&[f64; NPARAMS]) -> f64,
+        LP: LnPriorEvaluator<NPARAMS>,
     {
         let nsamples = ts.t.len();
 
@@ -206,9 +207,11 @@ impl CurveFitTrait for NutsCurveFit {
 
         let math = CpuMath::new(logp_func);
 
-        let mut settings = DiagGradNutsSettings::default();
-        settings.num_tune = self.num_tune as u64;
-        settings.num_draws = self.num_draws as u64;
+        let settings = DiagGradNutsSettings {
+            num_tune: self.num_tune as u64,
+            num_draws: self.num_draws as u64,
+            ..Default::default()
+        };
 
         let mut rng = rng();
         let mut sampler = settings.new_chain(0, math, &mut rng);

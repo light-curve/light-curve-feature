@@ -139,7 +139,6 @@ macro_rules! fit_eval {
             };
 
             let result = {
-                let norm_data_for_prior = norm_data.clone();
                 let CurveFitResult {
                     x, reduced_chi2, ..
                 } = self.get_algorithm().curve_fit(
@@ -149,9 +148,7 @@ macro_rules! fit_eval {
                     Self::model,
                     Self::derivatives,
                     self.ln_prior_from_ts(ts)
-                        .into_func_with_transformation(move |params| {
-                            Self::convert_to_external(&norm_data_for_prior, params)
-                        }),
+                        .with_fit_parameters_transformation::<Self>(&norm_data),
                 );
                 let result =
                     Self::convert_to_external(&norm_data, (&x as &[_]).try_into().unwrap());
