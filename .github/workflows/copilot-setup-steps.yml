@@ -1,0 +1,52 @@
+name: Copilot Setup Steps
+
+on: workflow_dispatch
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code with submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+      
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            libfftw3-dev \
+            libgsl-dev \
+            libfontconfig-dev
+      
+      - name: Get MSRV from Cargo.toml
+        id: get_msrv
+        run: echo "msrv=$(grep '^rust-version = ' Cargo.toml | grep -o '[0-9.]\+')" >> $GITHUB_OUTPUT
+      
+      - name: Install Rust stable toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+      
+      - name: Install Rust MSRV toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ steps.get_msrv.outputs.msrv }}
+      
+      - name: Set stable as default
+        run: rustup default stable
+      
+      - name: Verify setup
+        run: |
+          echo "Installed Rust toolchains:"
+          rustup toolchain list
+          echo ""
+          echo "Git submodule status:"
+          git submodule status
+          echo ""
+          echo "Available cargo components:"
+          rustup component list --installed
