@@ -223,10 +223,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::nl_fit::data::Data;
     use crate::time_series::TimeSeries;
-    use ndarray::Array1;
-    use std::rc::Rc;
 
     #[test]
     fn test_ln_prior_evaluator_trait_none() {
@@ -317,6 +314,7 @@ mod tests {
     }
 
     // Mock struct for testing FitParametersInternalExternalTrait
+    #[derive(Debug)]
     struct MockFitParameters;
 
     impl crate::nl_fit::evaluator::FitParametersInternalDimlessTrait<f64, 2> for MockFitParameters {
@@ -345,10 +343,6 @@ mod tests {
     #[test]
     fn test_transformed_ln_prior() {
         // Create mock normalized data
-        let t = Array1::from_vec(vec![1.0, 2.0, 3.0]);
-        let m = Array1::from_vec(vec![1.0, 2.0, 3.0]);
-        let inv_err = Array1::from_vec(vec![1.0, 1.0, 1.0]);
-        let data = Rc::new(Data { t, m, inv_err });
         let mut ts = TimeSeries::new_without_weight(vec![1.0, 2.0, 3.0], vec![1.0, 2.0, 3.0]);
         let norm_data = NormalizedData::<f64>::from_ts(&mut ts);
 
