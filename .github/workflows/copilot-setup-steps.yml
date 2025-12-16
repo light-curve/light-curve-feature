@@ -1,5 +1,7 @@
 name: "Copilot Setup Steps"
 
+# Automatically run the setup steps when they are changed to allow for easy validation, and
+# allow manual testing through the repository's "Actions" tab
 on:
   workflow_dispatch:
   push:
@@ -19,7 +21,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: true
-      
+
       - name: Install System Dependencies
         run: |
           sudo apt-get update
@@ -29,25 +31,25 @@ jobs:
             libfftw3-dev \
             libgsl-dev \
             libfontconfig-dev
-      
+
       - name: Get MSRV from Cargo.toml
         id: get_msrv
         run: echo "msrv=$(grep '^rust-version = ' Cargo.toml | grep -o '[0-9.]\+')" >> $GITHUB_OUTPUT
-      
+
       - name: Install Rust stable toolchain
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
           components: rustfmt, clippy
-      
+
       - name: Install Rust MSRV toolchain
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ steps.get_msrv.outputs.msrv }}
-      
+
       - name: Set stable as default
         run: rustup default stable
-      
+
       - name: Verify setup
         run: |
           echo "Installed Rust toolchains:"
