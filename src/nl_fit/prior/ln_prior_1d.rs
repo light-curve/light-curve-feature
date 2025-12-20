@@ -405,25 +405,23 @@ impl LnPrior1DTrait for MixLnPrior1D {
         // d(ln(p))/dx = 1/p(x) * sum_i w_i * p_i(x) * d(ln(p_i))/dx
         //             = sum_i [w_i * p_i(x) / p(x)] * d(ln(p_i))/dx
         
-        let mut weighted_probs = Vec::with_capacity(self.mix.len());
-        let mut grads = Vec::with_capacity(self.mix.len());
+        let mut total_prob = 0.0;
+        let mut total_grad_weighted = 0.0;
         
         for (weight, prior) in &self.mix {
             let mut component_grad = 0.0;
             let ln_prob_i = prior.ln_prior_1d(x, if grad.is_some() { Some(&mut component_grad) } else { None });
             let prob_i = f64::exp(ln_prob_i);
-            weighted_probs.push(weight.into_inner() * prob_i);
-            grads.push(component_grad);
+            let weighted_prob = weight.into_inner() * prob_i;
+            total_prob += weighted_prob;
+            
+            if grad.is_some() {
+                total_grad_weighted += weighted_prob * component_grad;
+            }
         }
         
-        let total_prob: f64 = weighted_probs.iter().sum();
-        
         if let Some(g) = grad {
-            *g = weighted_probs
-                .iter()
-                .zip(grads.iter())
-                .map(|(wp, grad_i)| (wp / total_prob) * grad_i)
-                .sum();
+            *g = total_grad_weighted / total_prob;
         }
         
         f64::ln(total_prob)
