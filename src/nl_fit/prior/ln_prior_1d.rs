@@ -110,8 +110,8 @@ impl LnPrior1DTrait for LogNormalLnPrior1D {
         if let Some(g) = grad {
             // d(ln_prior)/dx = d/dx [ln_prob_coeff - 0.5 * (mu - ln(x))^2 * inv_std2 - ln(x)]
             // = d/dx [-0.5 * (mu - ln(x))^2 * inv_std2 - ln(x)]
-            // = -0.5 * 2 * (mu - ln(x)) * (-1/x) * inv_std2 - 1/x
-            // = (mu - ln(x)) * inv_std2 / x - 1/x
+            // = -0.5 * 2 * (mu - ln(x)) * (d/dx)[-ln(x)] * inv_std2 - 1/x
+            // = (mu - ln(x)) * (1/x) * inv_std2 - 1/x
             // = [(mu - ln(x)) * inv_std2 - 1] / x
             *g = (diff * self.inv_std2() - 1.0) / x;
         }
@@ -261,6 +261,7 @@ impl LnPrior1DTrait for NormalLnPrior1D {
         
         if let Some(g) = grad {
             // d(ln_prior)/dx = d/dx [ln_prob_coeff - 0.5 * (mu - x)^2 * inv_std2]
+            // = -0.5 * 2 * (mu - x) * (d/dx)[mu - x] * inv_std2
             // = -0.5 * 2 * (mu - x) * (-1) * inv_std2
             // = (mu - x) * inv_std2
             *g = diff * self.inv_std2();
