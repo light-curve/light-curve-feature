@@ -13,7 +13,10 @@ use std::fmt::Debug;
 /// Unlike [LnPriorTrait], this trait does not require serialization, making it suitable for
 /// use with closures and other non-serializable types.
 pub trait LnPriorEvaluator<const NPARAMS: usize>: Clone {
-    fn ln_prior(&self, params: &[f64; NPARAMS]) -> f64;
+    /// Evaluate the natural logarithm of the prior at params
+    ///
+    /// If `jac` is `Some`, the jacobian (gradient) d(ln_prior)/d(params) is also computed and stored in it.
+    fn ln_prior(&self, params: &[f64; NPARAMS], jac: Option<&mut [f64; NPARAMS]>) -> f64;
 }
 
 /// Trait for serializable prior evaluators
@@ -40,10 +43,10 @@ pub enum LnPrior<const NPARAMS: usize> {
 }
 
 impl<const NPARAMS: usize> LnPriorEvaluator<NPARAMS> for LnPrior<NPARAMS> {
-    fn ln_prior(&self, params: &[f64; NPARAMS]) -> f64 {
+    fn ln_prior(&self, params: &[f64; NPARAMS], jac: Option<&mut [f64; NPARAMS]>) -> f64 {
         match self {
-            LnPrior::None(p) => p.ln_prior(params),
-            LnPrior::IndComponents(p) => p.ln_prior(params),
+            LnPrior::None(p) => p.ln_prior(params, jac),
+            LnPrior::IndComponents(p) => p.ln_prior(params, jac),
         }
     }
 }
@@ -58,7 +61,7 @@ impl<const NPARAMS: usize> LnPrior<NPARAMS> {
     }
 
     pub fn into_func(self) -> impl 'static + Clone + Fn(&[f64; NPARAMS]) -> f64 {
-        move |params| self.ln_prior(params)
+        move |params| self.ln_prior(params, None)
     }
 
     pub fn into_func_with_transformation<'a, F>(
@@ -68,11 +71,11 @@ impl<const NPARAMS: usize> LnPrior<NPARAMS> {
     where
         F: 'a + Clone + Fn(&[f64; NPARAMS]) -> [f64; NPARAMS],
     {
-        move |params| self.ln_prior(&transform(params))
+        move |params| self.ln_prior(&transform(params), None)
     }
 
     pub fn as_func(&self) -> impl '_ + Fn(&[f64; NPARAMS]) -> f64 {
-        |params| self.ln_prior(params)
+        |params| self.ln_prior(params, None)
     }
 
     pub fn as_func_with_transformation<'a, F>(
@@ -82,7 +85,7 @@ impl<const NPARAMS: usize> LnPrior<NPARAMS> {
     where
         F: 'a + Clone + Fn(&[f64; NPARAMS]) -> [f64; NPARAMS],
     {
-        move |params| self.ln_prior(&transform(params))
+        move |params| self.ln_prior(&transform(params), None)
     }
 
     /// Create a transformed prior that applies parameter transformation using FitParametersInternalExternalTrait
@@ -109,7 +112,12 @@ impl<const NPARAMS: usize> LnPrior<NPARAMS> {
 pub struct NoneLnPrior {}
 
 impl<const NPARAMS: usize> LnPriorEvaluator<NPARAMS> for NoneLnPrior {
-    fn ln_prior(&self, _params: &[f64; NPARAMS]) -> f64 {
+    fn ln_prior(&self, _params: &[f64; NPARAMS], jac: Option<&mut [f64; NPARAMS]>) -> f64 {
+        if let Some(j) = jac {
+            for i in 0..NPARAMS {
+                j[i] = 0.0;
+            }
+        }
         0.0
     }
 }
@@ -126,12 +134,23 @@ pub struct IndComponentsLnPrior<const NPARAMS: usize> {
 }
 
 impl<const NPARAMS: usize> LnPriorEvaluator<NPARAMS> for IndComponentsLnPrior<NPARAMS> {
-    fn ln_prior(&self, params: &[f64; NPARAMS]) -> f64 {
-        params
-            .iter()
-            .zip(self.components.iter())
-            .map(|(&x, ln_prior)| ln_prior.ln_prior_1d(x))
-            .sum()
+    fn ln_prior(&self, params: &[f64; NPARAMS], jac: Option<&mut [f64; NPARAMS]>) -> f64 {
+        let mut total_ln_prior = 0.0;
+        
+        if let Some(j) = jac {
+            for (i, (&x, ln_prior)) in params.iter().zip(self.components.iter()).enumerate() {
+                let mut grad = 0.0;
+                let ln_p = ln_prior.ln_prior_1d(x, Some(&mut grad));
+                total_ln_prior += ln_p;
+                j[i] = grad;
+            }
+        } else {
+            for (&x, ln_prior) in params.iter().zip(self.components.iter()) {
+                total_ln_prior += ln_prior.ln_prior_1d(x, None);
+            }
+        }
+        
+        total_ln_prior
     }
 }
 
@@ -214,9 +233,13 @@ impl<'a, T, const NPARAMS: usize> LnPriorEvaluator<NPARAMS> for TransformedLnPri
 where
     T: crate::nl_fit::evaluator::FitParametersInternalExternalTrait<NPARAMS>,
 {
-    fn ln_prior(&self, params: &[f64; NPARAMS]) -> f64 {
+    fn ln_prior(&self, params: &[f64; NPARAMS], jac: Option<&mut [f64; NPARAMS]>) -> f64 {
         let transformed = T::convert_to_external(self.norm_data, params);
-        self.prior.ln_prior(&transformed)
+        // Note: We're not computing the jacobian of the transformation here.
+        // This is a simplified implementation that doesn't account for the chain rule.
+        // For proper gradient computation with transformations, the jacobian of the
+        // transformation would need to be multiplied with the prior gradient.
+        self.prior.ln_prior(&transformed, jac)
     }
 }
 
@@ -229,7 +252,7 @@ mod tests {
     fn test_ln_prior_evaluator_trait_none() {
         let prior: LnPrior<3> = LnPrior::none();
         let params = [1.0, 2.0, 3.0];
-        assert_eq!(prior.ln_prior(&params), 0.0);
+        assert_eq!(prior.ln_prior(&params, None), 0.0);
     }
 
     #[test]
@@ -243,19 +266,19 @@ mod tests {
 
         // Test with valid parameters
         let params_valid = [5.0, 5.0, 5.0];
-        assert!(prior.ln_prior(&params_valid).is_finite());
+        assert!(prior.ln_prior(&params_valid, None).is_finite());
 
         // Test with out-of-bounds parameters
         let params_invalid = [15.0, 5.0, 5.0];
-        assert!(prior.ln_prior(&params_invalid).is_infinite());
-        assert!(prior.ln_prior(&params_invalid) < 0.0);
+        assert!(prior.ln_prior(&params_invalid, None).is_infinite());
+        assert!(prior.ln_prior(&params_invalid, None) < 0.0);
     }
 
     #[test]
     fn test_none_ln_prior_is_zero() {
         let prior = NoneLnPrior {};
         let params = [100.0, -50.0, 0.0];
-        assert_eq!(prior.ln_prior(&params), 0.0);
+        assert_eq!(prior.ln_prior(&params, None), 0.0);
     }
 
     #[test]
@@ -265,11 +288,11 @@ mod tests {
 
         // Both within bounds
         let params = [0.5, 1.0];
-        assert!(prior.ln_prior(&params).is_finite());
+        assert!(prior.ln_prior(&params, None).is_finite());
 
         // First out of bounds
         let params = [1.5, 1.0];
-        assert!(prior.ln_prior(&params).is_infinite());
+        assert!(prior.ln_prior(&params, None).is_infinite());
     }
 
     #[test]
@@ -277,7 +300,7 @@ mod tests {
         let prior: LnPrior<2> = LnPrior::none();
         let cloned = prior.clone();
         let params = [1.0, 2.0];
-        assert_eq!(prior.ln_prior(&params), cloned.ln_prior(&params));
+        assert_eq!(prior.ln_prior(&params, None), cloned.ln_prior(&params, None));
     }
 
     #[test]
@@ -357,13 +380,13 @@ mod tests {
         // Test with internal parameters [0.5, 0.5]
         // After transformation: [1.0, 1.0] which is within bounds
         let internal_params = [0.5, 0.5];
-        let result = transformed_prior.ln_prior(&internal_params);
+        let result = transformed_prior.ln_prior(&internal_params, None);
         assert!(result.is_finite());
 
         // Test with internal parameters [1.5, 1.5]
         // After transformation: [3.0, 3.0] which is out of bounds
         let internal_params = [1.5, 1.5];
-        let result = transformed_prior.ln_prior(&internal_params);
+        let result = transformed_prior.ln_prior(&internal_params, None);
         assert!(result.is_infinite());
         assert!(result < 0.0);
     }
@@ -380,8 +403,8 @@ mod tests {
 
         let params = [1.0, 2.0];
         assert_eq!(
-            transformed_prior.ln_prior(&params),
-            cloned.ln_prior(&params)
+            transformed_prior.ln_prior(&params, None),
+            cloned.ln_prior(&params, None)
         );
     }
 
@@ -405,7 +428,7 @@ mod tests {
         let deserialized: LnPrior<2> = serde_json::from_str(&serialized).unwrap();
 
         let params = [1.0, 2.0];
-        assert_eq!(prior.ln_prior(&params), deserialized.ln_prior(&params));
+        assert_eq!(prior.ln_prior(&params, None), deserialized.ln_prior(&params, None));
     }
 
     #[test]
@@ -417,6 +440,49 @@ mod tests {
         let deserialized: LnPrior<2> = serde_json::from_str(&serialized).unwrap();
 
         let params = [5.0, 0.0];
-        assert_eq!(prior.ln_prior(&params), deserialized.ln_prior(&params));
+        assert_eq!(prior.ln_prior(&params, None), deserialized.ln_prior(&params, None));
+    }
+
+    #[test]
+    fn test_ind_components_gradient() {
+        use approx::assert_relative_eq;
+        
+        let components = [
+            LnPrior1D::normal(5.0, 2.0),
+            LnPrior1D::normal(10.0, 3.0),
+        ];
+        let prior: LnPrior<2> = LnPrior::ind_components(components);
+
+        let params = [6.0, 11.0];
+        let mut jac = [0.0; 2];
+        let ln_p = prior.ln_prior(&params, Some(&mut jac));
+
+        // Numerical gradient check
+        let eps = 1e-6;
+        for i in 0..2 {
+            let mut params_plus = params;
+            params_plus[i] += eps;
+            let ln_p_plus = prior.ln_prior(&params_plus, None);
+            
+            let mut params_minus = params;
+            params_minus[i] -= eps;
+            let ln_p_minus = prior.ln_prior(&params_minus, None);
+            
+            let numerical_grad = (ln_p_plus - ln_p_minus) / (2.0 * eps);
+            assert_relative_eq!(jac[i], numerical_grad, epsilon = 1e-4);
+        }
+
+        assert!(ln_p.is_finite());
+    }
+
+    #[test]
+    fn test_none_ln_prior_gradient() {
+        let prior: LnPrior<3> = LnPrior::none();
+        let params = [1.0, 2.0, 3.0];
+        let mut jac = [0.0; 3];
+        let ln_p = prior.ln_prior(&params, Some(&mut jac));
+        
+        assert_eq!(ln_p, 0.0);
+        assert_eq!(jac, [0.0, 0.0, 0.0]);
     }
 }

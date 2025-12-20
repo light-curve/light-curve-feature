@@ -154,17 +154,15 @@ where
 
         let lnlike = -0.5 * residual;
 
-        // Add prior
-        let lnprior = self.ln_prior.ln_prior(&params_array);
+        // Add prior and compute its gradient
+        let mut prior_grad = [0.0; NPARAMS];
+        let lnprior = self.ln_prior.ln_prior(&params_array, Some(&mut prior_grad));
 
         // Gradient is d(lnlike + lnprior)/d(params)
-        // We have grad_array = d(chi^2)/d(params)
-        // So d(lnlike)/d(params) = d(-0.5*chi^2)/d(params) = -0.5 * d(chi^2)/d(params)
-        // Note: This implementation does not include the gradient of the prior.
-        // For non-uniform priors, this may lead to less efficient sampling,
-        // but the sampler will still converge to the correct distribution.
+        // = d(lnlike)/d(params) + d(lnprior)/d(params)
+        // = -0.5 * d(chi^2)/d(params) + d(lnprior)/d(params)
         for i in 0..NPARAMS {
-            grad[i] = -0.5 * grad_array[i];
+            grad[i] = -0.5 * grad_array[i] + prior_grad[i];
         }
 
         Ok(lnlike + lnprior)
