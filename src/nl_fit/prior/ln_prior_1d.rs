@@ -61,19 +61,20 @@ impl LnPrior1D {
 pub struct NoneLnPrior1D {}
 
 // Generic helper for computing none ln_prior that works with any Float type
-fn none_ln_prior<T>(_x: T) -> T
+// Also computes gradient if grad is Some (always 0 for none prior)
+fn none_ln_prior<T>(_x: T, grad: Option<&mut T>) -> T
 where
     T: LikeFloat,
 {
+    if let Some(g) = grad {
+        *g = T::zero();
+    }
     T::zero()
 }
 
 impl LnPrior1DTrait for NoneLnPrior1D {
     fn ln_prior_1d(&self, x: f64, grad: Option<&mut f64>) -> f64 {
-        if let Some(g) = grad {
-            *g = 0.0;
-        }
-        none_ln_prior(x)
+        none_ln_prior(x, grad)
     }
 }
 
@@ -112,26 +113,31 @@ impl LogNormalLnPrior1D {
 }
 
 // Generic helper for computing log-normal ln_prior that works with any Float type
-fn log_normal_ln_prior<T>(x: T, mu: f64, inv_std2: f64, ln_prob_coeff: f64) -> T
+// Also computes gradient if grad is Some
+fn log_normal_ln_prior<T>(
+    x: T,
+    mu: f64,
+    inv_std2: f64,
+    ln_prob_coeff: f64,
+    grad: Option<&mut T>,
+) -> T
 where
     T: LikeFloat,
 {
     let ln_x = T::ln(x);
     let diff = T::from(mu).unwrap() - ln_x;
+
+    if let Some(g) = grad {
+        // d(ln_prior)/dx = [(mu - ln(x)) * inv_std2 - 1] / x
+        *g = (diff * T::from(inv_std2).unwrap() - T::one()) / x;
+    }
+
     T::from(ln_prob_coeff).unwrap() - T::half() * diff * diff * T::from(inv_std2).unwrap() - ln_x
 }
 
 impl LnPrior1DTrait for LogNormalLnPrior1D {
     fn ln_prior_1d(&self, x: f64, grad: Option<&mut f64>) -> f64 {
-        let ln_prior = log_normal_ln_prior(x, self.mu(), self.inv_std2(), self.ln_prob_coeff());
-
-        if let Some(g) = grad {
-            let ln_x = f64::ln(x);
-            let diff = self.mu() - ln_x;
-            *g = (diff * self.inv_std2() - 1.0) / x;
-        }
-
-        ln_prior
+        log_normal_ln_prior(x, self.mu(), self.inv_std2(), self.ln_prob_coeff(), grad)
     }
 }
 
@@ -193,14 +199,29 @@ impl LogUniformLnPrior1D {
 }
 
 // Generic helper for computing log-uniform ln_prior that works with any Float type
-fn log_uniform_ln_prior<T>(x: T, ln_left: f64, ln_right: f64, ln_prob_coeff: f64) -> T
+// Also computes gradient if grad is Some
+fn log_uniform_ln_prior<T>(
+    x: T,
+    ln_left: f64,
+    ln_right: f64,
+    ln_prob_coeff: f64,
+    grad: Option<&mut T>,
+) -> T
 where
     T: LikeFloat,
 {
     let ln_x = T::ln(x);
     let ln_left_t = T::from(ln_left).unwrap();
     let ln_right_t = T::from(ln_right).unwrap();
-    if ln_x >= ln_left_t && ln_x <= ln_right_t {
+
+    let in_range = ln_x >= ln_left_t && ln_x <= ln_right_t;
+
+    if let Some(g) = grad {
+        // d(ln_prior)/dx = -1/x if in range, 0 otherwise
+        *g = if in_range { -T::one() / x } else { T::zero() };
+    }
+
+    if in_range {
         T::from(ln_prob_coeff).unwrap() - ln_x
     } else {
         T::neg_infinity()
@@ -209,23 +230,22 @@ where
 
 impl LnPrior1DTrait for LogUniformLnPrior1D {
     fn ln_prior_1d(&self, x: f64, grad: Option<&mut f64>) -> f64 {
-        // Early validation for f64 special cases
-        let ln_x = if let Ok(ln_x) = NotNan::new(f64::ln(x)) {
-            ln_x
-        } else {
+        // Early validation for f64 special cases (NaN, infinite)
+        if NotNan::new(f64::ln(x)).is_err() {
             if let Some(g) = grad {
                 *g = 0.0;
             }
             return f64::NEG_INFINITY;
-        };
-
-        let in_range = self.ln_range.contains(&ln_x);
-        if let Some(g) = grad {
-            *g = if in_range { -1.0 / x } else { 0.0 };
         }
 
         // Use the generic helper for the actual computation
-        log_uniform_ln_prior(x, self.ln_left(), self.ln_right(), self.ln_prob_coeff())
+        log_uniform_ln_prior(
+            x,
+            self.ln_left(),
+            self.ln_right(),
+            self.ln_prob_coeff(),
+            grad,
+        )
     }
 }
 
@@ -281,24 +301,24 @@ impl NormalLnPrior1D {
 }
 
 // Generic helper for computing normal ln_prior that works with any Float type
-fn normal_ln_prior<T>(x: T, mu: f64, inv_std2: f64, ln_prob_coeff: f64) -> T
+// Also computes gradient if grad is Some
+fn normal_ln_prior<T>(x: T, mu: f64, inv_std2: f64, ln_prob_coeff: f64, grad: Option<&mut T>) -> T
 where
     T: LikeFloat,
 {
     let diff = T::from(mu).unwrap() - x;
+
+    if let Some(g) = grad {
+        // d(ln_prior)/dx = (mu - x) * inv_std2
+        *g = diff * T::from(inv_std2).unwrap();
+    }
+
     T::from(ln_prob_coeff).unwrap() - T::half() * diff * diff * T::from(inv_std2).unwrap()
 }
 
 impl LnPrior1DTrait for NormalLnPrior1D {
     fn ln_prior_1d(&self, x: f64, grad: Option<&mut f64>) -> f64 {
-        let ln_prior = normal_ln_prior(x, self.mu(), self.inv_std2(), self.ln_prob_coeff());
-
-        if let Some(g) = grad {
-            let diff = self.mu() - x;
-            *g = diff * self.inv_std2();
-        }
-
-        ln_prior
+        normal_ln_prior(x, self.mu(), self.inv_std2(), self.ln_prob_coeff(), grad)
     }
 }
 
@@ -359,10 +379,15 @@ impl UniformLnPrior1D {
 }
 
 // Generic helper for computing uniform ln_prior that works with any Float type
-fn uniform_ln_prior<T>(x: T, left: f64, right: f64, ln_prob: f64) -> T
+// Also computes gradient if grad is Some (always 0 for uniform prior)
+fn uniform_ln_prior<T>(x: T, left: f64, right: f64, ln_prob: f64, grad: Option<&mut T>) -> T
 where
     T: LikeFloat,
 {
+    if let Some(g) = grad {
+        *g = T::zero(); // Uniform prior has zero gradient everywhere
+    }
+
     if x >= T::from(left).unwrap() && x <= T::from(right).unwrap() {
         T::from(ln_prob).unwrap()
     } else {
@@ -372,7 +397,7 @@ where
 
 impl LnPrior1DTrait for UniformLnPrior1D {
     fn ln_prior_1d(&self, x: f64, grad: Option<&mut f64>) -> f64 {
-        // Early validation for f64 special cases
+        // Early validation for f64 special cases (NaN, infinite)
         if NotNan::new(x).is_err() {
             if let Some(g) = grad {
                 *g = 0.0;
@@ -380,12 +405,8 @@ impl LnPrior1DTrait for UniformLnPrior1D {
             return f64::NEG_INFINITY;
         }
 
-        if let Some(g) = grad {
-            *g = 0.0; // Uniform prior has zero gradient everywhere
-        }
-
         // Use the generic helper for the actual computation
-        uniform_ln_prior(x, self.left(), self.right(), self.ln_prob())
+        uniform_ln_prior(x, self.left(), self.right(), self.ln_prob(), grad)
     }
 }
 
@@ -501,7 +522,7 @@ mod tests {
     #[test]
     fn test_none_gradient() {
         let prior = NoneLnPrior1D {};
-        test_prior_gradient(none_ln_prior, &[0.0, 1.0, 5.0, 10.0], prior);
+        test_prior_gradient(|x| none_ln_prior(x, None), &[0.0, 1.0, 5.0, 10.0], prior);
     }
 
     #[test]
@@ -511,7 +532,7 @@ mod tests {
         let right = prior.right();
         let ln_prob = prior.ln_prob();
         test_prior_gradient(
-            |x| uniform_ln_prior(x, left, right, ln_prob),
+            |x| uniform_ln_prior(x, left, right, ln_prob, None),
             &[1.0, 5.0, 9.0],
             prior,
         );
@@ -524,7 +545,7 @@ mod tests {
         let inv_std2 = prior.inv_std2();
         let ln_prob_coeff = prior.ln_prob_coeff();
         test_prior_gradient(
-            |x| normal_ln_prior(x, mu, inv_std2, ln_prob_coeff),
+            |x| normal_ln_prior(x, mu, inv_std2, ln_prob_coeff, None),
             &[0.0, 3.0, 5.0, 7.0, 10.0],
             prior,
         );
@@ -537,7 +558,7 @@ mod tests {
         let inv_std2 = prior.inv_std2();
         let ln_prob_coeff = prior.ln_prob_coeff();
         test_prior_gradient(
-            |x| log_normal_ln_prior(x, mu, inv_std2, ln_prob_coeff),
+            |x| log_normal_ln_prior(x, mu, inv_std2, ln_prob_coeff, None),
             &[0.5, 1.0, 2.0, 3.0, 5.0],
             prior,
         );
@@ -550,7 +571,7 @@ mod tests {
         let ln_right = prior.ln_right();
         let ln_prob_coeff = prior.ln_prob_coeff();
         test_prior_gradient(
-            |x| log_uniform_ln_prior(x, ln_left, ln_right, ln_prob_coeff),
+            |x| log_uniform_ln_prior(x, ln_left, ln_right, ln_prob_coeff, None),
             &[1.5, 3.0, 5.0, 7.0, 9.0],
             prior,
         );
