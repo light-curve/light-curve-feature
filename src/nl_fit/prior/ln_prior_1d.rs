@@ -6,11 +6,16 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::hash::Hash;
 
+use crate::nl_fit::LikeFloat;
+
 #[enum_dispatch]
 pub trait LnPrior1DTrait:
     Clone + Debug + Serialize + DeserializeOwned + PartialEq + Eq + Hash
 {
-    fn ln_prior_1d(&self, x: f64) -> f64;
+    /// Evaluate the natural logarithm of the prior at x
+    ///
+    /// If `grad` is `Some`, the gradient d(ln_prior)/dx is also computed and stored in it.
+    fn ln_prior_1d(&self, x: f64, grad: Option<&mut f64>) -> f64;
 }
 
 /// Natural logarithm of prior for a single parameter of the curve-fit problem
@@ -55,9 +60,23 @@ impl LnPrior1D {
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash)]
 pub struct NoneLnPrior1D {}
 
+impl NoneLnPrior1D {
+    // Generic helper for computing none ln_prior that works with any Float type
+    // Also computes gradient if grad is Some (always 0 for none prior)
+    fn compute<T>(_x: T, grad: Option<&mut T>) -> T
+    where
+        T: LikeFloat,
+    {
+        if let Some(g) = grad {
+            *g = T::zero();
+        }
+        T::zero()
+    }
+}
+
 impl LnPrior1DTrait for NoneLnPrior1D {
-    fn ln_prior_1d(&self, _x: f64) -> f64 {
-        0.0
+    fn ln_prior_1d(&self, x: f64, grad: Option<&mut f64>) -> f64 {
+        Self::compute(x, grad)
     }
 }
 
@@ -93,12 +112,30 @@ impl LogNormalLnPrior1D {
     fn ln_prob_coeff(&self) -> f64 {
         self.ln_prob_coeff.into_inner()
     }
+
+    // Generic helper for computing log-normal ln_prior that works with any Float type
+    // Also computes gradient if grad is Some
+    fn compute<T>(x: T, mu: f64, inv_std2: f64, ln_prob_coeff: f64, grad: Option<&mut T>) -> T
+    where
+        T: LikeFloat,
+    {
+        let ln_x = T::ln(x);
+        let diff = T::from(mu).unwrap() - ln_x;
+
+        if let Some(g) = grad {
+            // d(ln_prior)/dx = [(mu - ln(x)) * inv_std2 - 1] / x
+            *g = (diff * T::from(inv_std2).unwrap() - T::one()) / x;
+        }
+
+        T::from(ln_prob_coeff).unwrap()
+            - T::half() * diff * diff * T::from(inv_std2).unwrap()
+            - ln_x
+    }
 }
 
 impl LnPrior1DTrait for LogNormalLnPrior1D {
-    fn ln_prior_1d(&self, x: f64) -> f64 {
-        let ln_x = f64::ln(x);
-        self.ln_prob_coeff() - 0.5 * (self.mu() - ln_x).powi(2) * self.inv_std2() - ln_x
+    fn ln_prior_1d(&self, x: f64, grad: Option<&mut f64>) -> f64 {
+        Self::compute(x, self.mu(), self.inv_std2(), self.ln_prob_coeff(), grad)
     }
 }
 
@@ -157,20 +194,51 @@ impl LogUniformLnPrior1D {
     fn ln_prob_coeff(&self) -> f64 {
         self.ln_prob_coeff.into_inner()
     }
+
+    // Generic helper for computing log-uniform ln_prior that works with any Float type
+    // Also computes gradient if grad is Some
+    fn compute<T>(x: T, ln_left: f64, ln_right: f64, ln_prob_coeff: f64, grad: Option<&mut T>) -> T
+    where
+        T: LikeFloat,
+    {
+        let ln_x = T::ln(x);
+        let ln_left_t = T::from(ln_left).unwrap();
+        let ln_right_t = T::from(ln_right).unwrap();
+
+        let in_range = ln_x >= ln_left_t && ln_x <= ln_right_t;
+
+        if let Some(g) = grad {
+            // d(ln_prior)/dx = -1/x if in range, 0 otherwise
+            *g = if in_range { -T::one() / x } else { T::zero() };
+        }
+
+        if in_range {
+            T::from(ln_prob_coeff).unwrap() - ln_x
+        } else {
+            T::neg_infinity()
+        }
+    }
 }
 
 impl LnPrior1DTrait for LogUniformLnPrior1D {
-    fn ln_prior_1d(&self, x: f64) -> f64 {
-        let ln_x = if let Ok(ln_x) = NotNan::new(f64::ln(x)) {
-            ln_x
-        } else {
+    fn ln_prior_1d(&self, x: f64, grad: Option<&mut f64>) -> f64 {
+        // Early validation for f64 special cases (NaN, infinite)
+        let ln_x = f64::ln(x);
+        if !ln_x.is_finite() {
+            if let Some(g) = grad {
+                *g = 0.0;
+            }
             return f64::NEG_INFINITY;
-        };
-        if self.ln_range.contains(&ln_x) {
-            self.ln_prob_coeff() - ln_x.into_inner()
-        } else {
-            f64::NEG_INFINITY
         }
+
+        // Use the generic helper for the actual computation
+        Self::compute(
+            x,
+            self.ln_left(),
+            self.ln_right(),
+            self.ln_prob_coeff(),
+            grad,
+        )
     }
 }
 
@@ -223,11 +291,27 @@ impl NormalLnPrior1D {
     fn ln_prob_coeff(&self) -> f64 {
         self.ln_prob_coeff.into_inner()
     }
+
+    // Generic helper for computing normal ln_prior that works with any Float type
+    // Also computes gradient if grad is Some
+    fn compute<T>(x: T, mu: f64, inv_std2: f64, ln_prob_coeff: f64, grad: Option<&mut T>) -> T
+    where
+        T: LikeFloat,
+    {
+        let diff = T::from(mu).unwrap() - x;
+
+        if let Some(g) = grad {
+            // d(ln_prior)/dx = (mu - x) * inv_std2
+            *g = diff * T::from(inv_std2).unwrap();
+        }
+
+        T::from(ln_prob_coeff).unwrap() - T::half() * diff * diff * T::from(inv_std2).unwrap()
+    }
 }
 
 impl LnPrior1DTrait for NormalLnPrior1D {
-    fn ln_prior_1d(&self, x: f64) -> f64 {
-        self.ln_prob_coeff() - 0.5 * (self.mu() - x).powi(2) * self.inv_std2()
+    fn ln_prior_1d(&self, x: f64, grad: Option<&mut f64>) -> f64 {
+        Self::compute(x, self.mu(), self.inv_std2(), self.ln_prob_coeff(), grad)
     }
 }
 
@@ -285,20 +369,37 @@ impl UniformLnPrior1D {
     fn ln_prob(&self) -> f64 {
         self.ln_prob.into_inner()
     }
+
+    // Generic helper for computing uniform ln_prior that works with any Float type
+    // Also computes gradient if grad is Some (always 0 for uniform prior)
+    fn compute<T>(x: T, left: f64, right: f64, ln_prob: f64, grad: Option<&mut T>) -> T
+    where
+        T: LikeFloat,
+    {
+        if let Some(g) = grad {
+            *g = T::zero(); // Uniform prior has zero gradient everywhere
+        }
+
+        if x >= T::from(left).unwrap() && x <= T::from(right).unwrap() {
+            T::from(ln_prob).unwrap()
+        } else {
+            T::neg_infinity()
+        }
+    }
 }
 
 impl LnPrior1DTrait for UniformLnPrior1D {
-    fn ln_prior_1d(&self, x: f64) -> f64 {
-        let x = if let Ok(x) = NotNan::new(x) {
-            x
-        } else {
+    fn ln_prior_1d(&self, x: f64, grad: Option<&mut f64>) -> f64 {
+        // Early validation for f64 special cases (NaN, infinite)
+        if !x.is_finite() {
+            if let Some(g) = grad {
+                *g = 0.0;
+            }
             return f64::NEG_INFINITY;
-        };
-        if self.range.contains(&x) {
-            self.ln_prob()
-        } else {
-            f64::NEG_INFINITY
         }
+
+        // Use the generic helper for the actual computation
+        Self::compute(x, self.left(), self.right(), self.ln_prob(), grad)
     }
 }
 
@@ -349,12 +450,153 @@ impl MixLnPrior1D {
 }
 
 impl LnPrior1DTrait for MixLnPrior1D {
-    fn ln_prior_1d(&self, x: f64) -> f64 {
-        f64::ln(
-            self.mix
-                .iter()
-                .map(|(weight, prior)| weight.into_inner() * f64::exp(prior.ln_prior_1d(x)))
-                .sum(),
-        )
+    fn ln_prior_1d(&self, x: f64, grad: Option<&mut f64>) -> f64 {
+        let mut total_prob = 0.0;
+        let mut total_grad_weighted = 0.0;
+
+        for (weight, prior) in &self.mix {
+            let mut component_grad = 0.0;
+            let ln_prob_i = prior.ln_prior_1d(
+                x,
+                if grad.is_some() {
+                    Some(&mut component_grad)
+                } else {
+                    None
+                },
+            );
+            let prob_i = f64::exp(ln_prob_i);
+            let weighted_prob = weight.into_inner() * prob_i;
+            total_prob += weighted_prob;
+
+            if grad.is_some() {
+                total_grad_weighted += weighted_prob * component_grad;
+            }
+        }
+
+        if let Some(g) = grad {
+            *g = total_grad_weighted / total_prob;
+        }
+
+        f64::ln(total_prob)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use approx::assert_relative_eq;
+    use hyperdual::Hyperdual;
+
+    // Test gradient using dual numbers - tests the actual implementation
+    fn test_prior_gradient<F, P>(compute_ln_prior: F, test_values: &[f64], prior: P)
+    where
+        F: Fn(Hyperdual<f64, 2>) -> Hyperdual<f64, 2>,
+        P: LnPrior1DTrait,
+    {
+        for &x in test_values {
+            let mut actual_grad = 0.0;
+            let actual_ln_p = prior.ln_prior_1d(x, Some(&mut actual_grad));
+
+            // Skip if the result is not finite
+            if !actual_ln_p.is_finite() {
+                continue;
+            }
+
+            // Compute gradient using dual numbers from the actual implementation
+            let mut x_dual = Hyperdual::<f64, 2>::from_real(x);
+            x_dual[1] = 1.0; // Set epsilon for first derivative
+            let ln_p_dual = compute_ln_prior(x_dual);
+            let expected_grad = ln_p_dual[1];
+
+            assert_relative_eq!(actual_grad, expected_grad, epsilon = 1e-9);
+        }
+    }
+
+    #[test]
+    fn test_none_gradient() {
+        let prior = NoneLnPrior1D {};
+        test_prior_gradient(
+            |x| NoneLnPrior1D::compute(x, None),
+            &[0.0, 1.0, 5.0, 10.0],
+            prior,
+        );
+    }
+
+    #[test]
+    fn test_uniform_gradient() {
+        let prior = UniformLnPrior1D::new(0.0, 10.0);
+        let left = prior.left();
+        let right = prior.right();
+        let ln_prob = prior.ln_prob();
+        test_prior_gradient(
+            |x| UniformLnPrior1D::compute(x, left, right, ln_prob, None),
+            &[1.0, 5.0, 9.0],
+            prior,
+        );
+    }
+
+    #[test]
+    fn test_normal_gradient() {
+        let prior = NormalLnPrior1D::new(5.0, 2.0);
+        let mu = prior.mu();
+        let inv_std2 = prior.inv_std2();
+        let ln_prob_coeff = prior.ln_prob_coeff();
+        test_prior_gradient(
+            |x| NormalLnPrior1D::compute(x, mu, inv_std2, ln_prob_coeff, None),
+            &[0.0, 3.0, 5.0, 7.0, 10.0],
+            prior,
+        );
+    }
+
+    #[test]
+    fn test_log_normal_gradient() {
+        let prior = LogNormalLnPrior1D::new(1.0, 0.5);
+        let mu = prior.mu();
+        let inv_std2 = prior.inv_std2();
+        let ln_prob_coeff = prior.ln_prob_coeff();
+        test_prior_gradient(
+            |x| LogNormalLnPrior1D::compute(x, mu, inv_std2, ln_prob_coeff, None),
+            &[0.5, 1.0, 2.0, 3.0, 5.0],
+            prior,
+        );
+    }
+
+    #[test]
+    fn test_log_uniform_gradient() {
+        let prior = LogUniformLnPrior1D::new(1.0, 10.0);
+        let ln_left = prior.ln_left();
+        let ln_right = prior.ln_right();
+        let ln_prob_coeff = prior.ln_prob_coeff();
+        test_prior_gradient(
+            |x| LogUniformLnPrior1D::compute(x, ln_left, ln_right, ln_prob_coeff, None),
+            &[1.5, 3.0, 5.0, 7.0, 9.0],
+            prior,
+        );
+    }
+
+    #[test]
+    fn test_mix_gradient() {
+        let mix = MixLnPrior1D::new(&[
+            (0.5, LnPrior1D::normal(5.0, 1.0)),
+            (0.5, LnPrior1D::normal(10.0, 1.0)),
+        ]);
+
+        // For mix, use numerical differentiation since it's complex
+        for x in &[3.0, 5.0, 7.0, 9.0, 11.0] {
+            let mut grad = 0.0;
+            let ln_p = mix.ln_prior_1d(*x, Some(&mut grad));
+
+            if !ln_p.is_finite() {
+                continue;
+            }
+
+            // Numerical gradient
+            let eps = 1e-8;
+            let ln_p_plus = mix.ln_prior_1d(*x + eps, None);
+            let ln_p_minus = mix.ln_prior_1d(*x - eps, None);
+            let numerical_grad = (ln_p_plus - ln_p_minus) / (2.0 * eps);
+
+            assert_relative_eq!(grad, numerical_grad, epsilon = 1e-6);
+        }
     }
 }
