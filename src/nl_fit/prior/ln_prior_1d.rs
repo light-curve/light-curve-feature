@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::hash::Hash;
 
+use crate::nl_fit::LikeFloat;
+
 #[enum_dispatch]
 pub trait LnPrior1DTrait:
     Clone + Debug + Serialize + DeserializeOwned + PartialEq + Eq + Hash
@@ -61,7 +63,7 @@ pub struct NoneLnPrior1D {}
 // Generic helper for computing none ln_prior that works with any Float type
 fn none_ln_prior<T>(_x: T) -> T
 where
-    T: num_traits::Float,
+    T: LikeFloat,
 {
     T::zero()
 }
@@ -112,13 +114,11 @@ impl LogNormalLnPrior1D {
 // Generic helper for computing log-normal ln_prior that works with any Float type
 fn log_normal_ln_prior<T>(x: T, mu: f64, inv_std2: f64, ln_prob_coeff: f64) -> T
 where
-    T: num_traits::Float,
+    T: LikeFloat,
 {
     let ln_x = T::ln(x);
     let diff = T::from(mu).unwrap() - ln_x;
-    T::from(ln_prob_coeff).unwrap()
-        - T::from(0.5).unwrap() * diff * diff * T::from(inv_std2).unwrap()
-        - ln_x
+    T::from(ln_prob_coeff).unwrap() - T::half() * diff * diff * T::from(inv_std2).unwrap() - ln_x
 }
 
 impl LnPrior1DTrait for LogNormalLnPrior1D {
@@ -195,7 +195,7 @@ impl LogUniformLnPrior1D {
 // Generic helper for computing log-uniform ln_prior that works with any Float type
 fn log_uniform_ln_prior<T>(x: T, ln_left: f64, ln_right: f64, ln_prob_coeff: f64) -> T
 where
-    T: num_traits::Float,
+    T: LikeFloat,
 {
     let ln_x = T::ln(x);
     let ln_left_t = T::from(ln_left).unwrap();
@@ -283,11 +283,10 @@ impl NormalLnPrior1D {
 // Generic helper for computing normal ln_prior that works with any Float type
 fn normal_ln_prior<T>(x: T, mu: f64, inv_std2: f64, ln_prob_coeff: f64) -> T
 where
-    T: num_traits::Float,
+    T: LikeFloat,
 {
     let diff = T::from(mu).unwrap() - x;
-    T::from(ln_prob_coeff).unwrap()
-        - T::from(0.5).unwrap() * diff * diff * T::from(inv_std2).unwrap()
+    T::from(ln_prob_coeff).unwrap() - T::half() * diff * diff * T::from(inv_std2).unwrap()
 }
 
 impl LnPrior1DTrait for NormalLnPrior1D {
@@ -362,7 +361,7 @@ impl UniformLnPrior1D {
 // Generic helper for computing uniform ln_prior that works with any Float type
 fn uniform_ln_prior<T>(x: T, left: f64, right: f64, ln_prob: f64) -> T
 where
-    T: num_traits::Float,
+    T: LikeFloat,
 {
     if x >= T::from(left).unwrap() && x <= T::from(right).unwrap() {
         T::from(ln_prob).unwrap()
