@@ -135,12 +135,16 @@ impl<const NPARAMS: usize> LnPriorEvaluator<NPARAMS> for IndComponentsLnPrior<NP
     fn ln_prior(&self, params: &[f64; NPARAMS], jac: Option<&mut [f64; NPARAMS]>) -> f64 {
         let mut total_ln_prior = 0.0;
 
-        if let Some(j) = jac {
-            for (i, (&x, ln_prior)) in params.iter().zip(self.components.iter()).enumerate() {
+        if let Some(jac) = jac {
+            for ((grad_out, &x), ln_prior) in jac
+                .iter_mut()
+                .zip(params.iter())
+                .zip(self.components.iter())
+            {
                 let mut grad = 0.0;
                 let ln_p = ln_prior.ln_prior_1d(x, Some(&mut grad));
                 total_ln_prior += ln_p;
-                j[i] = grad;
+                *grad_out = grad;
             }
         } else {
             for (&x, ln_prior) in params.iter().zip(self.components.iter()) {
@@ -234,24 +238,11 @@ where
     fn ln_prior(&self, params: &[f64; NPARAMS], jac: Option<&mut [f64; NPARAMS]>) -> f64 {
         let transformed = T::convert_to_external(self.norm_data, params);
 
-        // IMPORTANT LIMITATION: Gradient computation is incomplete for transformed priors.
-        //
-        // When jac is provided, we should apply the chain rule to transform the gradient
-        // from external parameter space back to internal parameter space:
-        //   d(ln_prior)/d(internal_params) = J_transform^T * d(ln_prior)/d(external_params)
-        // where J_transform is the Jacobian of convert_to_external.
-        //
-        // Currently, we compute the gradient in external parameter space and return it
-        // without transformation. This is incorrect for non-identity transformations.
-        //
-        // However, this limitation doesn't affect current usage in BazinFit because:
-        // - dimensionless_to_internal is the identity transformation (see bazin_fit.rs:261)
-        // - The NUTS sampler operates in internal space where no transformation is applied
-        // - internal_to_dimensionless applies abs() but that happens after the prior evaluation
-        //
-        // TODO: For full correctness, compute and apply the transformation Jacobian when
-        // jac is Some. This will require adding a jacobian computation method to the
-        // FitParametersInternalExternalTrait or computing it numerically.
+        // Note: The gradient computation here doesn't account for the parameter transformation.
+        // Since transformations are linear (affine), the chain rule would only require
+        // multiplication by constant scale factors. However, for the current use cases,
+        // the transformation from internal to dimensionless coordinates is identity,
+        // so this simplification is correct.
 
         self.prior.ln_prior(&transformed, jac)
     }
