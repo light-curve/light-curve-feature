@@ -114,9 +114,7 @@ pub struct NoneLnPrior {}
 impl<const NPARAMS: usize> LnPriorEvaluator<NPARAMS> for NoneLnPrior {
     fn ln_prior(&self, _params: &[f64; NPARAMS], jac: Option<&mut [f64; NPARAMS]>) -> f64 {
         if let Some(j) = jac {
-            for i in 0..NPARAMS {
-                j[i] = 0.0;
-            }
+            j.iter_mut().for_each(|x| *x = 0.0);
         }
         0.0
     }
@@ -136,7 +134,7 @@ pub struct IndComponentsLnPrior<const NPARAMS: usize> {
 impl<const NPARAMS: usize> LnPriorEvaluator<NPARAMS> for IndComponentsLnPrior<NPARAMS> {
     fn ln_prior(&self, params: &[f64; NPARAMS], jac: Option<&mut [f64; NPARAMS]>) -> f64 {
         let mut total_ln_prior = 0.0;
-        
+
         if let Some(j) = jac {
             for (i, (&x, ln_prior)) in params.iter().zip(self.components.iter()).enumerate() {
                 let mut grad = 0.0;
@@ -149,7 +147,7 @@ impl<const NPARAMS: usize> LnPriorEvaluator<NPARAMS> for IndComponentsLnPrior<NP
                 total_ln_prior += ln_prior.ln_prior_1d(x, None);
             }
         }
-        
+
         total_ln_prior
     }
 }
@@ -235,26 +233,26 @@ where
 {
     fn ln_prior(&self, params: &[f64; NPARAMS], jac: Option<&mut [f64; NPARAMS]>) -> f64 {
         let transformed = T::convert_to_external(self.norm_data, params);
-        
+
         // IMPORTANT LIMITATION: Gradient computation is incomplete for transformed priors.
-        // 
+        //
         // When jac is provided, we should apply the chain rule to transform the gradient
         // from external parameter space back to internal parameter space:
         //   d(ln_prior)/d(internal_params) = J_transform^T * d(ln_prior)/d(external_params)
         // where J_transform is the Jacobian of convert_to_external.
-        // 
+        //
         // Currently, we compute the gradient in external parameter space and return it
         // without transformation. This is incorrect for non-identity transformations.
-        // 
+        //
         // However, this limitation doesn't affect current usage in BazinFit because:
         // - dimensionless_to_internal is the identity transformation (see bazin_fit.rs:261)
         // - The NUTS sampler operates in internal space where no transformation is applied
         // - internal_to_dimensionless applies abs() but that happens after the prior evaluation
-        // 
+        //
         // TODO: For full correctness, compute and apply the transformation Jacobian when
         // jac is Some. This will require adding a jacobian computation method to the
         // FitParametersInternalExternalTrait or computing it numerically.
-        
+
         self.prior.ln_prior(&transformed, jac)
     }
 }
@@ -316,7 +314,10 @@ mod tests {
         let prior: LnPrior<2> = LnPrior::none();
         let cloned = prior.clone();
         let params = [1.0, 2.0];
-        assert_eq!(prior.ln_prior(&params, None), cloned.ln_prior(&params, None));
+        assert_eq!(
+            prior.ln_prior(&params, None),
+            cloned.ln_prior(&params, None)
+        );
     }
 
     #[test]
@@ -444,7 +445,10 @@ mod tests {
         let deserialized: LnPrior<2> = serde_json::from_str(&serialized).unwrap();
 
         let params = [1.0, 2.0];
-        assert_eq!(prior.ln_prior(&params, None), deserialized.ln_prior(&params, None));
+        assert_eq!(
+            prior.ln_prior(&params, None),
+            deserialized.ln_prior(&params, None)
+        );
     }
 
     #[test]
@@ -456,17 +460,17 @@ mod tests {
         let deserialized: LnPrior<2> = serde_json::from_str(&serialized).unwrap();
 
         let params = [5.0, 0.0];
-        assert_eq!(prior.ln_prior(&params, None), deserialized.ln_prior(&params, None));
+        assert_eq!(
+            prior.ln_prior(&params, None),
+            deserialized.ln_prior(&params, None)
+        );
     }
 
     #[test]
     fn test_ind_components_gradient() {
         use approx::assert_relative_eq;
-        
-        let components = [
-            LnPrior1D::normal(5.0, 2.0),
-            LnPrior1D::normal(10.0, 3.0),
-        ];
+
+        let components = [LnPrior1D::normal(5.0, 2.0), LnPrior1D::normal(10.0, 3.0)];
         let prior: LnPrior<2> = LnPrior::ind_components(components);
 
         let params = [6.0, 11.0];
@@ -479,11 +483,11 @@ mod tests {
             let mut params_plus = params;
             params_plus[i] += eps;
             let ln_p_plus = prior.ln_prior(&params_plus, None);
-            
+
             let mut params_minus = params;
             params_minus[i] -= eps;
             let ln_p_minus = prior.ln_prior(&params_minus, None);
-            
+
             let numerical_grad = (ln_p_plus - ln_p_minus) / (2.0 * eps);
             assert_relative_eq!(jac[i], numerical_grad, epsilon = 1e-4);
         }
@@ -497,7 +501,7 @@ mod tests {
         let params = [1.0, 2.0, 3.0];
         let mut jac = [0.0; 3];
         let ln_p = prior.ln_prior(&params, Some(&mut jac));
-        
+
         assert_eq!(ln_p, 0.0);
         assert_eq!(jac, [0.0, 0.0, 0.0]);
     }

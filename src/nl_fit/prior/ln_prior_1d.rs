@@ -106,7 +106,7 @@ impl LnPrior1DTrait for LogNormalLnPrior1D {
         let ln_x = f64::ln(x);
         let diff = self.mu() - ln_x;
         let ln_prior = self.ln_prob_coeff() - 0.5 * diff.powi(2) * self.inv_std2() - ln_x;
-        
+
         if let Some(g) = grad {
             // d(ln_prior)/dx = d/dx [ln_prob_coeff - 0.5 * (mu - ln(x))^2 * inv_std2 - ln(x)]
             // = d/dx [-0.5 * (mu - ln(x))^2 * inv_std2 - ln(x)]
@@ -115,7 +115,7 @@ impl LnPrior1DTrait for LogNormalLnPrior1D {
             // = [(mu - ln(x)) * inv_std2 - 1] / x
             *g = (diff * self.inv_std2() - 1.0) / x;
         }
-        
+
         ln_prior
     }
 }
@@ -258,7 +258,7 @@ impl LnPrior1DTrait for NormalLnPrior1D {
     fn ln_prior_1d(&self, x: f64, grad: Option<&mut f64>) -> f64 {
         let diff = self.mu() - x;
         let ln_prior = self.ln_prob_coeff() - 0.5 * diff.powi(2) * self.inv_std2();
-        
+
         if let Some(g) = grad {
             // d(ln_prior)/dx = d/dx [ln_prob_coeff - 0.5 * (mu - x)^2 * inv_std2]
             // = -0.5 * 2 * (mu - x) * (d/dx)[mu - x] * inv_std2
@@ -266,7 +266,7 @@ impl LnPrior1DTrait for NormalLnPrior1D {
             // = (mu - x) * inv_std2
             *g = diff * self.inv_std2();
         }
-        
+
         ln_prior
     }
 }
@@ -405,26 +405,33 @@ impl LnPrior1DTrait for MixLnPrior1D {
         // ln(p(x)) = ln(sum_i w_i * p_i(x))
         // d(ln(p))/dx = 1/p(x) * sum_i w_i * p_i(x) * d(ln(p_i))/dx
         //             = sum_i [w_i * p_i(x) / p(x)] * d(ln(p_i))/dx
-        
+
         let mut total_prob = 0.0;
         let mut total_grad_weighted = 0.0;
-        
+
         for (weight, prior) in &self.mix {
             let mut component_grad = 0.0;
-            let ln_prob_i = prior.ln_prior_1d(x, if grad.is_some() { Some(&mut component_grad) } else { None });
+            let ln_prob_i = prior.ln_prior_1d(
+                x,
+                if grad.is_some() {
+                    Some(&mut component_grad)
+                } else {
+                    None
+                },
+            );
             let prob_i = f64::exp(ln_prob_i);
             let weighted_prob = weight.into_inner() * prob_i;
             total_prob += weighted_prob;
-            
+
             if grad.is_some() {
                 total_grad_weighted += weighted_prob * component_grad;
             }
         }
-        
+
         if let Some(g) = grad {
             *g = total_grad_weighted / total_prob;
         }
-        
+
         f64::ln(total_prob)
     }
 }
@@ -447,14 +454,14 @@ mod tests {
     #[test]
     fn test_uniform_gradient() {
         let prior = UniformLnPrior1D::new(0.0, 10.0);
-        
+
         // Inside bounds
         let x = 5.0;
         let mut grad = 0.0;
         let ln_p = prior.ln_prior_1d(x, Some(&mut grad));
         assert!(ln_p.is_finite());
         assert_eq!(grad, 0.0); // Uniform prior has zero gradient inside bounds
-        
+
         // Outside bounds
         let x = 15.0;
         let mut grad = 0.0;
@@ -468,17 +475,17 @@ mod tests {
         let mu = 5.0;
         let std = 2.0;
         let prior = NormalLnPrior1D::new(mu, std);
-        
+
         let x = 6.0;
         let mut grad = 0.0;
         let ln_p = prior.ln_prior_1d(x, Some(&mut grad));
-        
+
         // Numerical gradient check
         let eps = 1e-6;
         let ln_p_plus = prior.ln_prior_1d(x + eps, None);
         let ln_p_minus = prior.ln_prior_1d(x - eps, None);
         let numerical_grad = (ln_p_plus - ln_p_minus) / (2.0 * eps);
-        
+
         assert!(ln_p.is_finite());
         assert_relative_eq!(grad, numerical_grad, epsilon = 1e-4);
     }
@@ -488,17 +495,17 @@ mod tests {
         let mu = 1.0;
         let std = 0.5;
         let prior = LogNormalLnPrior1D::new(mu, std);
-        
+
         let x = 3.0;
         let mut grad = 0.0;
         let ln_p = prior.ln_prior_1d(x, Some(&mut grad));
-        
+
         // Numerical gradient check
         let eps = 1e-6;
         let ln_p_plus = prior.ln_prior_1d(x + eps, None);
         let ln_p_minus = prior.ln_prior_1d(x - eps, None);
         let numerical_grad = (ln_p_plus - ln_p_minus) / (2.0 * eps);
-        
+
         assert!(ln_p.is_finite());
         assert_relative_eq!(grad, numerical_grad, epsilon = 1e-4);
     }
@@ -506,17 +513,17 @@ mod tests {
     #[test]
     fn test_log_uniform_gradient() {
         let prior = LogUniformLnPrior1D::new(1.0, 10.0);
-        
+
         let x = 5.0;
         let mut grad = 0.0;
         let ln_p = prior.ln_prior_1d(x, Some(&mut grad));
-        
+
         // Numerical gradient check
         let eps = 1e-6;
         let ln_p_plus = prior.ln_prior_1d(x + eps, None);
         let ln_p_minus = prior.ln_prior_1d(x - eps, None);
         let numerical_grad = (ln_p_plus - ln_p_minus) / (2.0 * eps);
-        
+
         assert!(ln_p.is_finite());
         assert_relative_eq!(grad, numerical_grad, epsilon = 1e-4);
     }
@@ -527,17 +534,17 @@ mod tests {
             (0.5, LnPrior1D::normal(5.0, 1.0)),
             (0.5, LnPrior1D::normal(10.0, 1.0)),
         ]);
-        
+
         let x = 7.0;
         let mut grad = 0.0;
         let ln_p = mix.ln_prior_1d(x, Some(&mut grad));
-        
+
         // Numerical gradient check
         let eps = 1e-6;
         let ln_p_plus = mix.ln_prior_1d(x + eps, None);
         let ln_p_minus = mix.ln_prior_1d(x - eps, None);
         let numerical_grad = (ln_p_plus - ln_p_minus) / (2.0 * eps);
-        
+
         assert!(ln_p.is_finite());
         assert_relative_eq!(grad, numerical_grad, epsilon = 1e-4);
     }
