@@ -96,7 +96,7 @@ impl CurveFitTrait for McmcCurveFit {
             let ln_prior = ln_prior.clone();
             move |guess: &Guess| {
                 let params = slice_to_array(&guess.values);
-                ln_prior.ln_prior(&params) as f32
+                ln_prior.ln_prior(&params, None) as f32
             }
         };
 
