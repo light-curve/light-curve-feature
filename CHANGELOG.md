@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Breaking** Update `ndarray` from 0.16 to 0.17 and `ndarray-stats` from 0.6 to 0.7. `peak_indices`,
+  `peak_indices_reverse_sorted`, and `FreqGrid::from_array` now accept
+  `&ArrayRef1<T>` https://github.com/light-curve/light-curve-feature/issues/239
 - **Breaking** Float parameters in many places now use `ordered_float::NotNan` type, enabling `Eq` and `Hash` trait
   derivation and
   ensuring parameters cannot be

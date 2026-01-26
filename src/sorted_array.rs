@@ -1,5 +1,6 @@
 use crate::error::SortedArrayError;
 use crate::float_trait::Float;
+use crate::types::ArrayRef1;
 use conv::prelude::*;
 use ndarray::{Array1, ArrayView1};
 use schemars::schema::Schema;
@@ -85,6 +86,15 @@ where
 {
     fn from(s: &[T]) -> Self {
         s.to_vec().into()
+    }
+}
+
+impl<T> From<&ArrayRef1<T>> for SortedArray<T>
+where
+    T: Float,
+{
+    fn from(a: &ArrayRef1<T>) -> Self {
+        a.iter().copied().collect::<Vec<_>>().into()
     }
 }
 

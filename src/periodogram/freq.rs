@@ -1,5 +1,6 @@
 use crate::float_trait::Float;
 use crate::sorted_array::SortedArray;
+use crate::types::ArrayRef1;
 
 use crate::RecurrentSinCos;
 use crate::error::SortedArrayError;
@@ -8,7 +9,7 @@ use conv::{ConvAsUtil, ConvUtil, RoundToNearest};
 use enum_dispatch::enum_dispatch;
 use itertools::Itertools;
 use macro_const::macro_const;
-use ndarray::{Array1, ArrayView1};
+use ndarray::Array1;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
@@ -157,9 +158,8 @@ impl<T: Float> FreqGrid<T> {
     }
 
     /// Construct from an array reference, array will be copied and sorted
-    pub fn from_array<'a>(array: impl Into<ArrayView1<'a, T>>) -> Self {
-        let array_view = array.into();
-        Self::Arbitrary(array_view.into())
+    pub fn from_array(array: &ArrayRef1<T>) -> Self {
+        Self::Arbitrary(array.into())
     }
 
     /// Construct a linear grid starting at zero, and having 2^log2_size_m1 + 1 points
