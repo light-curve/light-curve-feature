@@ -1,7 +1,7 @@
 use criterion::Criterion;
 
 use light_curve_common::linspace;
-use light_curve_feature::ndarray::{arr1, Array1};
+use light_curve_feature::ndarray::{Array1, arr1};
 use light_curve_feature::peak_indices;
 use std::hint::black_box;
 
