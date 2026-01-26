@@ -231,9 +231,11 @@ mod tests {
             .unwrap()
             .power(&mut ts);
 
+        let fft_arr = ndarray::Array1::from_vec(fft);
+        let direct_arr = ndarray::Array1::from_vec(direct);
         assert_eq!(
-            peak_indices_reverse_sorted(&fft)[..2],
-            peak_indices_reverse_sorted(&direct)[..2]
+            peak_indices_reverse_sorted(&fft_arr)[..2],
+            peak_indices_reverse_sorted(&direct_arr)[..2]
         );
     }
 
@@ -270,9 +272,11 @@ mod tests {
             .unwrap()
             .power(&mut ts);
 
+        let fft_arr = ndarray::Array1::from_vec(fft);
+        let direct_arr = ndarray::Array1::from_vec(direct);
         assert_eq!(
-            peak_indices_reverse_sorted(&fft)[..2],
-            peak_indices_reverse_sorted(&direct)[..2]
+            peak_indices_reverse_sorted(&fft_arr)[..2],
+            peak_indices_reverse_sorted(&direct_arr)[..2]
         );
     }
 
@@ -284,7 +288,7 @@ mod tests {
 
         let zero_based_grid = FreqGrid::zero_based_pow2(step, log2_size_m1);
 
-        let freqs: Vec<_> = (0..size).map(|i| step * i as f64).collect();
+        let freqs: ndarray::Array1<_> = (0..size).map(|i| step * i as f64).collect();
         let arbitrary_grid = FreqGrid::from_array(&freqs);
 
         let n_points = 100;
