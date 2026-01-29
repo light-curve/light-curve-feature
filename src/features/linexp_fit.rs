@@ -248,7 +248,26 @@ where
     }
 }
 
-impl FitParametersInternalExternalTrait<NPARAMS> for LinexpFit {}
+impl FitParametersInternalExternalTrait<NPARAMS> for LinexpFit {
+    fn jacobian_internal_to_external(
+        norm_data: &NormalizedData<f64>,
+        internal: &[f64; NPARAMS],
+    ) -> [f64; NPARAMS] {
+        // The full transformation is: external = dimensionless_to_orig(internal_to_dimensionless(internal))
+        // internal_to_dimensionless applies abs() to params[0], [2]
+        // dimensionless_to_orig scales by m_std (params 0,3) and t_std (params 1,2)
+        //
+        // ∂|x|/∂x = sign(x), so the Jacobian is:
+        let m_std = norm_data.m_std();
+        let t_std = norm_data.t_std();
+        [
+            internal[0].signum() * m_std, // A amplitude: |internal[0]| * m_std
+            t_std,                        // t0: internal[1] * t_std + t_mean
+            internal[2].signum() * t_std, // tau: |internal[2]| * t_std
+            m_std,                        // B baseline: internal[3] * m_std + m_mean
+        ]
+    }
+}
 
 impl FitFeatureEvaluatorGettersTrait<NPARAMS> for LinexpFit {
     fn get_algorithm(&self) -> &CurveFitAlgorithm {

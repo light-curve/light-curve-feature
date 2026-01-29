@@ -238,13 +238,22 @@ where
     fn ln_prior(&self, params: &[f64; NPARAMS], jac: Option<&mut [f64; NPARAMS]>) -> f64 {
         let transformed = T::convert_to_external(self.norm_data, params);
 
-        // Note: The gradient computation here doesn't account for the parameter transformation.
-        // Since transformations are linear (affine), the chain rule would only require
-        // multiplication by constant scale factors. However, for the current use cases,
-        // the transformation from internal to dimensionless coordinates is identity,
-        // so this simplification is correct.
+        match jac {
+            Some(jac) => {
+                // Evaluate the prior in external parameter space and get the gradient
+                let ln_p = self.prior.ln_prior(&transformed, Some(jac));
 
-        self.prior.ln_prior(&transformed, jac)
+                // Apply the chain rule to transform the gradient from external to internal space:
+                // ∂(ln_prior)/∂(internal_i) = ∂(ln_prior)/∂(external_i) × ∂(external_i)/∂(internal_i)
+                let jacobian = T::jacobian_internal_to_external(self.norm_data, params);
+                for (grad, jac_elem) in jac.iter_mut().zip(jacobian.iter()) {
+                    *grad *= jac_elem;
+                }
+
+                ln_p
+            }
+            None => self.prior.ln_prior(&transformed, None),
+        }
     }
 }
 
@@ -369,7 +378,18 @@ mod tests {
         }
     }
 
-    impl crate::nl_fit::evaluator::FitParametersInternalExternalTrait<2> for MockFitParameters {}
+    impl crate::nl_fit::evaluator::FitParametersInternalExternalTrait<2> for MockFitParameters {
+        fn jacobian_internal_to_external(
+            _norm_data: &NormalizedData<f64>,
+            _internal: &[f64; 2],
+        ) -> [f64; 2] {
+            // For MockFitParameters:
+            // - internal_to_dimensionless is identity, so derivative is 1
+            // - dimensionless_to_orig multiplies by 2, so derivative is 2
+            // Combined: 1 * 2 = 2 for each component
+            [2.0, 2.0]
+        }
+    }
 
     #[test]
     fn test_transformed_ln_prior() {
@@ -495,5 +515,46 @@ mod tests {
 
         assert_eq!(ln_p, 0.0);
         assert_eq!(jac, [0.0, 0.0, 0.0]);
+    }
+
+    #[test]
+    fn test_transformed_ln_prior_gradient() {
+        use approx::assert_relative_eq;
+
+        // Create mock normalized data
+        let mut ts = TimeSeries::new_without_weight(vec![1.0, 2.0, 3.0], vec![1.0, 2.0, 3.0]);
+        let norm_data = NormalizedData::<f64>::from_ts(&mut ts);
+
+        // Create a prior with normal distribution in external space
+        // After transformation (multiply by 2), the external space is [2*x, 2*y]
+        // So we set the prior bounds to accommodate this
+        let components = [LnPrior1D::normal(1.0, 0.5), LnPrior1D::normal(2.0, 0.5)];
+        let prior: LnPrior<2> = LnPrior::ind_components(components);
+
+        // Create transformed prior
+        let transformed_prior =
+            prior.with_fit_parameters_transformation::<MockFitParameters>(&norm_data);
+
+        // Test gradient using numerical differentiation
+        let params = [0.5, 1.0]; // In internal space
+        let mut jac = [0.0; 2];
+        let ln_p = transformed_prior.ln_prior(&params, Some(&mut jac));
+
+        // Numerical gradient check (in internal parameter space)
+        let eps = 1e-6;
+        for i in 0..2 {
+            let mut params_plus = params;
+            params_plus[i] += eps;
+            let ln_p_plus = transformed_prior.ln_prior(&params_plus, None);
+
+            let mut params_minus = params;
+            params_minus[i] -= eps;
+            let ln_p_minus = transformed_prior.ln_prior(&params_minus, None);
+
+            let numerical_grad = (ln_p_plus - ln_p_minus) / (2.0 * eps);
+            assert_relative_eq!(jac[i], numerical_grad, epsilon = 1e-4);
+        }
+
+        assert!(ln_p.is_finite());
     }
 }
