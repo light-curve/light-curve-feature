@@ -281,7 +281,40 @@ where
     }
 }
 
-impl FitParametersInternalExternalTrait<NPARAMS> for VillarFit {}
+impl FitParametersInternalExternalTrait<NPARAMS> for VillarFit {
+    fn jacobian_internal_to_external(
+        norm_data: &NormalizedData<f64>,
+        internal: &[f64; NPARAMS],
+    ) -> [f64; NPARAMS] {
+        // The full transformation is: external = dimensionless_to_orig(internal_to_dimensionless(internal))
+        //
+        // internal_to_dimensionless:
+        //   - applies abs() to params[0], [3], [4], [6]
+        //   - applies b_to_nu to params[5]: nu = 2 * logistic(2 * |b|) - 1
+        //     d(nu)/d(b) = (1 - nu^2) * sign(b)
+        //
+        // dimensionless_to_orig scales by m_std (params 0,1) and t_std (params 2,3,4,6)
+        // params[5] is dimensionless nu, so no scaling needed
+        //
+        // ∂|x|/∂x = sign(x), so the Jacobian is:
+        let m_std = norm_data.m_std();
+        let t_std = norm_data.t_std();
+
+        // For param[5], compute d(nu)/d(b) = (1 - nu^2) * sign(b)
+        let nu = Self::b_to_nu(internal[5]);
+        let d_nu_d_b = (1.0 - nu.powi(2)) * internal[5].signum();
+
+        [
+            internal[0].signum() * m_std, // A amplitude: |internal[0]| * m_std
+            m_std,                        // c baseline: internal[1] * m_std + m_mean
+            t_std,                        // t0: internal[2] * t_std + t_mean
+            internal[3].signum() * t_std, // tau_rise: |internal[3]| * t_std
+            internal[4].signum() * t_std, // tau_fall: |internal[4]| * t_std
+            d_nu_d_b,                     // nu: b_to_nu(internal[5]), dimensionless
+            internal[6].signum() * t_std, // gamma: |internal[6]| * t_std
+        ]
+    }
+}
 
 impl FitFeatureEvaluatorGettersTrait<NPARAMS> for VillarFit {
     fn get_algorithm(&self) -> &CurveFitAlgorithm {

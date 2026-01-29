@@ -132,4 +132,14 @@ where
     pub fn inv_err_to_norm(&self, inv_err_orig: T) -> T {
         inv_err_orig / self.inv_err_scale
     }
+
+    /// Get the time standard deviation (scale factor)
+    pub fn t_std(&self) -> T {
+        self.t_std
+    }
+
+    /// Get the magnitude/flux standard deviation (scale factor)
+    pub fn m_std(&self) -> T {
+        self.m_std
+    }
 }
