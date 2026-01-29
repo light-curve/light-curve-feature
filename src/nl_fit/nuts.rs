@@ -273,3 +273,279 @@ impl CurveFitTrait for NutsCurveFit {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::nl_fit::data::NormalizedData;
+    use crate::nl_fit::evaluator::{
+        FitParametersInternalDimlessTrait, FitParametersInternalExternalTrait,
+        FitParametersOriginalDimLessTrait,
+    };
+    use crate::nl_fit::prior::ln_prior::LnPrior;
+    use crate::nl_fit::prior::ln_prior_1d::LnPrior1D;
+    use crate::time_series::TimeSeries;
+    use approx::assert_relative_eq;
+    use ndarray::Array1;
+    use std::rc::Rc;
+
+    /// A simple constant model for testing: f(t) = |c|
+    ///
+    /// Uses sign transformation: dimensionless = |internal|
+    /// This tests that the Jacobian (sign factor) is correctly applied.
+    ///
+    /// For simplicity, this model operates directly in dimensionless space,
+    /// with external = dimensionless (no additional scaling).
+    struct SimpleConstantModel;
+
+    impl FitParametersInternalDimlessTrait<f64, 1> for SimpleConstantModel {
+        fn dimensionless_to_internal(params: &[f64; 1]) -> [f64; 1] {
+            *params
+        }
+
+        fn internal_to_dimensionless(params: &[f64; 1]) -> [f64; 1] {
+            [params[0].abs()] // Apply abs() transformation
+        }
+    }
+
+    impl FitParametersOriginalDimLessTrait<1> for SimpleConstantModel {
+        fn orig_to_dimensionless(
+            _norm_data: &NormalizedData<f64>,
+            orig: &[f64; 1],
+        ) -> [f64; 1] {
+            // No scaling - external = dimensionless for this simple model
+            *orig
+        }
+
+        fn dimensionless_to_orig(
+            _norm_data: &NormalizedData<f64>,
+            norm: &[f64; 1],
+        ) -> [f64; 1] {
+            // No scaling - external = dimensionless for this simple model
+            *norm
+        }
+    }
+
+    impl FitParametersInternalExternalTrait<1> for SimpleConstantModel {
+        fn jacobian_internal_to_external(
+            _norm_data: &NormalizedData<f64>,
+            internal: &[f64; 1],
+        ) -> [f64; 1] {
+            // external = |internal|
+            // d(external)/d(internal) = sign(internal)
+            [internal[0].signum()]
+        }
+    }
+
+    /// Test the prior gradient fix with an analytical solution.
+    ///
+    /// Problem setup:
+    /// - Model: f(t) = |c| (constant with abs transformation)
+    /// - Data: n observations all equal to y_target
+    /// - Prior: c ~ N(μ_prior, σ_prior²) in external space (positive)
+    ///
+    /// For a constant model with Gaussian prior and Gaussian likelihood:
+    /// - Likelihood: ∝ exp(-n(c - y_target)²/(2σ²))
+    /// - Prior: ∝ exp(-(c - μ_prior)²/(2σ_prior²))
+    ///
+    /// Posterior mean: (n*y_target/σ² + μ_prior/σ_prior²) / (n/σ² + 1/σ_prior²)
+    #[test]
+    fn test_nuts_with_prior_analytical_solution() {
+        // Create simple normalized data directly
+        // All observations have the same value in dimensionless space
+        const N: usize = 20;
+        let y_target = 1.0; // Target value in dimensionless space
+        let obs_std = 0.5; // Observation standard deviation
+
+        let t_arr = Array1::from_vec((0..N).map(|i| i as f64).collect());
+        let m_arr = Array1::from_elem(N, y_target);
+        let inv_err_arr = Array1::from_elem(N, 1.0 / obs_std); // inv_err = 1/σ
+
+        let data = Rc::new(Data {
+            t: t_arr,
+            m: m_arr,
+            inv_err: inv_err_arr,
+        });
+
+        // Create a dummy TimeSeries just to get NormalizedData for the prior transformation
+        let t_vec: Vec<f64> = (0..3).map(|i| i as f64).collect();
+        let m_vec: Vec<f64> = vec![1.0, 1.0, 1.0];
+        let w_vec: Vec<f64> = vec![1.0, 1.0, 1.0];
+        let mut ts = TimeSeries::new(&t_vec, &m_vec, &w_vec);
+        let norm_data = NormalizedData::<f64>::from_ts(&mut ts);
+
+        // Prior parameters in external space
+        let prior_mean = 1.5; // Prior pulls toward 1.5
+        let prior_std = 0.3;
+        let prior_var = prior_std * prior_std;
+        let obs_var = obs_std * obs_std;
+
+        // Analytical posterior parameters for Gaussian-Gaussian conjugate case
+        let posterior_var = 1.0 / ((N as f64) / obs_var + 1.0 / prior_var);
+        let posterior_mean =
+            posterior_var * ((N as f64) * y_target / obs_var + prior_mean / prior_var);
+
+        // Create prior in external space
+        let prior: LnPrior<1> = LnPrior::ind_components([LnPrior1D::normal(prior_mean, prior_std)]);
+
+        // Transform prior to work with internal parameters
+        let transformed_prior =
+            prior.with_fit_parameters_transformation::<SimpleConstantModel>(&norm_data);
+
+        // Model: f(t) = |internal[0]|
+        let model = |_t: f64, params: &[f64; 1]| -> f64 { params[0].abs() };
+
+        // Derivatives: d(|x|)/dx = sign(x)
+        let derivatives = |_t: f64, params: &[f64; 1], jac: &mut [f64; 1]| {
+            jac[0] = params[0].signum();
+        };
+
+        // Initial guess: start at a reasonable positive value
+        let init_internal = [y_target];
+
+        // Bounds: allow both positive and negative internal values
+        let lower_internal = [0.01]; // Keep external positive
+        let upper_internal = [5.0];
+
+        // Run NUTS
+        let nuts = NutsCurveFit::new(500, 500, None);
+        let result = nuts.curve_fit(
+            data,
+            &init_internal,
+            (&lower_internal, &upper_internal),
+            model,
+            derivatives,
+            transformed_prior,
+        );
+
+        // Convert result to external space
+        let result_external = SimpleConstantModel::convert_to_external(&norm_data, &result.x);
+
+        println!("Data mean: {}", y_target);
+        println!("Prior mean: {}", prior_mean);
+        println!("Posterior mean (analytical): {}", posterior_mean);
+        println!("NUTS result (external): {:?}", result_external);
+        println!("Posterior std (analytical): {}", posterior_var.sqrt());
+
+        // Check that the result is within 3 posterior standard deviations
+        let tolerance = 3.0 * posterior_var.sqrt();
+        assert!(
+            (result_external[0] - posterior_mean).abs() < tolerance,
+            "NUTS result {} is too far from analytical posterior mean {} (tolerance: {})",
+            result_external[0],
+            posterior_mean,
+            tolerance
+        );
+
+        // Check that result is between data mean and prior mean
+        // (posterior should be a weighted average)
+        let min_val = y_target.min(prior_mean);
+        let max_val = y_target.max(prior_mean);
+        assert!(
+            result_external[0] >= min_val - tolerance && result_external[0] <= max_val + tolerance,
+            "NUTS result {} should be between data mean {} and prior mean {} (with tolerance {})",
+            result_external[0],
+            y_target,
+            prior_mean,
+            tolerance
+        );
+    }
+
+    /// Test that the gradient is correctly computed for the transformed prior
+    /// with sign transformation, using numerical differentiation.
+    #[test]
+    fn test_transformed_prior_gradient_with_sign() {
+        // Create dummy normalized data
+        let t_vec: Vec<f64> = vec![1.0, 2.0, 3.0];
+        let m_vec: Vec<f64> = vec![1.0, 1.0, 1.0];
+        let w_vec: Vec<f64> = vec![1.0, 1.0, 1.0];
+        let mut ts = TimeSeries::new(&t_vec, &m_vec, &w_vec);
+        let norm_data = NormalizedData::<f64>::from_ts(&mut ts);
+
+        // Prior in external space: N(1.0, 0.5²)
+        let prior: LnPrior<1> = LnPrior::ind_components([LnPrior1D::normal(1.0, 0.5)]);
+        let transformed_prior =
+            prior.with_fit_parameters_transformation::<SimpleConstantModel>(&norm_data);
+
+        // Test with both positive and negative internal parameters
+        // The key insight: for external = |internal|, the gradient should flip sign
+        // when internal is negative
+        for &internal_val in &[-2.0, -1.0, -0.5, 0.5, 1.0, 2.0] {
+            let params = [internal_val];
+            let mut analytical_grad = [0.0];
+            let ln_p = transformed_prior.ln_prior(&params, Some(&mut analytical_grad));
+
+            if !ln_p.is_finite() {
+                continue;
+            }
+
+            // Numerical gradient using central difference
+            let eps = 1e-6;
+            let ln_p_plus = transformed_prior.ln_prior(&[internal_val + eps], None);
+            let ln_p_minus = transformed_prior.ln_prior(&[internal_val - eps], None);
+            let numerical_grad = (ln_p_plus - ln_p_minus) / (2.0 * eps);
+
+            println!(
+                "internal={:.2}: analytical_grad={:.6}, numerical_grad={:.6}",
+                internal_val, analytical_grad[0], numerical_grad
+            );
+
+            assert_relative_eq!(
+                analytical_grad[0],
+                numerical_grad,
+                epsilon = 1e-4,
+                max_relative = 1e-3
+            );
+
+            // Verify the sign relationship:
+            // For external = |internal|, if the prior gradient w.r.t. external is g,
+            // then the gradient w.r.t. internal should be g * sign(internal)
+            // This means the gradient should have opposite signs for opposite internal values
+        }
+
+        // Additional check: gradients at symmetric points (away from mode) should have opposite signs
+        let mut grad_pos = [0.0];
+        let mut grad_neg = [0.0];
+        // Use 0.5 instead of 1.0 (the mode) to get non-zero gradients
+        transformed_prior.ln_prior(&[0.5], Some(&mut grad_pos));
+        transformed_prior.ln_prior(&[-0.5], Some(&mut grad_neg));
+
+        println!("Gradient at internal=0.5: {}", grad_pos[0]);
+        println!("Gradient at internal=-0.5: {}", grad_neg[0]);
+
+        // The gradients should have opposite signs (because of the sign(internal) factor)
+        // At internal=0.5: external=0.5, prior gradient w.r.t external is positive (pulling toward 1.0)
+        // So gradient w.r.t internal = positive * sign(0.5) = positive
+        // At internal=-0.5: external=0.5, prior gradient w.r.t external is positive
+        // So gradient w.r.t internal = positive * sign(-0.5) = negative
+        assert!(
+            grad_pos[0] * grad_neg[0] < 0.0,
+            "Gradients at symmetric points should have opposite signs: {} vs {}",
+            grad_pos[0],
+            grad_neg[0]
+        );
+    }
+
+    /// Test that the prior value is the same for +internal and -internal
+    /// (since external = |internal| makes them equivalent)
+    #[test]
+    fn test_transformed_prior_symmetry() {
+        let t_vec: Vec<f64> = vec![1.0, 2.0, 3.0];
+        let m_vec: Vec<f64> = vec![1.0, 1.0, 1.0];
+        let w_vec: Vec<f64> = vec![1.0, 1.0, 1.0];
+        let mut ts = TimeSeries::new(&t_vec, &m_vec, &w_vec);
+        let norm_data = NormalizedData::<f64>::from_ts(&mut ts);
+
+        let prior: LnPrior<1> = LnPrior::ind_components([LnPrior1D::normal(1.0, 0.5)]);
+        let transformed_prior =
+            prior.with_fit_parameters_transformation::<SimpleConstantModel>(&norm_data);
+
+        // Test that ln_prior(+x) == ln_prior(-x) for the same |x|
+        for &x in &[0.5, 1.0, 1.5, 2.0] {
+            let ln_p_pos = transformed_prior.ln_prior(&[x], None);
+            let ln_p_neg = transformed_prior.ln_prior(&[-x], None);
+
+            assert_relative_eq!(ln_p_pos, ln_p_neg, epsilon = 1e-10);
+        }
+    }
+}

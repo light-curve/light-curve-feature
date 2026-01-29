@@ -129,26 +129,25 @@
 //!
 //! The full Jacobian is the product of these diagonal matrices.
 //!
-//! ## Current Status
+//! ## Implementation
 //!
-//! **BUG**: The current implementation in [`TransformedLnPrior`](prior::ln_prior::TransformedLnPrior)
-//! does NOT apply the Jacobian to the prior gradient. The comment there is incorrect—it claims
-//! that `internal_to_dimensionless` is identity for current use cases, but this is false for
-//! `BazinFit`, `VillarFit`, and `LinExpFit` which all use `abs()` transformations.
+//! The [`TransformedLnPrior`](prior::ln_prior::TransformedLnPrior) correctly applies the chain
+//! rule via the [`FitParametersInternalExternalTrait::jacobian_internal_to_external`] method.
+//! This method returns the diagonal elements of the Jacobian matrix `∂(external)/∂(internal)`,
+//! which accounts for:
 //!
-//! The gradient returned by `ln_prior()` for `TransformedLnPrior` is:
+//! - Sign factors from `abs()` transformations (e.g., `sign(internal)` for amplitude/timescale)
+//! - Scale factors from data normalization (`m_std`, `t_std`)
+//!
+//! The gradient returned by `ln_prior()` for `TransformedLnPrior` is correctly:
 //! ```text
-//! ∂(ln_prior)/∂(external)  ← WRONG, should be ∂(ln_prior)/∂(internal)
+//! ∂(ln_prior)/∂(internal) = ∂(ln_prior)/∂(external) × ∂(external)/∂(internal)
 //! ```
-//!
-//! This causes incorrect gradient-based optimization (NUTS sampler) when priors are used
-//! with models that have non-identity `internal_to_dimensionless` transformations.
 //!
 //! # Curve Fit Algorithms
 //!
 //! - [`McmcCurveFit`]: Ensemble MCMC sampler. Does not use derivatives. Supports priors.
 //! - [`NutsCurveFit`]: NUTS Hamiltonian Monte Carlo. Uses derivatives. Supports priors.
-//!   **Currently affected by the gradient bug above.**
 //! - [`LmsderCurveFit`] (requires `gsl`): Levenberg-Marquardt. Uses derivatives. Ignores priors.
 //! - [`CeresCurveFit`] (requires `ceres`): Trust-region. Uses derivatives. Ignores priors.
 //!
