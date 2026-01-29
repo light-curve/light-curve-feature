@@ -143,3 +143,71 @@ where
         self.m_std
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::time_series::TimeSeries;
+
+    use approx::assert_relative_eq;
+
+    #[test]
+    fn test_t_std_m_std_getters() {
+        // Create time series with known statistics
+        let t = vec![0.0, 10.0, 20.0, 30.0, 40.0];
+        let m = vec![100.0, 200.0, 150.0, 180.0, 120.0];
+        let mut ts = TimeSeries::new_without_weight(t.clone(), m.clone());
+        let norm_data = NormalizedData::<f64>::from_ts(&mut ts);
+
+        // Compute expected std manually using sample std (N-1 divisor, Bessel correction)
+        // which is what DataSample::get_std() uses
+        let n = t.len() as f64;
+        let t_mean: f64 = t.iter().sum::<f64>() / n;
+        let t_var: f64 = t.iter().map(|x| (x - t_mean).powi(2)).sum::<f64>() / (n - 1.0);
+        let expected_t_std = t_var.sqrt();
+
+        let m_mean: f64 = m.iter().sum::<f64>() / n;
+        let m_var: f64 = m.iter().map(|x| (x - m_mean).powi(2)).sum::<f64>() / (n - 1.0);
+        let expected_m_std = m_var.sqrt();
+
+        assert_relative_eq!(norm_data.t_std(), expected_t_std, epsilon = 1e-10);
+        assert_relative_eq!(norm_data.m_std(), expected_m_std, epsilon = 1e-10);
+    }
+
+    #[test]
+    fn test_normalization_consistency() {
+        // Verify that t_std and m_std are consistent with the conversion functions
+        let t = vec![0.0, 10.0, 20.0, 30.0, 40.0];
+        let m = vec![100.0, 200.0, 150.0, 180.0, 120.0];
+        let mut ts = TimeSeries::new_without_weight(t, m);
+        let norm_data = NormalizedData::<f64>::from_ts(&mut ts);
+
+        // t_to_orig_scale should multiply by t_std
+        let t_norm = 1.0;
+        assert_relative_eq!(
+            norm_data.t_to_orig_scale(t_norm),
+            t_norm * norm_data.t_std(),
+            epsilon = 1e-10
+        );
+
+        // m_to_orig_scale should multiply by m_std
+        let m_norm = 1.0;
+        assert_relative_eq!(
+            norm_data.m_to_orig_scale(m_norm),
+            m_norm * norm_data.m_std(),
+            epsilon = 1e-10
+        );
+    }
+
+    #[test]
+    fn test_zero_std_handling() {
+        // When all values are the same, std should be zero
+        let t = vec![5.0, 5.0, 5.0, 5.0];
+        let m = vec![100.0, 100.0, 100.0, 100.0];
+        let mut ts = TimeSeries::new_without_weight(t, m);
+        let norm_data = NormalizedData::<f64>::from_ts(&mut ts);
+
+        assert_eq!(norm_data.t_std(), 0.0);
+        assert_eq!(norm_data.m_std(), 0.0);
+    }
+}

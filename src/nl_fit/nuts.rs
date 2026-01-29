@@ -309,18 +309,12 @@ mod tests {
     }
 
     impl FitParametersOriginalDimLessTrait<1> for SimpleConstantModel {
-        fn orig_to_dimensionless(
-            _norm_data: &NormalizedData<f64>,
-            orig: &[f64; 1],
-        ) -> [f64; 1] {
+        fn orig_to_dimensionless(_norm_data: &NormalizedData<f64>, orig: &[f64; 1]) -> [f64; 1] {
             // No scaling - external = dimensionless for this simple model
             *orig
         }
 
-        fn dimensionless_to_orig(
-            _norm_data: &NormalizedData<f64>,
-            norm: &[f64; 1],
-        ) -> [f64; 1] {
+        fn dimensionless_to_orig(_norm_data: &NormalizedData<f64>, norm: &[f64; 1]) -> [f64; 1] {
             // No scaling - external = dimensionless for this simple model
             *norm
         }

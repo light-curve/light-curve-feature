@@ -633,6 +633,8 @@ mod tests {
     use crate::nl_fit::CeresCurveFit;
     #[cfg(feature = "gsl")]
     use crate::nl_fit::LnPrior1D;
+    use crate::nl_fit::data::NormalizedData;
+    use crate::nl_fit::evaluator::FitParametersInternalExternalTrait;
     use crate::tests::*;
 
     use approx::assert_relative_eq;
@@ -775,5 +777,103 @@ mod tests {
         let mcmc = McmcCurveFit::new(1 << 13, Some(lmsder.into()));
         let feature = VillarFit::new(mcmc.into(), LnPrior::none(), VillarInitsBounds::Default);
         feature.eval(&mut ts).unwrap();
+    }
+
+    #[test]
+    fn test_jacobian_internal_to_external() {
+        // Create normalized data with known scale factors
+        let t = vec![0.0, 10.0, 20.0, 30.0, 40.0];
+        let m = vec![100.0, 200.0, 150.0, 180.0, 120.0];
+        let mut ts = TimeSeries::new_without_weight(t, m);
+        let norm_data = NormalizedData::<f64>::from_ts(&mut ts);
+
+        let t_std = norm_data.t_std();
+        let m_std = norm_data.m_std();
+
+        // Test with positive internal values
+        let internal_pos = [1.0, 2.0, 3.0, 4.0, 5.0, 0.5, 6.0];
+        let jac = VillarFit::jacobian_internal_to_external(&norm_data, &internal_pos);
+
+        // For params[5] (nu via b_to_nu), compute expected derivative
+        let nu = VillarFit::b_to_nu(internal_pos[5]);
+        let d_nu_d_b = (1.0 - nu.powi(2)) * internal_pos[5].signum();
+
+        assert_relative_eq!(jac[0], m_std, epsilon = 1e-10); // A: sign(1) * m_std
+        assert_relative_eq!(jac[1], m_std, epsilon = 1e-10); // c: m_std
+        assert_relative_eq!(jac[2], t_std, epsilon = 1e-10); // t0: t_std
+        assert_relative_eq!(jac[3], t_std, epsilon = 1e-10); // tau_rise: sign(4) * t_std
+        assert_relative_eq!(jac[4], t_std, epsilon = 1e-10); // tau_fall: sign(5) * t_std
+        assert_relative_eq!(jac[5], d_nu_d_b, epsilon = 1e-10); // nu: d(nu)/d(b)
+        assert_relative_eq!(jac[6], t_std, epsilon = 1e-10); // gamma: sign(6) * t_std
+
+        // Test with negative internal values
+        let internal_neg = [-1.0, 2.0, 3.0, -4.0, -5.0, -0.5, -6.0];
+        let jac = VillarFit::jacobian_internal_to_external(&norm_data, &internal_neg);
+
+        let nu_neg = VillarFit::b_to_nu(internal_neg[5]);
+        let d_nu_d_b_neg = (1.0 - nu_neg.powi(2)) * internal_neg[5].signum();
+
+        assert_relative_eq!(jac[0], -m_std, epsilon = 1e-10); // A: sign(-1) * m_std
+        assert_relative_eq!(jac[1], m_std, epsilon = 1e-10); // c: m_std (no abs)
+        assert_relative_eq!(jac[2], t_std, epsilon = 1e-10); // t0: t_std (no abs)
+        assert_relative_eq!(jac[3], -t_std, epsilon = 1e-10); // tau_rise: sign(-4) * t_std
+        assert_relative_eq!(jac[4], -t_std, epsilon = 1e-10); // tau_fall: sign(-5) * t_std
+        assert_relative_eq!(jac[5], d_nu_d_b_neg, epsilon = 1e-10); // nu: d(nu)/d(b) (negative b)
+        assert_relative_eq!(jac[6], -t_std, epsilon = 1e-10); // gamma: sign(-6) * t_std
+    }
+
+    /// Verify internal_to_dimensionless derivatives using hyperdual numbers
+    #[test]
+    fn test_internal_to_dimensionless_derivatives() {
+        // Test at positive values (away from zero to avoid sign discontinuity)
+        let internal = [0.5, 1.0, 1.5, 2.0, 2.5, 0.3, 3.0];
+
+        for i in 0..NPARAMS {
+            // Set up hyperdual with derivative in direction i
+            let hyper_param: [Hyperdual<f64, 2>; NPARAMS] = std::array::from_fn(|j| {
+                let mut h = Hyperdual::from_real(internal[j]);
+                if i == j {
+                    h[1] = 1.0;
+                }
+                h
+            });
+
+            let result = VillarFit::internal_to_dimensionless(&hyper_param);
+            let derivative = result[i][1];
+
+            // Expected derivatives:
+            // - params 0, 3, 4, 6: sign(x) due to abs()
+            // - params 1, 2: 1.0 (identity)
+            // - param 5: d(nu)/d(b) = (1 - nu^2) * sign(b) for b_to_nu
+            let expected = match i {
+                0 | 3 | 4 | 6 => internal[i].signum(),
+                5 => {
+                    let nu = VillarFit::b_to_nu(internal[5]);
+                    (1.0 - nu.powi(2)) * internal[5].signum()
+                }
+                _ => 1.0,
+            };
+            assert_relative_eq!(derivative, expected, epsilon = 1e-10);
+        }
+    }
+
+    /// Verify b_to_nu derivative using hyperdual numbers
+    #[test]
+    fn test_b_to_nu_derivative() {
+        // Test the derivative d(nu)/d(b) = (1 - nu^2) * sign(b)
+        // The b_to_nu function is: nu = 2 * logistic(2 * |b|) - 1 = tanh(|b|)
+        for b in [0.1, 0.5, 1.0, 2.0, -0.1, -0.5, -1.0, -2.0] {
+            // Using hyperdual to compute derivative
+            let mut h = Hyperdual::<f64, 2>::from_real(b);
+            h[1] = 1.0;
+            let nu_hyper = VillarFit::b_to_nu(h);
+            let hyperdual_deriv = nu_hyper[1];
+
+            // Analytical derivative
+            let nu = VillarFit::b_to_nu(b);
+            let analytical_deriv = (1.0 - nu.powi(2)) * b.signum();
+
+            assert_relative_eq!(hyperdual_deriv, analytical_deriv, epsilon = 1e-10);
+        }
     }
 }
