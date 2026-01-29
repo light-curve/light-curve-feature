@@ -423,10 +423,7 @@ mod tests {
     use crate::CeresCurveFit;
     #[cfg(feature = "gsl")]
     use crate::LmsderCurveFit;
-    use crate::TimeSeries;
     use crate::nl_fit::LnPrior1D;
-    use crate::nl_fit::data::NormalizedData;
-    use crate::nl_fit::evaluator::FitParametersInternalExternalTrait;
     use crate::tests::*;
 
     use approx::assert_relative_eq;
@@ -662,61 +659,5 @@ mod tests {
         ));
     }
 
-    #[test]
-    fn test_jacobian_internal_to_external() {
-        // Create normalized data with known scale factors
-        let t = vec![0.0, 10.0, 20.0, 30.0, 40.0];
-        let m = vec![100.0, 200.0, 150.0, 180.0, 120.0];
-        let mut ts = TimeSeries::new_without_weight(t, m);
-        let norm_data = NormalizedData::<f64>::from_ts(&mut ts);
-
-        let t_std = norm_data.t_std();
-        let m_std = norm_data.m_std();
-
-        // Test with positive internal values
-        let internal_pos = [1.0, 2.0, 3.0, 4.0, 5.0];
-        let jac = BazinFit::jacobian_internal_to_external(&norm_data, &internal_pos);
-        assert_relative_eq!(jac[0], m_std, epsilon = 1e-10); // A: sign(1) * m_std
-        assert_relative_eq!(jac[1], m_std, epsilon = 1e-10); // B: m_std
-        assert_relative_eq!(jac[2], t_std, epsilon = 1e-10); // t0: t_std
-        assert_relative_eq!(jac[3], t_std, epsilon = 1e-10); // tau_rise: sign(4) * t_std
-        assert_relative_eq!(jac[4], t_std, epsilon = 1e-10); // tau_fall: sign(5) * t_std
-
-        // Test with negative internal values (sign matters for abs() params)
-        let internal_neg = [-1.0, 2.0, 3.0, -4.0, -5.0];
-        let jac = BazinFit::jacobian_internal_to_external(&norm_data, &internal_neg);
-        assert_relative_eq!(jac[0], -m_std, epsilon = 1e-10); // A: sign(-1) * m_std
-        assert_relative_eq!(jac[1], m_std, epsilon = 1e-10); // B: m_std (no abs)
-        assert_relative_eq!(jac[2], t_std, epsilon = 1e-10); // t0: t_std (no abs)
-        assert_relative_eq!(jac[3], -t_std, epsilon = 1e-10); // tau_rise: sign(-4) * t_std
-        assert_relative_eq!(jac[4], -t_std, epsilon = 1e-10); // tau_fall: sign(-5) * t_std
-    }
-
-    /// Verify internal_to_dimensionless derivatives using hyperdual numbers
-    #[test]
-    fn test_internal_to_dimensionless_derivatives() {
-        // Test at positive values (away from zero to avoid sign discontinuity)
-        let internal = [0.5, 1.0, 1.5, 2.0, 2.5];
-
-        for i in 0..NPARAMS {
-            // Set up hyperdual with derivative in direction i
-            let hyper_param: [Hyperdual<f64, 2>; NPARAMS] = std::array::from_fn(|j| {
-                let mut h = Hyperdual::from_real(internal[j]);
-                if i == j {
-                    h[1] = 1.0;
-                }
-                h
-            });
-
-            let result = BazinFit::internal_to_dimensionless(&hyper_param);
-            let derivative = result[i][1];
-
-            // Expected: sign(x) for params with abs(), 1.0 otherwise
-            let expected = match i {
-                0 | 3 | 4 => internal[i].signum(), // A, tau_rise, tau_fall use abs()
-                _ => 1.0,                          // B, t0 are identity
-            };
-            assert_relative_eq!(derivative, expected, epsilon = 1e-10);
-        }
-    }
+    check_fit_jacobian!(BazinFit);
 }
