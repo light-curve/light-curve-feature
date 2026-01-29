@@ -460,8 +460,8 @@ macro_rules! check_fit_jacobian {
     ($feature: ty) => {
         #[test]
         fn fit_jacobian() {
-            use crate::nl_fit::data::NormalizedData;
-            use crate::nl_fit::evaluator::{
+            use $crate::nl_fit::data::NormalizedData;
+            use $crate::nl_fit::evaluator::{
                 FitParametersInternalDimlessTrait, FitParametersInternalExternalTrait,
                 FitParametersOriginalDimLessTrait,
             };
