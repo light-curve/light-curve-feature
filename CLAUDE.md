@@ -251,6 +251,118 @@ cargo test --profile=release-with-debug --no-default-features --features ceres-s
 - Include code examples where helpful
 - Cite relevant papers for feature implementations
 
+## Updating the Changelog
+
+The project maintains a `CHANGELOG.md` following the [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+### When to Update
+
+Update the changelog for any user-facing changes:
+- New features or feature evaluators
+- Bug fixes
+- Breaking API changes
+- Dependency updates (especially breaking ones)
+- Performance improvements
+- Documentation improvements (if significant)
+
+### Changelog Structure
+
+```markdown
+## [Unreleased]
+
+### Added
+- New features go here
+
+### Changed
+- Changes to existing functionality
+
+### Deprecated
+- Features marked for removal
+
+### Removed
+- Removed features
+
+### Fixed
+- Bug fixes
+
+### Security
+- Security-related fixes
+```
+
+### Entry Format Guidelines
+
+1. **Add entries to `[Unreleased]` section** - Never add to released versions
+2. **Use the correct category** based on change type
+3. **Start with a capital letter**, no period at end
+4. **Include GitHub links** at the end of each entry:
+   ```markdown
+   - Add `NewFeature` for computing X https://github.com/light-curve/light-curve-feature/pull/123
+   ```
+5. **Mark breaking changes** with `**Breaking**` prefix:
+   ```markdown
+   - **Breaking** Rename `old_method` to `new_method` https://github.com/light-curve/light-curve-feature/pull/456
+   ```
+6. **Mark build-breaking changes** (MSRV, dependency requirements) with `**Build breaking**`:
+   ```markdown
+   - **Build breaking**: bump minimum supported Rust version (MSRV) from 1.67 to 1.85
+   ```
+7. **Use empty placeholder** `--` for unused sections in unreleased
+8. **Wrap long entries** with proper indentation:
+   ```markdown
+   - Add NUTS (No-U-Turn Sampler) as an alternative fitting algorithm via `NutsCurveFit`, providing
+     gradient-based Hamiltonian Monte Carlo optimization, gated behind the `nuts` cargo
+     feature https://github.com/light-curve/light-curve-feature/pull/245
+   ```
+9. **Credit contributors** for first-time contributions:
+   ```markdown
+   - `Roms`: Robust median statistic feature, thanks @GaluTi for their first
+     contribution! https://github.com/light-curve/light-curve-feature/pull/160
+   ```
+
+### Examples by Change Type
+
+**Adding a new feature:**
+```markdown
+### Added
+- Add `MyNewFeature` evaluator for computing statistical measure X https://github.com/light-curve/light-curve-feature/pull/XXX
+```
+
+**Breaking API change:**
+```markdown
+### Changed
+- **Breaking** `SomeStruct::new` signature changed from accepting `Vec` to slice https://github.com/light-curve/light-curve-feature/pull/XXX
+```
+
+**Dependency bump:**
+```markdown
+### Changed
+- Bump `some-crate` from 1.0 to 2.0 https://github.com/light-curve/light-curve-feature/pull/XXX
+```
+
+**Bug fix:**
+```markdown
+### Fixed
+- Fix overflow in `DataSample` when processing large arrays https://github.com/light-curve/light-curve-feature/issues/XXX https://github.com/light-curve/light-curve-feature/pull/YYY
+```
+
+**New cargo feature:**
+```markdown
+### Added
+- Add `new-feature` cargo feature enabling optional functionality https://github.com/light-curve/light-curve-feature/pull/XXX
+```
+
+### Version Release Format
+
+When a version is released (maintainers only), the format changes to:
+```markdown
+# [0.10.0] 2025 June 4
+
+### Changed
+- ...
+```
+
+Note: Only include sections that have entries (no empty `--` placeholders in releases).
+
 ## CI/CD Pipeline
 
 The GitHub Actions workflow (`.github/workflows/test.yml`) runs:
