@@ -482,26 +482,24 @@ mod tests {
         use approx::assert_relative_eq;
 
         let components = [LnPrior1D::normal(5.0, 2.0), LnPrior1D::normal(10.0, 3.0)];
-        let prior: LnPrior<2> = LnPrior::ind_components(components);
+        let prior: LnPrior<2> = LnPrior::ind_components(components.clone());
 
         let params = [6.0, 11.0];
         let mut jac = [0.0; 2];
         let ln_p = prior.ln_prior(&params, Some(&mut jac));
 
-        // Numerical gradient check
-        let eps = 1e-6;
-        for i in 0..2 {
-            let mut params_plus = params;
-            params_plus[i] += eps;
-            let ln_p_plus = prior.ln_prior(&params_plus, None);
+        // Verify gradient matches individual component gradients
+        // For normal(mu, sigma): d(ln_prior)/d(x) = -(x - mu) / sigma^2
+        let expected_jac_0 = -(params[0] - 5.0) / (2.0 * 2.0); // normal(5.0, 2.0)
+        let expected_jac_1 = -(params[1] - 10.0) / (3.0 * 3.0); // normal(10.0, 3.0)
 
-            let mut params_minus = params;
-            params_minus[i] -= eps;
-            let ln_p_minus = prior.ln_prior(&params_minus, None);
+        assert_relative_eq!(jac[0], expected_jac_0, epsilon = 1e-10);
+        assert_relative_eq!(jac[1], expected_jac_1, epsilon = 1e-10);
 
-            let numerical_grad = (ln_p_plus - ln_p_minus) / (2.0 * eps);
-            assert_relative_eq!(jac[i], numerical_grad, epsilon = 1e-4);
-        }
+        // Verify ln_prior value is sum of component values
+        let expected_ln_p =
+            components[0].ln_prior_1d(params[0], None) + components[1].ln_prior_1d(params[1], None);
+        assert_relative_eq!(ln_p, expected_ln_p, epsilon = 1e-10);
 
         assert!(ln_p.is_finite());
     }
@@ -526,8 +524,6 @@ mod tests {
         let norm_data = NormalizedData::<f64>::from_ts(&mut ts);
 
         // Create a prior with normal distribution in external space
-        // After transformation (multiply by 2), the external space is [2*x, 2*y]
-        // So we set the prior bounds to accommodate this
         let components = [LnPrior1D::normal(1.0, 0.5), LnPrior1D::normal(2.0, 0.5)];
         let prior: LnPrior<2> = LnPrior::ind_components(components);
 
@@ -535,25 +531,32 @@ mod tests {
         let transformed_prior =
             prior.with_fit_parameters_transformation::<MockFitParameters>(&norm_data);
 
-        // Test gradient using numerical differentiation
-        let params = [0.5, 1.0]; // In internal space
-        let mut jac = [0.0; 2];
-        let ln_p = transformed_prior.ln_prior(&params, Some(&mut jac));
+        // Test at internal params [0.5, 1.0]
+        // MockFitParameters transforms: external = internal * 2
+        // So external = [1.0, 2.0]
+        let internal = [0.5, 1.0];
+        let external = [1.0, 2.0]; // internal * 2
 
-        // Numerical gradient check (in internal parameter space)
-        let eps = 1e-6;
-        for i in 0..2 {
-            let mut params_plus = params;
-            params_plus[i] += eps;
-            let ln_p_plus = transformed_prior.ln_prior(&params_plus, None);
+        // Get gradient from transformed prior
+        let mut actual_jac = [0.0; 2];
+        let ln_p = transformed_prior.ln_prior(&internal, Some(&mut actual_jac));
 
-            let mut params_minus = params;
-            params_minus[i] -= eps;
-            let ln_p_minus = transformed_prior.ln_prior(&params_minus, None);
+        // Compute expected gradient manually:
+        // 1. Get prior gradient in external space
+        let mut external_jac = [0.0; 2];
+        let expected_ln_p = prior.ln_prior(&external, Some(&mut external_jac));
 
-            let numerical_grad = (ln_p_plus - ln_p_minus) / (2.0 * eps);
-            assert_relative_eq!(jac[i], numerical_grad, epsilon = 1e-4);
-        }
+        // 2. Apply chain rule: d(ln_prior)/d(internal) = d(ln_prior)/d(external) * d(external)/d(internal)
+        // MockFitParameters.jacobian_internal_to_external returns [2.0, 2.0]
+        let jacobian = [2.0, 2.0];
+        let expected_jac = [external_jac[0] * jacobian[0], external_jac[1] * jacobian[1]];
+
+        // Verify ln_prior value
+        assert_relative_eq!(ln_p, expected_ln_p, epsilon = 1e-10);
+
+        // Verify gradient matches chain rule
+        assert_relative_eq!(actual_jac[0], expected_jac[0], epsilon = 1e-10);
+        assert_relative_eq!(actual_jac[1], expected_jac[1], epsilon = 1e-10);
 
         assert!(ln_p.is_finite());
     }
