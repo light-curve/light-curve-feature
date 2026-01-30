@@ -24,7 +24,7 @@ mod power_direct;
 pub use power_direct::PeriodogramPowerDirect;
 
 mod power_trait;
-pub use power_trait::{PeriodogramPowerError, PeriodogramPowerTrait};
+pub use power_trait::{PeriodogramNormalization, PeriodogramPowerError, PeriodogramPowerTrait};
 
 pub mod sin_cos_iterator;
 
@@ -62,6 +62,7 @@ where
 {
     freq_grid: Cow<'a, FreqGrid<T>>,
     periodogram_power: PeriodogramPower<T>,
+    normalization: PeriodogramNormalization,
 }
 
 impl<'a, T> Periodogram<'a, T>
@@ -72,6 +73,18 @@ where
         periodogram_power: PeriodogramPower<T>,
         freq_grid: Cow<'a, FreqGrid<T>>,
     ) -> Result<Self, PeriodogramPowerError> {
+        Self::with_normalization(
+            periodogram_power,
+            freq_grid,
+            PeriodogramNormalization::default(),
+        )
+    }
+
+    pub fn with_normalization(
+        periodogram_power: PeriodogramPower<T>,
+        freq_grid: Cow<'a, FreqGrid<T>>,
+        normalization: PeriodogramNormalization,
+    ) -> Result<Self, PeriodogramPowerError> {
         if matches!(periodogram_power, PeriodogramPower::Fft(_))
             && !matches!(freq_grid.as_ref(), FreqGrid::ZeroBasedPow2(_))
         {
@@ -80,6 +93,7 @@ where
         Ok(Self {
             freq_grid,
             periodogram_power,
+            normalization,
         })
     }
 
@@ -98,14 +112,31 @@ where
         )
     }
 
+    /// Set the power normalization strategy
+    pub fn set_normalization(&mut self, normalization: PeriodogramNormalization) -> &mut Self {
+        self.normalization = normalization;
+        self
+    }
+
+    /// Get the current power normalization strategy
+    pub fn normalization(&self) -> PeriodogramNormalization {
+        self.normalization
+    }
+
     pub fn freq(&self, i: usize) -> T {
         self.freq_grid.get(i)
     }
 
+    /// Compute the periodogram power with the configured normalization
+    ///
+    /// Returns power values normalized according to the `normalization` setting.
+    /// See [PeriodogramNormalization] for details on available normalizations.
     pub fn power(&self, ts: &mut TimeSeries<T>) -> Vec<T> {
-        self.periodogram_power
+        let raw_power = self
+            .periodogram_power
             .power(&self.freq_grid, ts)
-            .expect("Unexpected error from PeriodogrmPowerTrait::power")
+            .expect("Unexpected error from PeriodogramPowerTrait::power");
+        self.normalization.normalize(raw_power, ts.lenu())
     }
 }
 
@@ -345,6 +376,146 @@ mod tests {
             &power_linear[..],
             &power_arbitrary[..],
             max_relative = 1e-10
+        );
+    }
+
+    #[test]
+    fn standard_normalization_bounds() {
+        // For a pure sinusoid, standard normalization should give peak power close to 1.0
+        const OMEGA_SIN: f64 = 0.07;
+        const N: usize = 100;
+        let t = linspace(0.0, 99.0, N);
+        let m: Vec<_> = t.iter().map(|&x| f64::sin(OMEGA_SIN * x)).collect();
+        let mut ts = TimeSeries::new_without_weight(&t, &m);
+
+        let mut periodogram = Periodogram::new(
+            PeriodogramPowerDirect.into(),
+            FreqGrid::zero_based_pow2(OMEGA_SIN, 0).into(),
+        )
+        .unwrap();
+        periodogram.set_normalization(PeriodogramNormalization::Standard);
+
+        let power = periodogram.power(&mut ts);
+        // Peak power at frequency index 1 should be close to 1.0
+        assert_relative_eq!(power[1], 1.0, max_relative = 1.0 / (N as f64));
+        // All values should be bounded [0, 1]
+        for &p in &power {
+            assert!(
+                (0.0..=1.0 + 1e-10).contains(&p),
+                "Power {} out of bounds",
+                p
+            );
+        }
+    }
+
+    #[test]
+    fn psd_normalization_matches_original() {
+        // Psd normalization should match the original behavior (manual factor application)
+        const OMEGA_SIN: f64 = 0.07;
+        const N: usize = 100;
+        let t = linspace(0.0, 99.0, N);
+        let m: Vec<_> = t.iter().map(|&x| f64::sin(OMEGA_SIN * x)).collect();
+        let mut ts = TimeSeries::new_without_weight(&t, &m);
+
+        let periodogram = Periodogram::new(
+            PeriodogramPowerDirect.into(),
+            FreqGrid::zero_based_pow2(OMEGA_SIN, 0).into(),
+        )
+        .unwrap();
+
+        // Default is Psd
+        assert_eq!(periodogram.normalization(), PeriodogramNormalization::Psd);
+
+        let power = periodogram.power(&mut ts);
+        // Manually applying the factor should give ~1.0
+        assert_relative_eq!(
+            power[1] * 2.0 / (N as f64 - 1.0),
+            1.0,
+            max_relative = 1.0 / (N as f64),
+        );
+    }
+
+    #[test]
+    fn model_normalization() {
+        const OMEGA_SIN: f64 = 0.07;
+        const N: usize = 100;
+        let t = linspace(0.0, 99.0, N);
+        let m: Vec<_> = t.iter().map(|&x| f64::sin(OMEGA_SIN * x)).collect();
+        let mut ts = TimeSeries::new_without_weight(&t, &m);
+
+        let mut periodogram = Periodogram::new(
+            PeriodogramPowerDirect.into(),
+            FreqGrid::zero_based_pow2(OMEGA_SIN, 0).into(),
+        )
+        .unwrap();
+        periodogram.set_normalization(PeriodogramNormalization::Model);
+
+        let power = periodogram.power(&mut ts);
+        // Model normalization: P_model = P_std / (1 - P_std)
+        // For P_std close to 1, P_model should be very large
+        assert!(power[1] > 10.0, "Model power at peak should be large");
+        // All values should be non-negative
+        for &p in &power {
+            assert!(p >= 0.0, "Power {} should be non-negative", p);
+        }
+    }
+
+    #[test]
+    fn log_normalization() {
+        const OMEGA_SIN: f64 = 0.07;
+        const N: usize = 100;
+        let t = linspace(0.0, 99.0, N);
+        let m: Vec<_> = t.iter().map(|&x| f64::sin(OMEGA_SIN * x)).collect();
+        let mut ts = TimeSeries::new_without_weight(&t, &m);
+
+        let mut periodogram = Periodogram::new(
+            PeriodogramPowerDirect.into(),
+            FreqGrid::zero_based_pow2(OMEGA_SIN, 0).into(),
+        )
+        .unwrap();
+        periodogram.set_normalization(PeriodogramNormalization::Log);
+
+        let power = periodogram.power(&mut ts);
+        // Log normalization: P_log = -ln(1 - P_std)
+        // For P_std close to 1, P_log should be large
+        assert!(power[1] > 3.0, "Log power at peak should be large");
+        // All values should be non-negative
+        for &p in &power {
+            assert!(p >= 0.0, "Power {} should be non-negative", p);
+        }
+    }
+
+    #[test]
+    fn normalization_consistency_across_methods() {
+        // Standard normalization should give same results for Direct and FFT methods
+        const OMEGA: f64 = 0.472;
+        const N: usize = 64;
+        const RESOLUTION: f32 = 1.0;
+        const MAX_FREQ_FACTOR: f32 = 1.0;
+
+        let t = linspace(0.0, (N - 1) as f64, N);
+        let m: Vec<_> = t.iter().map(|&x| f64::sin(OMEGA * x)).collect();
+        let mut ts = TimeSeries::new_without_weight(&t, &m);
+        let params = DynamicFreqGridParams::new(RESOLUTION, MAX_FREQ_FACTOR, AverageNyquistFreq);
+        let freq_grid_strategy = ZeroBasedPow2FreqGrid::from_t(&t, &params).into();
+
+        let mut direct =
+            Periodogram::from_t(PeriodogramPowerDirect.into(), &t, &freq_grid_strategy).unwrap();
+        direct.set_normalization(PeriodogramNormalization::Standard);
+
+        let mut fft =
+            Periodogram::from_t(PeriodogramPowerFft::new().into(), &t, &freq_grid_strategy)
+                .unwrap();
+        fft.set_normalization(PeriodogramNormalization::Standard);
+
+        let direct_power = direct.power(&mut ts);
+        let fft_power = fft.power(&mut ts);
+
+        // Exclude last element as FFT and Direct can differ slightly there
+        all_close(
+            &fft_power[..direct_power.len() - 1],
+            &direct_power[..direct_power.len() - 1],
+            1e-8,
         );
     }
 }
