@@ -277,4 +277,136 @@ mod tests {
         all_close(&actual_re, &desired_re, 1e-6);
         all_close(&actual_im, &desired_im, 1e-6);
     }
+
+    #[test]
+    fn rustfft_clone() {
+        // Test that cloning RustFft creates a new instance
+        let fft: RustFft<f64> = RustFft::new();
+        let fft2 = fft.clone();
+
+        // Both should be valid and able to perform FFT
+        let mut fft2 = fft2;
+        let mut x = RustFftInputArray::new_with_size(64);
+        for i in 0..64 {
+            x.as_mut()[i] = (i as f64).sin();
+        }
+        let mut y = RustFftOutputArray::new_with_size(33);
+        fft2.fft(&mut x, &mut y);
+
+        // Result should be valid
+        assert!(y.iter().all(|c| c.get_re().is_finite() && c.get_im().is_finite()));
+    }
+
+    #[test]
+    fn rustfft_debug() {
+        let fft: RustFft<f64> = RustFft::new();
+        let debug_str = format!("{:?}", fft);
+        assert!(debug_str.contains("RustFft"));
+        assert!(debug_str.contains("f64"));
+    }
+
+    #[test]
+    fn rustfft32_debug() {
+        let fft = RustFft32::new();
+        let debug_str = format!("{:?}", fft);
+        assert!(debug_str.contains("RustFft32"));
+    }
+
+    #[test]
+    fn rustfft64_debug() {
+        let fft = RustFft64::new();
+        let debug_str = format!("{:?}", fft);
+        assert!(debug_str.contains("RustFft64"));
+    }
+
+    #[test]
+    fn input_array_len() {
+        let x: RustFftInputArray<f64> = RustFftInputArray::new_with_size(128);
+        assert_eq!(x.len(), 128);
+    }
+
+    #[test]
+    fn input_array_as_mut() {
+        let mut x: RustFftInputArray<f64> = RustFftInputArray::new_with_size(10);
+        let slice = x.as_mut();
+        for (i, val) in slice.iter_mut().enumerate() {
+            *val = i as f64;
+        }
+        assert_eq!(x.0[5], 5.0);
+    }
+
+    #[test]
+    fn output_array_iter() {
+        let y: RustFftOutputArray<f64> = RustFftOutputArray::new_with_size(5);
+        assert_eq!(y.iter().count(), 5);
+        // All zeros initially
+        assert!(y.iter().all(|c| c.get_re() == 0.0 && c.get_im() == 0.0));
+    }
+
+    #[test]
+    fn output_array_as_mut() {
+        let mut y: RustFftOutputArray<f64> = RustFftOutputArray::new_with_size(5);
+        let slice = y.as_mut();
+        slice[2] = Complex::new(1.0, 2.0);
+        assert_eq!(y.0[2].get_re(), 1.0);
+        assert_eq!(y.0[2].get_im(), 2.0);
+    }
+
+    #[test]
+    fn input_array_debug() {
+        let x: RustFftInputArray<f64> = RustFftInputArray::new_with_size(5);
+        let debug_str = format!("{:?}", x);
+        // Debug should show the array contents
+        assert!(debug_str.contains("RustFftInputArray"));
+    }
+
+    #[test]
+    fn output_array_debug() {
+        let y: RustFftOutputArray<f64> = RustFftOutputArray::new_with_size(5);
+        let debug_str = format!("{:?}", y);
+        // Debug should show the array contents
+        assert!(debug_str.contains("RustFftOutputArray"));
+    }
+
+    #[test]
+    fn fft_plan_caching() {
+        // Test that FFT plans are cached and reused
+        let mut fft: RustFft<f64> = RustFft::new();
+
+        // First FFT
+        let mut x1 = RustFftInputArray::new_with_size(64);
+        x1.as_mut()[0] = 1.0;
+        let mut y1 = RustFftOutputArray::new_with_size(33);
+        fft.fft(&mut x1, &mut y1);
+
+        // Second FFT with same size (should reuse plan)
+        let mut x2 = RustFftInputArray::new_with_size(64);
+        x2.as_mut()[0] = 1.0;
+        let mut y2 = RustFftOutputArray::new_with_size(33);
+        fft.fft(&mut x2, &mut y2);
+
+        // Results should be the same
+        for (c1, c2) in y1.iter().zip(y2.iter()) {
+            assert!((c1.get_re() - c2.get_re()).abs() < 1e-10);
+            assert!((c1.get_im() - c2.get_im()).abs() < 1e-10);
+        }
+    }
+
+    #[test]
+    fn fft_different_sizes() {
+        let mut fft: RustFft<f64> = RustFft::new();
+
+        // Test various sizes
+        for &n in &[8, 16, 32, 64, 128, 256] {
+            let mut x = RustFftInputArray::new_with_size(n);
+            for i in 0..n {
+                x.as_mut()[i] = (i as f64 * 0.1).sin();
+            }
+            let mut y = RustFftOutputArray::new_with_size(n / 2 + 1);
+            fft.fft(&mut x, &mut y);
+
+            // Verify result is valid
+            assert!(y.iter().all(|c| c.get_re().is_finite() && c.get_im().is_finite()));
+        }
+    }
 }

@@ -3,8 +3,8 @@ use crate::extractor::FeatureExtractor;
 use crate::peak_indices::peak_indices_reverse_sorted;
 use crate::periodogram;
 use crate::periodogram::{
-    AverageNyquistFreq, FreqGrid, FreqGridStrategy, NyquistFreq, PeriodogramPower,
-    PeriodogramPowerError, PeriodogramPowerFft,
+    AverageNyquistFreq, DefaultPeriodogramPowerFft, FreqGrid, FreqGridStrategy, NyquistFreq,
+    PeriodogramPower, PeriodogramPowerError,
 };
 
 use std::convert::TryInto;
@@ -379,7 +379,7 @@ where
             .into(),
             freq_grid_strategy: freq_grid_strategy.into(),
             feature_extractor: FeatureExtractor::new(vec![peaks.into()]),
-            periodogram_algorithm: PeriodogramPowerFft::new().into(),
+            periodogram_algorithm: DefaultPeriodogramPowerFft::new().into(),
         }
     }
 }
@@ -708,7 +708,7 @@ mod tests {
             FreqGridStrategy::dynamic(10.0, 1.0, QuantileNyquistFreq { quantile: 0.1 });
         let mut periodogram: Periodogram<_, Feature<_>> =
             Periodogram::with_freq_frid_strategy(2, freq_grid_strategy);
-        periodogram.set_periodogram_algorithm(PeriodogramPowerFft::new().into());
+        periodogram.set_periodogram_algorithm(DefaultPeriodogramPowerFft::new().into());
         let period1 = 0.01;
         let period2 = 1.0;
         let n = 100;

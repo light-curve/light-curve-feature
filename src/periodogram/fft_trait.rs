@@ -61,6 +61,11 @@ pub trait FftInputArray<T>: AsMut<[T]> {
 
     /// Get the length of the array
     fn len(&self) -> usize;
+
+    /// Check if the array is empty
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
 
 /// Trait for output arrays from FFT (complex values)
@@ -153,6 +158,16 @@ where
     }
 }
 
+impl<T, F> Default for FftArraysMap<T, F>
+where
+    T: FftFloat,
+    F: Fft<T>,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T, F> fmt::Debug for FftArraysMap<T, F>
 where
     T: FftFloat,
@@ -165,5 +180,74 @@ where
             std::any::type_name::<T>(),
             std::any::type_name::<F>()
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::periodogram::RustFft;
+
+    #[test]
+    fn fft_complex_zero_f32() {
+        let zero: Complex<f32> = FftComplex::zero();
+        assert_eq!(zero.get_re(), 0.0);
+        assert_eq!(zero.get_im(), 0.0);
+    }
+
+    #[test]
+    fn fft_complex_zero_f64() {
+        let zero: Complex<f64> = FftComplex::zero();
+        assert_eq!(zero.get_re(), 0.0);
+        assert_eq!(zero.get_im(), 0.0);
+    }
+
+    #[test]
+    fn fft_complex_getters() {
+        let c = Complex::new(1.5_f64, 2.5_f64);
+        assert_eq!(c.get_re(), 1.5);
+        assert_eq!(c.get_im(), 2.5);
+    }
+
+    #[test]
+    fn fft_arrays_map_caches_arrays() {
+        let mut map: FftArraysMap<f64, RustFft<f64>> = FftArraysMap::new();
+
+        // First access creates the arrays
+        let arrays = map.get(64);
+        assert_eq!(arrays.x_sch.len(), 64);
+        assert_eq!(arrays.x_sc2.len(), 64);
+
+        // Subsequent access returns the same arrays
+        let arrays2 = map.get(64);
+        assert_eq!(arrays2.x_sch.len(), 64);
+
+        // Different size creates new arrays
+        let arrays3 = map.get(128);
+        assert_eq!(arrays3.x_sch.len(), 128);
+    }
+
+    #[test]
+    fn fft_arrays_correct_sizes() {
+        let arrays: FftArrays<f64, RustFft<f64>> = FftArrays::new(64);
+        assert_eq!(arrays.x_sch.len(), 64);
+        assert_eq!(arrays.y_sch.iter().count(), 33); // 64/2 + 1
+        assert_eq!(arrays.x_sc2.len(), 64);
+        assert_eq!(arrays.y_sc2.iter().count(), 33);
+    }
+
+    #[test]
+    fn fft_arrays_debug() {
+        let arrays: FftArrays<f64, RustFft<f64>> = FftArrays::new(128);
+        let debug_str = format!("{:?}", arrays);
+        assert!(debug_str.contains("128"));
+    }
+
+    #[test]
+    fn fft_arrays_map_debug() {
+        let map: FftArraysMap<f64, RustFft<f64>> = FftArraysMap::new();
+        let debug_str = format!("{:?}", map);
+        assert!(debug_str.contains("FftArraysMap"));
+        assert!(debug_str.contains("f64"));
     }
 }
