@@ -10,6 +10,7 @@ authors = ["Konstantin Malanchev <hombit@gmail.com>"]
 license = "GPL-3.0-or-later"
 rust-version = "1.85"
 edition = "2024"
+autobenches = false
 
 [lib]
 bench = false
