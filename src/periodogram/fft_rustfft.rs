@@ -18,7 +18,6 @@ impl RustFftFloat for f32 {}
 impl RustFftFloat for f64 {}
 
 /// Input array wrapper for RustFFT (plain Vec)
-#[derive(Debug)]
 pub struct RustFftInputArray<T>(pub(crate) Vec<T>);
 
 impl<T: FftFloat> FftInputArray<T> for RustFftInputArray<T> {
@@ -38,7 +37,6 @@ impl<T> AsMut<[T]> for RustFftInputArray<T> {
 }
 
 /// Output array wrapper for RustFFT (plain Vec of Complex)
-#[derive(Debug)]
 pub struct RustFftOutputArray<T: FftFloat>(pub(crate) Vec<T::Complex>);
 
 impl<T: FftFloat> FftOutputArray<T> for RustFftOutputArray<T>
@@ -353,22 +351,6 @@ mod tests {
         slice[2] = Complex::new(1.0, 2.0);
         assert_eq!(y.0[2].get_re(), 1.0);
         assert_eq!(y.0[2].get_im(), 2.0);
-    }
-
-    #[test]
-    fn input_array_debug() {
-        let x: RustFftInputArray<f64> = RustFftInputArray::new_with_size(5);
-        let debug_str = format!("{:?}", x);
-        // Debug should show the array contents
-        assert!(debug_str.contains("RustFftInputArray"));
-    }
-
-    #[test]
-    fn output_array_debug() {
-        let y: RustFftOutputArray<f64> = RustFftOutputArray::new_with_size(5);
-        let debug_str = format!("{:?}", y);
-        // Debug should show the array contents
-        assert!(debug_str.contains("RustFftOutputArray"));
     }
 
     #[test]

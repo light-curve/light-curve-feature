@@ -132,21 +132,12 @@ where
     }
 }
 
-impl<T, F> fmt::Debug for FftArrays<T, F>
-where
-    T: FftFloat,
-    F: Fft<T>,
-{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "FftArrays(n = {})", self.x_sch.len())
-    }
-}
-
 impl<T, F> FftArraysMap<T, F>
 where
     T: FftFloat,
     F: Fft<T>,
 {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self {
             arrays: HashMap::new(),
@@ -155,31 +146,6 @@ where
 
     pub fn get(&mut self, n: usize) -> &mut FftArrays<T, F> {
         self.arrays.entry(n).or_insert_with(|| FftArrays::new(n))
-    }
-}
-
-impl<T, F> Default for FftArraysMap<T, F>
-where
-    T: FftFloat,
-    F: Fft<T>,
-{
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl<T, F> fmt::Debug for FftArraysMap<T, F>
-where
-    T: FftFloat,
-    F: Fft<T>,
-{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "FftArraysMap<{}, {}>",
-            std::any::type_name::<T>(),
-            std::any::type_name::<F>()
-        )
     }
 }
 
@@ -234,20 +200,5 @@ mod tests {
         assert_eq!(arrays.y_sch.iter().count(), 33); // 64/2 + 1
         assert_eq!(arrays.x_sc2.len(), 64);
         assert_eq!(arrays.y_sc2.iter().count(), 33);
-    }
-
-    #[test]
-    fn fft_arrays_debug() {
-        let arrays: FftArrays<f64, RustFft<f64>> = FftArrays::new(128);
-        let debug_str = format!("{:?}", arrays);
-        assert!(debug_str.contains("128"));
-    }
-
-    #[test]
-    fn fft_arrays_map_debug() {
-        let map: FftArraysMap<f64, RustFft<f64>> = FftArraysMap::new();
-        let debug_str = format!("{:?}", map);
-        assert!(debug_str.contains("FftArraysMap"));
-        assert!(debug_str.contains("f64"));
     }
 }
