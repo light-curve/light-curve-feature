@@ -55,17 +55,13 @@ impl FftFloat for f64 {
 }
 
 /// Trait for input arrays to FFT
+#[allow(clippy::len_without_is_empty)]
 pub trait FftInputArray<T>: AsMut<[T]> {
     /// Create a new array with the given size
     fn new_with_size(n: usize) -> Self;
 
     /// Get the length of the array
     fn len(&self) -> usize;
-
-    /// Check if the array is empty
-    fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
 }
 
 /// Trait for output arrays from FFT (complex values)

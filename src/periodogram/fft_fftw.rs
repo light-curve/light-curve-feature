@@ -3,7 +3,6 @@
 use crate::periodogram::fft_trait::{Fft, FftFloat, FftInputArray, FftOutputArray};
 
 pub use fftw::array::{AlignedAllocable, AlignedVec};
-use fftw::error::Result;
 pub use fftw::plan::{Plan, Plan32, Plan64, R2CPlan};
 use fftw::types::Flag;
 use num_complex::Complex;
@@ -44,12 +43,6 @@ impl<T: FftwFloat> AsMut<[T]> for FftwInputArray<T> {
     }
 }
 
-impl<T: FftwFloat> fmt::Debug for FftwInputArray<T> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "FftwInputArray(len = {})", self.0.len())
-    }
-}
-
 /// Output array wrapper for FFTW (AlignedVec of Complex)
 pub struct FftwOutputArray<T: FftwFloat>(pub AlignedVec<T::Complex>);
 
@@ -66,12 +59,6 @@ impl<T: FftwFloat> FftOutputArray<T> for FftwOutputArray<T> {
 impl<T: FftwFloat> AsMut<[T::Complex]> for FftwOutputArray<T> {
     fn as_mut(&mut self) -> &mut [T::Complex] {
         &mut self.0
-    }
-}
-
-impl<T: FftwFloat> fmt::Debug for FftwOutputArray<T> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "FftwOutputArray(len = {})", self.0.len())
     }
 }
 
@@ -132,13 +119,6 @@ where
         self.plans
             .entry(n)
             .or_insert_with(|| R2CPlan::aligned(&[n], Self::flags(n)).unwrap())
-    }
-
-    /// Perform real-to-complex FFT using raw AlignedVec (for backwards compatibility)
-    pub fn fft_raw(&mut self, x: &mut AlignedVec<T>, y: &mut AlignedVec<T::Complex>) -> Result<()> {
-        let n = x.len();
-        self.get_plan(n).r2c(x, y)?;
-        Ok(())
     }
 }
 

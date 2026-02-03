@@ -46,6 +46,7 @@ where
     T: FftFloat,
     F: Fft<T> + Clone,
 {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self {
             fft: Arc::new(ThreadLocal::new()),
@@ -79,16 +80,6 @@ where
         // PeriodogramPowerFft instances are stateless from the user's perspective
         // The Arc<ThreadLocal<...>> fields are internal caches
         true
-    }
-}
-
-impl<T, F> Default for PeriodogramPowerFft<T, F>
-where
-    T: FftFloat,
-    F: Fft<T> + Clone,
-{
-    fn default() -> Self {
-        Self::new()
     }
 }
 
