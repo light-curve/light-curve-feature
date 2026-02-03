@@ -8,8 +8,16 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 
-mod fft;
-pub use fft::{FftwComplex, FftwFloat};
+mod fft_trait;
+pub use fft_trait::{Fft, FftComplex, FftFloat};
+
+#[cfg(any(feature = "fftw-source", feature = "fftw-system", feature = "fftw-mkl"))]
+mod fft_fftw;
+#[cfg(any(feature = "fftw-source", feature = "fftw-system", feature = "fftw-mkl"))]
+pub use fft_fftw::{FftwFft, FftwFloat};
+
+mod fft_rustfft;
+pub use fft_rustfft::{RustFft, RustFftFloat, RustFftImpl};
 
 mod freq;
 pub use freq::{
@@ -28,6 +36,16 @@ pub use power_trait::{PeriodogramNormalization, PeriodogramPowerError, Periodogr
 
 pub mod sin_cos_iterator;
 
+// Type alias for the default FFT-based periodogram power
+// Prefer FFTW when available, otherwise fall back to RustFFT
+#[cfg(any(feature = "fftw-source", feature = "fftw-system", feature = "fftw-mkl"))]
+/// Default FFT-based periodogram power using FFTW backend
+pub type DefaultPeriodogramPowerFft<T> = PeriodogramPowerFft<T, FftwFft<T>>;
+
+#[cfg(not(any(feature = "fftw-source", feature = "fftw-system", feature = "fftw-mkl")))]
+/// Default FFT-based periodogram power using RustFFT backend
+pub type DefaultPeriodogramPowerFft<T> = PeriodogramPowerFft<T, RustFft<T>>;
+
 /// Periodogram execution algorithm
 #[enum_dispatch(PeriodogramPowerTrait<T>)]
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
@@ -37,7 +55,10 @@ pub enum PeriodogramPower<T>
 where
     T: Float,
 {
-    Fft(PeriodogramPowerFft<T>),
+    #[cfg(any(feature = "fftw-source", feature = "fftw-system", feature = "fftw-mkl"))]
+    Fft(PeriodogramPowerFft<T, FftwFft<T>>),
+    #[cfg(not(any(feature = "fftw-source", feature = "fftw-system", feature = "fftw-mkl")))]
+    Fft(PeriodogramPowerFft<T, RustFft<T>>),
     Direct(PeriodogramPowerDirect),
 }
 
@@ -231,9 +252,13 @@ mod tests {
         let direct = Periodogram::from_t(PeriodogramPowerDirect.into(), &t, &freq_grid_strategy)
             .unwrap()
             .power(&mut ts);
-        let fft = Periodogram::from_t(PeriodogramPowerFft::new().into(), &t, &freq_grid_strategy)
-            .unwrap()
-            .power(&mut ts);
+        let fft = Periodogram::from_t(
+            DefaultPeriodogramPowerFft::new().into(),
+            &t,
+            &freq_grid_strategy,
+        )
+        .unwrap()
+        .power(&mut ts);
         all_close(&fft[..direct.len() - 1], &direct[..direct.len() - 1], 1e-8);
     }
 
@@ -258,9 +283,13 @@ mod tests {
         let direct = Periodogram::from_t(PeriodogramPowerDirect.into(), &t, &freq_grid_strategy)
             .unwrap()
             .power(&mut ts);
-        let fft = Periodogram::from_t(PeriodogramPowerFft::new().into(), &t, &freq_grid_strategy)
-            .unwrap()
-            .power(&mut ts);
+        let fft = Periodogram::from_t(
+            DefaultPeriodogramPowerFft::new().into(),
+            &t,
+            &freq_grid_strategy,
+        )
+        .unwrap()
+        .power(&mut ts);
 
         let fft_arr = ndarray::Array1::from_vec(fft);
         let direct_arr = ndarray::Array1::from_vec(direct);
@@ -299,9 +328,13 @@ mod tests {
         let direct = Periodogram::from_t(PeriodogramPowerDirect.into(), &t, &freq_grid_strategy)
             .unwrap()
             .power(&mut ts);
-        let fft = Periodogram::from_t(PeriodogramPowerFft::new().into(), &t, &freq_grid_strategy)
-            .unwrap()
-            .power(&mut ts);
+        let fft = Periodogram::from_t(
+            DefaultPeriodogramPowerFft::new().into(),
+            &t,
+            &freq_grid_strategy,
+        )
+        .unwrap()
+        .power(&mut ts);
 
         let fft_arr = ndarray::Array1::from_vec(fft);
         let direct_arr = ndarray::Array1::from_vec(direct);
@@ -503,9 +536,12 @@ mod tests {
             Periodogram::from_t(PeriodogramPowerDirect.into(), &t, &freq_grid_strategy).unwrap();
         direct.set_normalization(PeriodogramNormalization::Standard);
 
-        let mut fft =
-            Periodogram::from_t(PeriodogramPowerFft::new().into(), &t, &freq_grid_strategy)
-                .unwrap();
+        let mut fft = Periodogram::from_t(
+            DefaultPeriodogramPowerFft::new().into(),
+            &t,
+            &freq_grid_strategy,
+        )
+        .unwrap();
         fft.set_normalization(PeriodogramNormalization::Standard);
 
         let direct_power = direct.power(&mut ts);

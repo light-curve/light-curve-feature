@@ -1,3 +1,6 @@
+use crate::periodogram::{FftFloat, RustFftImpl};
+
+#[cfg(any(feature = "fftw-source", feature = "fftw-system", feature = "fftw-mkl"))]
 use crate::periodogram::FftwFloat;
 
 use conv::prelude::*;
@@ -21,6 +24,7 @@ lazy_static! {
 }
 
 /// Floating number trait, it is implemented for [f32] and [f64] only
+#[cfg(any(feature = "fftw-source", feature = "fftw-system", feature = "fftw-mkl"))]
 pub trait Float:
     'static
     + Sized
@@ -50,7 +54,56 @@ pub trait Float:
     + Display
     + Debug
     + LowerExp
+    + FftFloat
+    + RustFftImpl
     + FftwFloat
+    + DeserializeOwned
+    + Serialize
+    + JsonSchema
+{
+    fn half() -> Self;
+    fn two() -> Self;
+    fn three() -> Self;
+    fn four() -> Self;
+    fn five() -> Self;
+    fn ten() -> Self;
+    fn hundred() -> Self;
+    fn array0_unity() -> &'static Array0<Self>;
+}
+
+/// Floating number trait, it is implemented for [f32] and [f64] only
+#[cfg(not(any(feature = "fftw-source", feature = "fftw-system", feature = "fftw-mkl")))]
+pub trait Float:
+    'static
+    + Sized
+    + NumFloat
+    + FloatConst
+    + FromPrimitive
+    + PartialOrd
+    + Sum
+    + ValueFrom<u32>
+    + ValueFrom<usize>
+    + ValueFrom<f32>
+    + ValueInto<f64>
+    + ApproxFrom<usize>
+    + ApproxFrom<f64>
+    + ApproxInto<u32, RoundToNearest>
+    + ApproxInto<usize, RoundToNearest>
+    + ApproxInto<f32>
+    + ApproxInto<f64>
+    + Clone
+    + Copy
+    + Send
+    + Sync
+    + AddAssign
+    + MulAssign
+    + DivAssign
+    + ScalarOperand
+    + Display
+    + Debug
+    + LowerExp
+    + FftFloat
+    + RustFftImpl
     + DeserializeOwned
     + Serialize
     + JsonSchema
