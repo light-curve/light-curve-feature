@@ -11,9 +11,9 @@ use std::borrow::Cow;
 pub mod fft_trait;
 pub use fft_trait::{Fft, FftComplex, FftFloat, FftInputArray, FftOutputArray};
 
-#[cfg(any(feature = "fftw-source", feature = "fftw-system", feature = "fftw-mkl"))]
+#[cfg(feature = "fftw")]
 mod fft_fftw;
-#[cfg(any(feature = "fftw-source", feature = "fftw-system", feature = "fftw-mkl"))]
+#[cfg(feature = "fftw")]
 pub use fft_fftw::{FftwFft, FftwFloat};
 
 mod fft_rustfft;
@@ -38,11 +38,11 @@ pub mod sin_cos_iterator;
 
 // Type alias for the default FFT-based periodogram power
 // Prefer FFTW when available, otherwise fall back to RustFFT
-#[cfg(any(feature = "fftw-source", feature = "fftw-system", feature = "fftw-mkl"))]
+#[cfg(feature = "fftw")]
 /// Default FFT-based periodogram power using FFTW backend
 pub type DefaultPeriodogramPowerFft<T> = PeriodogramPowerFft<T, FftwFft<T>>;
 
-#[cfg(not(any(feature = "fftw-source", feature = "fftw-system", feature = "fftw-mkl")))]
+#[cfg(not(feature = "fftw"))]
 /// Default FFT-based periodogram power using RustFFT backend
 pub type DefaultPeriodogramPowerFft<T> = PeriodogramPowerFft<T, RustFft<T>>;
 
@@ -56,13 +56,13 @@ where
     T: Float,
 {
     /// FFT-based periodogram using the default backend (FFTW when available, otherwise RustFFT)
-    #[cfg(any(feature = "fftw-source", feature = "fftw-system", feature = "fftw-mkl"))]
+    #[cfg(feature = "fftw")]
     Fft(PeriodogramPowerFft<T, FftwFft<T>>),
     /// FFT-based periodogram using the default backend (RustFFT when FFTW is not available)
-    #[cfg(not(any(feature = "fftw-source", feature = "fftw-system", feature = "fftw-mkl")))]
+    #[cfg(not(feature = "fftw"))]
     Fft(PeriodogramPowerFft<T, RustFft<T>>),
     /// FFT-based periodogram using the pure Rust RustFFT backend (only available when FFTW is enabled)
-    #[cfg(any(feature = "fftw-source", feature = "fftw-system", feature = "fftw-mkl"))]
+    #[cfg(feature = "fftw")]
     FftRustfft(PeriodogramPowerFft<T, RustFft<T>>),
     /// Direct periodogram computation (slower but more precise)
     Direct(PeriodogramPowerDirect),
@@ -113,7 +113,7 @@ where
         normalization: PeriodogramNormalization,
     ) -> Result<Self, PeriodogramPowerError> {
         let is_fft = matches!(periodogram_power, PeriodogramPower::Fft(_));
-        #[cfg(any(feature = "fftw-source", feature = "fftw-system", feature = "fftw-mkl"))]
+        #[cfg(feature = "fftw")]
         let is_fft = is_fft || matches!(periodogram_power, PeriodogramPower::FftRustfft(_));
         if is_fft && !matches!(freq_grid.as_ref(), FreqGrid::ZeroBasedPow2(_)) {
             return Err(PeriodogramPowerError::PeriodogramFftWrongFreqGrid);
@@ -559,7 +559,7 @@ mod tests {
         );
     }
 
-    #[cfg(any(feature = "fftw-source", feature = "fftw-system", feature = "fftw-mkl"))]
+    #[cfg(feature = "fftw")]
     #[test]
     fn fft_rustfft_variant_works() {
         // Test the FftRustfft variant of PeriodogramPower
@@ -596,7 +596,7 @@ mod tests {
         );
     }
 
-    #[cfg(any(feature = "fftw-source", feature = "fftw-system", feature = "fftw-mkl"))]
+    #[cfg(feature = "fftw")]
     #[test]
     fn fft_rustfft_vs_default_fft() {
         // Test that FftRustfft variant gives same results as default Fft variant
@@ -637,7 +637,7 @@ mod tests {
         );
     }
 
-    #[cfg(any(feature = "fftw-source", feature = "fftw-system", feature = "fftw-mkl"))]
+    #[cfg(feature = "fftw")]
     #[test]
     fn fft_rustfft_different_sizes() {
         // Test RustFFT with different array sizes
@@ -665,7 +665,7 @@ mod tests {
         }
     }
 
-    #[cfg(any(feature = "fftw-source", feature = "fftw-system", feature = "fftw-mkl"))]
+    #[cfg(feature = "fftw")]
     #[test]
     fn fft_rustfft_f32() {
         // Test RustFFT with f32
@@ -690,7 +690,7 @@ mod tests {
         assert!(power.iter().all(|&p| p >= 0.0));
     }
 
-    #[cfg(any(feature = "fftw-source", feature = "fftw-system", feature = "fftw-mkl"))]
+    #[cfg(feature = "fftw")]
     #[test]
     fn fftw_vs_rustfft_consistency() {
         // Test that FFTW and RustFFT backends give consistent results
@@ -729,7 +729,7 @@ mod tests {
         );
     }
 
-    #[cfg(any(feature = "fftw-source", feature = "fftw-system", feature = "fftw-mkl"))]
+    #[cfg(feature = "fftw")]
     #[test]
     fn fft_rustfft_with_all_normalizations() {
         // Test FftRustfft variant with all normalization types

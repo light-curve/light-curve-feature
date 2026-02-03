@@ -18,9 +18,11 @@ bench = false
 default = ["fftw-source"]
 ceres-system = ["ceres-solver/system"]
 ceres-source = ["ceres-solver/source"]
-fftw-system = ["dep:fftw", "fftw/system"]
-fftw-source = ["dep:fftw", "fftw/source"]
-fftw-mkl = ["dep:fftw", "fftw/intel-mkl"]
+# Base feature indicating FFTW is available (used for conditional compilation)
+fftw = ["dep:fftw"]
+fftw-system = ["fftw", "fftw/system"]
+fftw-source = ["fftw", "fftw/source"]
+fftw-mkl = ["fftw", "fftw/intel-mkl"]
 gsl = ["GSL/v2_1"]
 nuts = ["dep:nuts-rs", "dep:nuts-storable", "dep:rand"]
 

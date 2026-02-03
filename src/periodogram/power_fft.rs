@@ -289,7 +289,7 @@ mod tests {
 
     use crate::periodogram::freq::{AverageNyquistFreq, DynamicFreqGridParams};
 
-    #[cfg(any(feature = "fftw-source", feature = "fftw-system", feature = "fftw-mkl"))]
+    #[cfg(feature = "fftw")]
     use crate::periodogram::fft_fftw::FftwFft;
 
     use crate::periodogram::fft_rustfft::RustFft;
@@ -307,7 +307,7 @@ mod tests {
         assert!(f32::abs(freq_grid.step() - orig_freq_grid.step()) < 1e-10);
     }
 
-    #[cfg(any(feature = "fftw-source", feature = "fftw-system", feature = "fftw-mkl"))]
+    #[cfg(feature = "fftw")]
     #[test]
     fn spread_arrays_for_fft_one_to_one_fftw() {
         spread_arrays_for_fft_one_to_one_impl::<FftwFft<f64>>();
@@ -352,7 +352,7 @@ mod tests {
         assert_eq!(&m2[..], &desired_m2[..]);
     }
 
-    #[cfg(any(feature = "fftw-source", feature = "fftw-system", feature = "fftw-mkl"))]
+    #[cfg(feature = "fftw")]
     #[test]
     #[allow(clippy::float_cmp)]
     fn spread_arrays_for_fft_one_to_one_resolution_fftw() {

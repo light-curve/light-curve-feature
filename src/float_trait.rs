@@ -1,6 +1,6 @@
 use crate::periodogram::{FftFloat, RustFftImpl};
 
-#[cfg(any(feature = "fftw-source", feature = "fftw-system", feature = "fftw-mkl"))]
+#[cfg(feature = "fftw")]
 use crate::periodogram::FftwFloat;
 
 use conv::prelude::*;
@@ -24,7 +24,7 @@ lazy_static! {
 }
 
 /// Floating number trait, it is implemented for [f32] and [f64] only
-#[cfg(any(feature = "fftw-source", feature = "fftw-system", feature = "fftw-mkl"))]
+#[cfg(feature = "fftw")]
 pub trait Float:
     'static
     + Sized
@@ -72,7 +72,7 @@ pub trait Float:
 }
 
 /// Floating number trait, it is implemented for [f32] and [f64] only
-#[cfg(not(any(feature = "fftw-source", feature = "fftw-system", feature = "fftw-mkl")))]
+#[cfg(not(feature = "fftw"))]
 pub trait Float:
     'static
     + Sized

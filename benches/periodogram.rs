@@ -6,7 +6,7 @@ use light_curve_feature::periodogram::{
     AverageNyquistFreq, DefaultPeriodogramPowerFft, FreqGridStrategy, Periodogram,
     PeriodogramPower, PeriodogramPowerDirect, RustFft,
 };
-#[cfg(any(feature = "fftw-source", feature = "fftw-system", feature = "fftw-mkl"))]
+#[cfg(feature = "fftw")]
 use light_curve_feature::periodogram::{FftwFft, PeriodogramPowerFft};
 use std::hint::black_box;
 
@@ -63,7 +63,7 @@ pub fn bench_periodogram_fft_backends(c: &mut Criterion) {
         let freq_grid_strategy = FreqGridStrategy::dynamic(10.0, 1.0, nyquist);
 
         // Benchmark RustFFT backend (explicit FftRustfft variant when FFTW is available)
-        #[cfg(any(feature = "fftw-source", feature = "fftw-system", feature = "fftw-mkl"))]
+        #[cfg(feature = "fftw")]
         {
             let power = PeriodogramPower::<f64>::FftRustfft(PeriodogramPowerFft::new());
             c.bench_function(
@@ -80,7 +80,7 @@ pub fn bench_periodogram_fft_backends(c: &mut Criterion) {
         }
 
         // Benchmark RustFFT backend (default Fft variant when FFTW is not available)
-        #[cfg(not(any(feature = "fftw-source", feature = "fftw-system", feature = "fftw-mkl")))]
+        #[cfg(not(feature = "fftw"))]
         {
             let power: PeriodogramPower<f64> = DefaultPeriodogramPowerFft::new().into();
             c.bench_function(
@@ -97,7 +97,7 @@ pub fn bench_periodogram_fft_backends(c: &mut Criterion) {
         }
 
         // Benchmark FFTW backend (only when available)
-        #[cfg(any(feature = "fftw-source", feature = "fftw-system", feature = "fftw-mkl"))]
+        #[cfg(feature = "fftw")]
         {
             let power: PeriodogramPowerFft<f64, FftwFft<f64>> = PeriodogramPowerFft::new();
             c.bench_function(
@@ -143,7 +143,7 @@ pub fn bench_raw_fft_backends(c: &mut Criterion) {
         }
 
         // Benchmark FFTW (only when available)
-        #[cfg(any(feature = "fftw-source", feature = "fftw-system", feature = "fftw-mkl"))]
+        #[cfg(feature = "fftw")]
         {
             c.bench_function(format!("Raw FFT: FFTW, n={n}").as_str(), |b| {
                 let mut fft: FftwFft<f64> = Fft::new();
