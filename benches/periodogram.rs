@@ -3,8 +3,8 @@ use light_curve_common::linspace;
 use light_curve_feature::TimeSeries;
 use light_curve_feature::periodogram::fft_trait::{FftInputArray, FftOutputArray};
 use light_curve_feature::periodogram::{
-    AverageNyquistFreq, DefaultPeriodogramPowerFft, FreqGridStrategy, Periodogram,
-    PeriodogramPower, PeriodogramPowerDirect, RustFft,
+    AverageNyquistFreq, DefaultPeriodogramPowerFft, FreqGridStrategy, MedianNyquistFreq,
+    Periodogram, PeriodogramPower, PeriodogramPowerDirect, RustFft,
 };
 #[cfg(feature = "fftw")]
 use light_curve_feature::periodogram::{FftwFft, PeriodogramPowerFft};
@@ -47,14 +47,20 @@ pub fn bench_periodogram(c: &mut Criterion) {
 
 /// Benchmark comparing RustFFT vs FFTW backends for periodogram computation
 pub fn bench_periodogram_fft_backends(c: &mut Criterion) {
+    use rand::prelude::*;
+
     const PERIOD: f64 = 0.22;
-    let nyquist = AverageNyquistFreq;
+    let nyquist = MedianNyquistFreq;
 
     // Test various sizes - powers of 2 work best for FFT
     let sizes: Vec<usize> = vec![64, 256, 1024, 4096, 16384, 65536];
 
     for &n in &sizes {
-        let x = linspace(0.0_f64, 1.0, n);
+        // Generate non-regular (irregular) time grid - more realistic for astronomical observations
+        let mut rng = StdRng::seed_from_u64(n as u64);
+        let mut x: Vec<f64> = (0..n).map(|_| rng.random::<f64>()).collect();
+        x.sort_by(|a, b| a.partial_cmp(b).unwrap());
+
         let y: Vec<_> = x
             .iter()
             .map(|&x| 3.0 * f64::sin(2.0 * std::f64::consts::PI / PERIOD * x + 0.5) + 4.0)
