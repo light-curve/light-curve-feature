@@ -294,7 +294,10 @@ mod tests {
         fft2.fft(&mut x, &mut y);
 
         // Result should be valid
-        assert!(y.iter().all(|c| c.get_re().is_finite() && c.get_im().is_finite()));
+        assert!(
+            y.iter()
+                .all(|c| c.get_re().is_finite() && c.get_im().is_finite())
+        );
     }
 
     #[test]
@@ -406,7 +409,10 @@ mod tests {
             fft.fft(&mut x, &mut y);
 
             // Verify result is valid
-            assert!(y.iter().all(|c| c.get_re().is_finite() && c.get_im().is_finite()));
+            assert!(
+                y.iter()
+                    .all(|c| c.get_re().is_finite() && c.get_im().is_finite())
+            );
         }
     }
 }

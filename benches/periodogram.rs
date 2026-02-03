@@ -1,13 +1,13 @@
 use criterion::Criterion;
 use light_curve_common::linspace;
+use light_curve_feature::TimeSeries;
 use light_curve_feature::periodogram::fft_trait::{FftInputArray, FftOutputArray};
 use light_curve_feature::periodogram::{
     AverageNyquistFreq, DefaultPeriodogramPowerFft, FreqGridStrategy, Periodogram,
-    PeriodogramPower, PeriodogramPowerDirect, PeriodogramPowerFft, RustFft,
+    PeriodogramPower, PeriodogramPowerDirect, RustFft,
 };
 #[cfg(any(feature = "fftw-source", feature = "fftw-system", feature = "fftw-mkl"))]
-use light_curve_feature::periodogram::FftwFft;
-use light_curve_feature::TimeSeries;
+use light_curve_feature::periodogram::{FftwFft, PeriodogramPowerFft};
 use std::hint::black_box;
 
 pub fn bench_periodogram(c: &mut Criterion) {
@@ -62,9 +62,27 @@ pub fn bench_periodogram_fft_backends(c: &mut Criterion) {
 
         let freq_grid_strategy = FreqGridStrategy::dynamic(10.0, 1.0, nyquist);
 
-        // Benchmark RustFFT backend
+        // Benchmark RustFFT backend (explicit FftRustfft variant when FFTW is available)
+        #[cfg(any(feature = "fftw-source", feature = "fftw-system", feature = "fftw-mkl"))]
         {
             let power = PeriodogramPower::<f64>::FftRustfft(PeriodogramPowerFft::new());
+            c.bench_function(
+                format!("Periodogram FFT backend: RustFFT, n={n}").as_str(),
+                |b| {
+                    b.iter(|| {
+                        let mut ts = TimeSeries::new_without_weight(&x, &y);
+                        let periodogram =
+                            Periodogram::from_t(power.clone(), &x, &freq_grid_strategy).unwrap();
+                        periodogram.power(black_box(&mut ts));
+                    })
+                },
+            );
+        }
+
+        // Benchmark RustFFT backend (default Fft variant when FFTW is not available)
+        #[cfg(not(any(feature = "fftw-source", feature = "fftw-system", feature = "fftw-mkl")))]
+        {
+            let power: PeriodogramPower<f64> = DefaultPeriodogramPowerFft::new().into();
             c.bench_function(
                 format!("Periodogram FFT backend: RustFFT, n={n}").as_str(),
                 |b| {
@@ -113,10 +131,8 @@ pub fn bench_raw_fft_backends(c: &mut Criterion) {
         {
             c.bench_function(format!("Raw FFT: RustFFT, n={n}").as_str(), |b| {
                 let mut fft: RustFft<f64> = Fft::new();
-                let mut x =
-                    <RustFft<f64> as Fft<f64>>::InputArray::new_with_size(n);
-                let mut y =
-                    <RustFft<f64> as Fft<f64>>::OutputArray::new_with_size(n / 2 + 1);
+                let mut x = <RustFft<f64> as Fft<f64>>::InputArray::new_with_size(n);
+                let mut y = <RustFft<f64> as Fft<f64>>::OutputArray::new_with_size(n / 2 + 1);
 
                 b.iter(|| {
                     // Copy input data
@@ -131,10 +147,8 @@ pub fn bench_raw_fft_backends(c: &mut Criterion) {
         {
             c.bench_function(format!("Raw FFT: FFTW, n={n}").as_str(), |b| {
                 let mut fft: FftwFft<f64> = Fft::new();
-                let mut x =
-                    <FftwFft<f64> as Fft<f64>>::InputArray::new_with_size(n);
-                let mut y =
-                    <FftwFft<f64> as Fft<f64>>::OutputArray::new_with_size(n / 2 + 1);
+                let mut x = <FftwFft<f64> as Fft<f64>>::InputArray::new_with_size(n);
+                let mut y = <FftwFft<f64> as Fft<f64>>::OutputArray::new_with_size(n / 2 + 1);
 
                 b.iter(|| {
                     // Copy input data

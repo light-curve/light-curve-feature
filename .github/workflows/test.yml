@@ -30,6 +30,9 @@ jobs:
       - run: cargo build --all-targets --features gsl,fftw-mkl --no-default-features
       - run: cargo build --all-targets --features gsl,fftw-source,ceres-source --no-default-features
       - run: cargo build --all-targets --features fftw-source,ceres-source --no-default-features
+      # Build without FFTW (RustFFT-only)
+      - run: cargo build --manifest-path=Cargo.toml --all-targets --no-default-features
+      - run: cargo build --manifest-path=Cargo.toml --all-targets --features gsl --no-default-features
 
   msrv-build:
     runs-on: ubuntu-latest

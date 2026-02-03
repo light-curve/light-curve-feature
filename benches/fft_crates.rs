@@ -1,3 +1,9 @@
+//! Benchmark comparing different FFT crate implementations
+//!
+//! This benchmark requires FFTW to be available.
+
+#![cfg(any(feature = "fftw-source", feature = "fftw-system", feature = "fftw-mkl"))]
+
 use chfft::RFft1D;
 use core::fmt;
 use core::fmt::Debug;

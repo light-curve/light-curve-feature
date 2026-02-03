@@ -61,7 +61,8 @@ where
     /// FFT-based periodogram using the default backend (RustFFT when FFTW is not available)
     #[cfg(not(any(feature = "fftw-source", feature = "fftw-system", feature = "fftw-mkl")))]
     Fft(PeriodogramPowerFft<T, RustFft<T>>),
-    /// FFT-based periodogram using the pure Rust RustFFT backend
+    /// FFT-based periodogram using the pure Rust RustFFT backend (only available when FFTW is enabled)
+    #[cfg(any(feature = "fftw-source", feature = "fftw-system", feature = "fftw-mkl"))]
     FftRustfft(PeriodogramPowerFft<T, RustFft<T>>),
     /// Direct periodogram computation (slower but more precise)
     Direct(PeriodogramPowerDirect),
@@ -111,11 +112,10 @@ where
         freq_grid: Cow<'a, FreqGrid<T>>,
         normalization: PeriodogramNormalization,
     ) -> Result<Self, PeriodogramPowerError> {
-        if matches!(
-            periodogram_power,
-            PeriodogramPower::Fft(_) | PeriodogramPower::FftRustfft(_)
-        ) && !matches!(freq_grid.as_ref(), FreqGrid::ZeroBasedPow2(_))
-        {
+        let is_fft = matches!(periodogram_power, PeriodogramPower::Fft(_));
+        #[cfg(any(feature = "fftw-source", feature = "fftw-system", feature = "fftw-mkl"))]
+        let is_fft = is_fft || matches!(periodogram_power, PeriodogramPower::FftRustfft(_));
+        if is_fft && !matches!(freq_grid.as_ref(), FreqGrid::ZeroBasedPow2(_)) {
             return Err(PeriodogramPowerError::PeriodogramFftWrongFreqGrid);
         }
         Ok(Self {
@@ -130,10 +130,7 @@ where
         t: &[T],
         freq_grid_strategy: &'a FreqGridStrategy<T>,
     ) -> Result<Self, PeriodogramPowerError> {
-        let zero_base = match periodogram_power {
-            PeriodogramPower::Direct(_) => false,
-            PeriodogramPower::Fft(_) | PeriodogramPower::FftRustfft(_) => true,
-        };
+        let zero_base = !matches!(periodogram_power, PeriodogramPower::Direct(_));
         Self::new(
             periodogram_power,
             freq_grid_strategy.freq_grid(t, zero_base),
@@ -562,6 +559,7 @@ mod tests {
         );
     }
 
+    #[cfg(any(feature = "fftw-source", feature = "fftw-system", feature = "fftw-mkl"))]
     #[test]
     fn fft_rustfft_variant_works() {
         // Test the FftRustfft variant of PeriodogramPower
@@ -573,7 +571,9 @@ mod tests {
         let mut ts = TimeSeries::new_without_weight(&t, &m);
 
         // Use a fixed frequency grid to ensure enough points
-        let freq_grid_strategy = ZeroBasedPow2FreqGrid::try_with_size(0.01, 65).unwrap().into();
+        let freq_grid_strategy = ZeroBasedPow2FreqGrid::try_with_size(0.01, 65)
+            .unwrap()
+            .into();
 
         // Use the explicit FftRustfft variant
         let rustfft_power: PeriodogramPower<f64> =
@@ -596,6 +596,7 @@ mod tests {
         );
     }
 
+    #[cfg(any(feature = "fftw-source", feature = "fftw-system", feature = "fftw-mkl"))]
     #[test]
     fn fft_rustfft_vs_default_fft() {
         // Test that FftRustfft variant gives same results as default Fft variant
@@ -607,7 +608,9 @@ mod tests {
         let mut ts = TimeSeries::new_without_weight(&t, &m);
 
         // Use a fixed frequency grid to ensure enough points
-        let freq_grid_strategy = ZeroBasedPow2FreqGrid::try_with_size(0.01, 65).unwrap().into();
+        let freq_grid_strategy = ZeroBasedPow2FreqGrid::try_with_size(0.01, 65)
+            .unwrap()
+            .into();
 
         // Use explicit FftRustfft variant
         let rustfft_power: PeriodogramPower<f64> =
@@ -634,6 +637,7 @@ mod tests {
         );
     }
 
+    #[cfg(any(feature = "fftw-source", feature = "fftw-system", feature = "fftw-mkl"))]
     #[test]
     fn fft_rustfft_different_sizes() {
         // Test RustFFT with different array sizes
@@ -651,8 +655,7 @@ mod tests {
 
             let rustfft_power: PeriodogramPower<f64> =
                 PeriodogramPower::FftRustfft(PeriodogramPowerFft::new());
-            let periodogram =
-                Periodogram::from_t(rustfft_power, &t, &freq_grid_strategy).unwrap();
+            let periodogram = Periodogram::from_t(rustfft_power, &t, &freq_grid_strategy).unwrap();
             let power = periodogram.power(&mut ts);
 
             // Verify we get a valid result
@@ -662,6 +665,7 @@ mod tests {
         }
     }
 
+    #[cfg(any(feature = "fftw-source", feature = "fftw-system", feature = "fftw-mkl"))]
     #[test]
     fn fft_rustfft_f32() {
         // Test RustFFT with f32
@@ -725,6 +729,7 @@ mod tests {
         );
     }
 
+    #[cfg(any(feature = "fftw-source", feature = "fftw-system", feature = "fftw-mkl"))]
     #[test]
     fn fft_rustfft_with_all_normalizations() {
         // Test FftRustfft variant with all normalization types
