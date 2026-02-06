@@ -17,7 +17,7 @@ mod fft_fftw;
 pub use fft_fftw::{FftwFft, FftwFloat};
 
 mod fft_rustfft;
-pub use fft_rustfft::{RustFft, RustFftFloat, RustFftImpl};
+pub use fft_rustfft::{RustFft, RustFftFloat};
 
 mod freq;
 pub use freq::{
@@ -36,13 +36,6 @@ pub use power_trait::{PeriodogramNormalization, PeriodogramPowerError, Periodogr
 
 pub mod sin_cos_iterator;
 
-// Type alias for the default FFT-based periodogram power
-// Prefer FFTW when available, otherwise fall back to RustFFT
-#[cfg(feature = "fftw")]
-/// Default FFT-based periodogram power using FFTW backend
-pub type DefaultPeriodogramPowerFft<T> = PeriodogramPowerFft<T, FftwFft<T>>;
-
-#[cfg(not(feature = "fftw"))]
 /// Default FFT-based periodogram power using RustFFT backend
 pub type DefaultPeriodogramPowerFft<T> = PeriodogramPowerFft<T, RustFft<T>>;
 
@@ -55,15 +48,11 @@ pub enum PeriodogramPower<T>
 where
     T: Float,
 {
-    /// FFT-based periodogram using the default backend (FFTW when available, otherwise RustFFT)
-    #[cfg(feature = "fftw")]
-    Fft(PeriodogramPowerFft<T, FftwFft<T>>),
-    /// FFT-based periodogram using the default backend (RustFFT when FFTW is not available)
-    #[cfg(not(feature = "fftw"))]
+    /// FFT-based periodogram using the RustFFT backend (default)
     Fft(PeriodogramPowerFft<T, RustFft<T>>),
-    /// FFT-based periodogram using the pure Rust RustFFT backend (only available when FFTW is enabled)
+    /// FFT-based periodogram using the FFTW backend (only available when FFTW is enabled)
     #[cfg(feature = "fftw")]
-    FftRustfft(PeriodogramPowerFft<T, RustFft<T>>),
+    FftFftw(PeriodogramPowerFft<T, FftwFft<T>>),
     /// Direct periodogram computation (slower but more precise)
     Direct(PeriodogramPowerDirect),
 }
@@ -114,7 +103,7 @@ where
     ) -> Result<Self, PeriodogramPowerError> {
         let is_fft = matches!(periodogram_power, PeriodogramPower::Fft(_));
         #[cfg(feature = "fftw")]
-        let is_fft = is_fft || matches!(periodogram_power, PeriodogramPower::FftRustfft(_));
+        let is_fft = is_fft || matches!(periodogram_power, PeriodogramPower::FftFftw(_));
         if is_fft && !matches!(freq_grid.as_ref(), FreqGrid::ZeroBasedPow2(_)) {
             return Err(PeriodogramPowerError::PeriodogramFftWrongFreqGrid);
         }
@@ -561,8 +550,8 @@ mod tests {
 
     #[cfg(feature = "fftw")]
     #[test]
-    fn fft_rustfft_variant_works() {
-        // Test the FftRustfft variant of PeriodogramPower
+    fn fft_fftw_variant_works() {
+        // Test the FftFftw variant of PeriodogramPower
         const OMEGA: f64 = 0.472;
         const N: usize = 128;
 
@@ -575,12 +564,11 @@ mod tests {
             .unwrap()
             .into();
 
-        // Use the explicit FftRustfft variant
-        let rustfft_power: PeriodogramPower<f64> =
-            PeriodogramPower::FftRustfft(PeriodogramPowerFft::new());
-        let rustfft_periodogram =
-            Periodogram::from_t(rustfft_power, &t, &freq_grid_strategy).unwrap();
-        let rustfft_result = rustfft_periodogram.power(&mut ts);
+        // Use the explicit FftFftw variant
+        let fftw_power: PeriodogramPower<f64> =
+            PeriodogramPower::FftFftw(PeriodogramPowerFft::new());
+        let fftw_periodogram = Periodogram::from_t(fftw_power, &t, &freq_grid_strategy).unwrap();
+        let fftw_result = fftw_periodogram.power(&mut ts);
 
         // Compare with direct method
         let direct_periodogram =
@@ -588,7 +576,7 @@ mod tests {
         let direct_result = direct_periodogram.power(&mut ts);
 
         // Results should be close
-        let fft_arr = ndarray::Array1::from_vec(rustfft_result);
+        let fft_arr = ndarray::Array1::from_vec(fftw_result);
         let direct_arr = ndarray::Array1::from_vec(direct_result);
         assert_eq!(
             peak_indices_reverse_sorted(&fft_arr)[..2],
@@ -598,8 +586,8 @@ mod tests {
 
     #[cfg(feature = "fftw")]
     #[test]
-    fn fft_rustfft_vs_default_fft() {
-        // Test that FftRustfft variant gives same results as default Fft variant
+    fn fft_fftw_vs_default_fft() {
+        // Test that FftFftw variant gives similar results as default Fft variant (RustFFT)
         const OMEGA: f64 = 0.472;
         const N: usize = 128;
 
@@ -612,14 +600,13 @@ mod tests {
             .unwrap()
             .into();
 
-        // Use explicit FftRustfft variant
-        let rustfft_power: PeriodogramPower<f64> =
-            PeriodogramPower::FftRustfft(PeriodogramPowerFft::new());
-        let rustfft_periodogram =
-            Periodogram::from_t(rustfft_power, &t, &freq_grid_strategy).unwrap();
-        let rustfft_result = rustfft_periodogram.power(&mut ts);
+        // Use explicit FftFftw variant
+        let fftw_power: PeriodogramPower<f64> =
+            PeriodogramPower::FftFftw(PeriodogramPowerFft::new());
+        let fftw_periodogram = Periodogram::from_t(fftw_power, &t, &freq_grid_strategy).unwrap();
+        let fftw_result = fftw_periodogram.power(&mut ts);
 
-        // Use default FFT (which may be FFTW or RustFFT depending on features)
+        // Use default FFT (RustFFT)
         let default_fft_periodogram = Periodogram::from_t(
             DefaultPeriodogramPowerFft::new().into(),
             &t,
@@ -629,18 +616,18 @@ mod tests {
         let default_result = default_fft_periodogram.power(&mut ts);
 
         // Peak positions should match
-        let rustfft_arr = ndarray::Array1::from_vec(rustfft_result);
+        let fftw_arr = ndarray::Array1::from_vec(fftw_result);
         let default_arr = ndarray::Array1::from_vec(default_result);
         assert_eq!(
-            peak_indices_reverse_sorted(&rustfft_arr)[..2],
+            peak_indices_reverse_sorted(&fftw_arr)[..2],
             peak_indices_reverse_sorted(&default_arr)[..2]
         );
     }
 
     #[cfg(feature = "fftw")]
     #[test]
-    fn fft_rustfft_different_sizes() {
-        // Test RustFFT with different array sizes
+    fn fft_fftw_different_sizes() {
+        // Test FFTW with different array sizes
         let sizes = [16, 32, 64, 128, 256, 512];
         const OMEGA: f64 = 0.3;
 
@@ -653,9 +640,9 @@ mod tests {
                 .unwrap()
                 .into();
 
-            let rustfft_power: PeriodogramPower<f64> =
-                PeriodogramPower::FftRustfft(PeriodogramPowerFft::new());
-            let periodogram = Periodogram::from_t(rustfft_power, &t, &freq_grid_strategy).unwrap();
+            let fftw_power: PeriodogramPower<f64> =
+                PeriodogramPower::FftFftw(PeriodogramPowerFft::new());
+            let periodogram = Periodogram::from_t(fftw_power, &t, &freq_grid_strategy).unwrap();
             let power = periodogram.power(&mut ts);
 
             // Verify we get a valid result
@@ -667,8 +654,8 @@ mod tests {
 
     #[cfg(feature = "fftw")]
     #[test]
-    fn fft_rustfft_f32() {
-        // Test RustFFT with f32
+    fn fft_fftw_f32() {
+        // Test FFTW with f32
         const N: usize = 64;
         const OMEGA: f32 = 0.3;
         const RESOLUTION: f32 = 1.0;
@@ -680,9 +667,9 @@ mod tests {
         let params = DynamicFreqGridParams::new(RESOLUTION, MAX_FREQ_FACTOR, AverageNyquistFreq);
         let freq_grid_strategy = ZeroBasedPow2FreqGrid::from_t(&t, &params).into();
 
-        let rustfft_power: PeriodogramPower<f32> =
-            PeriodogramPower::FftRustfft(PeriodogramPowerFft::new());
-        let periodogram = Periodogram::from_t(rustfft_power, &t, &freq_grid_strategy).unwrap();
+        let fftw_power: PeriodogramPower<f32> =
+            PeriodogramPower::FftFftw(PeriodogramPowerFft::new());
+        let periodogram = Periodogram::from_t(fftw_power, &t, &freq_grid_strategy).unwrap();
         let power = periodogram.power(&mut ts);
 
         // Verify we get valid results
@@ -705,34 +692,33 @@ mod tests {
         let params = DynamicFreqGridParams::new(RESOLUTION, MAX_FREQ_FACTOR, AverageNyquistFreq);
         let freq_grid_strategy = ZeroBasedPow2FreqGrid::from_t(&t, &params).into();
 
-        // FFTW (default when FFTW is available)
-        let fftw_periodogram = Periodogram::from_t(
+        // RustFFT (default)
+        let rustfft_periodogram = Periodogram::from_t(
             DefaultPeriodogramPowerFft::new().into(),
             &t,
             &freq_grid_strategy,
         )
         .unwrap();
-        let fftw_result = fftw_periodogram.power(&mut ts);
-
-        // RustFFT (explicit)
-        let rustfft_power: PeriodogramPower<f64> =
-            PeriodogramPower::FftRustfft(PeriodogramPowerFft::new());
-        let rustfft_periodogram =
-            Periodogram::from_t(rustfft_power, &t, &freq_grid_strategy).unwrap();
         let rustfft_result = rustfft_periodogram.power(&mut ts);
+
+        // FFTW (explicit)
+        let fftw_power: PeriodogramPower<f64> =
+            PeriodogramPower::FftFftw(PeriodogramPowerFft::new());
+        let fftw_periodogram = Periodogram::from_t(fftw_power, &t, &freq_grid_strategy).unwrap();
+        let fftw_result = fftw_periodogram.power(&mut ts);
 
         // Results should be very close
         all_close(
-            &fftw_result[..fftw_result.len() - 1],
             &rustfft_result[..rustfft_result.len() - 1],
+            &fftw_result[..fftw_result.len() - 1],
             1e-8,
         );
     }
 
     #[cfg(feature = "fftw")]
     #[test]
-    fn fft_rustfft_with_all_normalizations() {
-        // Test FftRustfft variant with all normalization types
+    fn fft_fftw_with_all_normalizations() {
+        // Test FftFftw variant with all normalization types
         const OMEGA: f64 = 0.3;
         const N: usize = 64;
 
@@ -751,10 +737,9 @@ mod tests {
         ] {
             let mut ts = TimeSeries::new_without_weight(&t, &m);
 
-            let rustfft_power: PeriodogramPower<f64> =
-                PeriodogramPower::FftRustfft(PeriodogramPowerFft::new());
-            let mut periodogram =
-                Periodogram::from_t(rustfft_power, &t, &freq_grid_strategy).unwrap();
+            let fftw_power: PeriodogramPower<f64> =
+                PeriodogramPower::FftFftw(PeriodogramPowerFft::new());
+            let mut periodogram = Periodogram::from_t(fftw_power, &t, &freq_grid_strategy).unwrap();
             periodogram.set_normalization(normalization);
 
             let power = periodogram.power(&mut ts);

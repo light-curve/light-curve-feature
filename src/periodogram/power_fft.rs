@@ -144,7 +144,7 @@ where
                 };
 
                 let cos_wtau = T::sqrt(T::half() * (T::one() + cos_2wtau));
-                let sin_wtau = T::signum(sum_sin_2) * T::sqrt(T::half() * (T::one() - cos_2wtau));
+                let sin_wtau = sum_sin_2.signum() * (T::half() * (T::one() - cos_2wtau)).sqrt();
 
                 let sum_h_cos = sum_cos_h * cos_wtau + sum_sin_h * sin_wtau;
                 let sum_h_sin = sum_sin_h * cos_wtau - sum_cos_h * sin_wtau;

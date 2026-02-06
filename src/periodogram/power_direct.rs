@@ -96,7 +96,7 @@ impl<'a, T: Float> Iterator for SinCosOmegaTau<'a, T> {
             sum_cos += cos;
         }
         let cos2 = sum_cos / T::hypot(sum_sin, sum_cos);
-        let sin = T::signum(sum_sin) * T::sqrt(T::half() * (T::one() - cos2));
+        let sin = sum_sin.signum() * (T::half() * (T::one() - cos2)).sqrt();
         let cos = T::sqrt(T::half() * (T::one() + cos2));
         Some((sin, cos))
     }

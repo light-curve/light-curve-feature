@@ -9,10 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Breaking** Add RustFFT as an always-available pure Rust FFT backend for periodogram computation,
-  with abstract `Fft<T>` trait enabling pluggable backends. FFTW remains default when enabled, RustFFT
-  is used otherwise. When FFTW is enabled, new `PeriodogramPower::FftRustfft` variant allows explicit
-  selection of RustFFT backend https://github.com/light-curve/light-curve-feature/issues/180 https://github.com/light-curve/light-curve-feature/pull/255
+- **Breaking** Add RustFFT as the default pure Rust FFT backend for periodogram computation,
+  with abstract `Fft<T>` trait enabling pluggable backends. RustFFT is now always used by default
+  via `PeriodogramPower::Fft` variant. When FFTW is enabled, `PeriodogramPower::FftFftw` variant
+  allows explicit selection of the FFTW backend https://github.com/light-curve/light-curve-feature/issues/180 https://github.com/light-curve/light-curve-feature/pull/255
 - Implement `PartialEq` for `Feature` enum and all constituent types, enabling equality comparisons between feature
   instances https://github.com/light-curve/light-curve-feature/issues/228
 - Add NUTS (No-U-Turn Sampler) as an alternative fitting algorithm via `NutsCurveFit`, providing gradient-based Hamiltonian Monte Carlo optimization, gated behind the `nuts` cargo feature https://github.com/light-curve/light-curve-feature/pull/245

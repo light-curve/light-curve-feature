@@ -61,7 +61,7 @@ where
         let m_median = ts.m.get_median();
         let sorted_deviation: SortedArray<_> =
             ts.m.sample
-                .mapv(|m| T::abs(m - m_median))
+                .mapv(|m| (m - m_median).abs())
                 .as_slice_memory_order()
                 .expect("TimeSeries::m::sample::mapv(...) is supposed to be contiguous")
                 .into();

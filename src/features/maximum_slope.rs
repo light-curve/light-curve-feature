@@ -70,7 +70,7 @@ where
                         .tuple_windows()
                         .map(|(&m1, &m2)| m2 - m1),
                 )
-                .map(|(dt, dm)| T::abs(dm / dt))
+                .map(|(dt, dm)| (dm / dt).abs())
                 .filter(|&x| x.is_finite())
                 .max_by(|a, b| a.partial_cmp(b).unwrap())
                 .expect("All points of the light curve have the same time");

@@ -43,7 +43,7 @@ impl<T: Copy + Send + num_traits::Zero> FftComplex<T> for Complex<T> {
 /// for FFT operations, with additional backend-specific bounds checked where needed.
 pub trait FftFloat: Copy + Clone + Send + Sync + 'static + num_traits::Zero {
     /// Complex number type for FFT output
-    type Complex: FftComplex<Self>;
+    type Complex: FftComplex<Self> + Clone;
 }
 
 impl FftFloat for f32 {

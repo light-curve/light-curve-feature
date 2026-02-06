@@ -121,7 +121,7 @@ where
         let quantile = self.quantile.into_inner().value_as::<T>().unwrap();
         let threshold = quantile * amplitude;
         let count_under = ts.m.sample.fold(0, |count, &m| {
-            let under = T::abs(m - m_median) < threshold;
+            let under = (m - m_median).abs() < threshold;
             count + usize::from(under)
         });
         Ok(vec![count_under.approx_as::<T>().unwrap() / ts.lenf()])

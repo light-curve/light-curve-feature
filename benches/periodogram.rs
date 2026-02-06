@@ -68,25 +68,7 @@ pub fn bench_periodogram_fft_backends(c: &mut Criterion) {
 
         let freq_grid_strategy = FreqGridStrategy::dynamic(10.0, 1.0, nyquist);
 
-        // Benchmark RustFFT backend (explicit FftRustfft variant when FFTW is available)
-        #[cfg(feature = "fftw")]
-        {
-            let power = PeriodogramPower::<f64>::FftRustfft(PeriodogramPowerFft::new());
-            c.bench_function(
-                format!("Periodogram FFT backend: RustFFT, n={n}").as_str(),
-                |b| {
-                    b.iter(|| {
-                        let mut ts = TimeSeries::new_without_weight(&x, &y);
-                        let periodogram =
-                            Periodogram::from_t(power.clone(), &x, &freq_grid_strategy).unwrap();
-                        periodogram.power(black_box(&mut ts));
-                    })
-                },
-            );
-        }
-
-        // Benchmark RustFFT backend (default Fft variant when FFTW is not available)
-        #[cfg(not(feature = "fftw"))]
+        // Benchmark RustFFT backend (default Fft variant, always available)
         {
             let power: PeriodogramPower<f64> = DefaultPeriodogramPowerFft::new().into();
             c.bench_function(
@@ -105,15 +87,14 @@ pub fn bench_periodogram_fft_backends(c: &mut Criterion) {
         // Benchmark FFTW backend (only when available)
         #[cfg(feature = "fftw")]
         {
-            let power: PeriodogramPowerFft<f64, FftwFft<f64>> = PeriodogramPowerFft::new();
+            let power = PeriodogramPower::<f64>::FftFftw(PeriodogramPowerFft::new());
             c.bench_function(
                 format!("Periodogram FFT backend: FFTW, n={n}").as_str(),
                 |b| {
                     b.iter(|| {
                         let mut ts = TimeSeries::new_without_weight(&x, &y);
                         let periodogram =
-                            Periodogram::from_t(power.clone().into(), &x, &freq_grid_strategy)
-                                .unwrap();
+                            Periodogram::from_t(power.clone(), &x, &freq_grid_strategy).unwrap();
                         periodogram.power(black_box(&mut ts));
                     })
                 },

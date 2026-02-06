@@ -140,7 +140,7 @@ where
         let nstd = self.nstd.into_inner().value_as::<T>().unwrap();
         let threshold = ts.m.get_std() * nstd;
         let count_beyond = ts.m.sample.fold(0, |count, &m| {
-            let beyond = T::abs(m - m_mean) > threshold;
+            let beyond = (m - m_mean).abs() > threshold;
             count + usize::from(beyond)
         });
         Ok(vec![count_beyond.approx_as::<T>().unwrap() / ts.lenf()])

@@ -1,4 +1,4 @@
-use crate::periodogram::{FftFloat, RustFftImpl};
+use crate::periodogram::{FftFloat, RustFftFloat};
 
 #[cfg(feature = "fftw")]
 use crate::periodogram::FftwFloat;
@@ -22,6 +22,9 @@ lazy_static! {
 lazy_static! {
     static ref ARRAY0_UNITY_F64: Array0<f64> = Array0::from_elem((), 1.0);
 }
+
+// Note: Two trait definitions are needed because Rust doesn't support conditional trait bounds.
+// The only difference is the `+ FftwFloat` bound when the fftw feature is enabled.
 
 /// Floating number trait, it is implemented for [f32] and [f64] only
 #[cfg(feature = "fftw")]
@@ -55,7 +58,7 @@ pub trait Float:
     + Debug
     + LowerExp
     + FftFloat
-    + RustFftImpl
+    + RustFftFloat
     + FftwFloat
     + DeserializeOwned
     + Serialize
@@ -103,7 +106,7 @@ pub trait Float:
     + Debug
     + LowerExp
     + FftFloat
-    + RustFftImpl
+    + RustFftFloat
     + DeserializeOwned
     + Serialize
     + JsonSchema
