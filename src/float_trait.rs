@@ -1,4 +1,5 @@
-use crate::periodogram::{FftFloat, RustFftFloat};
+use crate::periodogram::FftFloat;
+use num_complex::Complex;
 
 #[cfg(feature = "fftw")]
 use crate::periodogram::FftwFloat;
@@ -57,8 +58,7 @@ pub trait Float:
     + Display
     + Debug
     + LowerExp
-    + FftFloat
-    + RustFftFloat
+    + FftFloat<Complex = Complex<Self>>
     + FftwFloat
     + DeserializeOwned
     + Serialize
@@ -105,8 +105,7 @@ pub trait Float:
     + Display
     + Debug
     + LowerExp
-    + FftFloat
-    + RustFftFloat
+    + FftFloat<Complex = Complex<Self>>
     + DeserializeOwned
     + Serialize
     + JsonSchema

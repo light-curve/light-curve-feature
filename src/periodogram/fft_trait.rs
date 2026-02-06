@@ -3,6 +3,7 @@
 //! This module provides a unified interface for FFT backends (FFTW and RustFFT).
 
 use num_complex::Complex;
+use rustfft::FftNum;
 use std::collections::HashMap;
 use std::fmt;
 
@@ -39,10 +40,11 @@ impl<T: Copy + Send + num_traits::Zero> FftComplex<T> for Complex<T> {
 
 /// Trait for real-to-complex FFT floating point types.
 ///
-/// This trait is implemented for f32 and f64. It provides the basic bounds needed
-/// for FFT operations, with additional backend-specific bounds checked where needed.
-pub trait FftFloat: Copy + Clone + Send + Sync + 'static + num_traits::Zero {
-    /// Complex number type for FFT output
+/// This trait is implemented for f32 and f64. It combines basic FFT requirements
+/// with `FftNum` (required by rustfft/realfft) and ensures the complex type is
+/// `Complex<Self>` for compatibility with FFT libraries.
+pub trait FftFloat: Copy + Clone + Send + Sync + 'static + num_traits::Zero + FftNum {
+    /// Complex number type for FFT output (always `Complex<Self>`)
     type Complex: FftComplex<Self> + Clone;
 }
 

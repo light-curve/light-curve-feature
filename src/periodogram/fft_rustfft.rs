@@ -6,21 +6,9 @@ use crate::periodogram::fft_trait::{Fft, FftComplex, FftFloat, FftInputArray, Ff
 
 use num_complex::Complex;
 use realfft::{RealFftPlanner, RealToComplex};
-use rustfft::FftNum;
 use std::collections::HashMap;
 use std::fmt;
 use std::sync::Arc;
-
-/// Floating point trait for types usable with RustFFT.
-///
-/// This trait combines `FftFloat` (our FFT abstraction) with `FftNum` (rustfft's
-/// requirement). It also ensures that the complex type is `Complex<Self>` for
-/// compatibility with the realfft library.
-///
-/// Implemented for f32 and f64.
-pub trait RustFftFloat: FftFloat<Complex = Complex<Self>> + FftNum {}
-impl RustFftFloat for f32 {}
-impl RustFftFloat for f64 {}
 
 /// Input array wrapper for RustFFT (plain Vec)
 pub struct RustFftInputArray<T>(pub(crate) Vec<T>);
@@ -62,20 +50,19 @@ impl<T: FftFloat> AsMut<[T::Complex]> for RustFftOutputArray<T> {
 
 /// RustFFT-based real-to-complex FFT implementation.
 ///
-/// A pure Rust FFT backend using the `realfft` crate. Works with any type
-/// implementing `RustFftFloat` (f32 and f64).
-pub struct RustFft<T: RustFftFloat> {
+/// A pure Rust FFT backend using the `realfft` crate. Works with f32 and f64.
+pub struct RustFft<T: FftFloat<Complex = Complex<T>>> {
     plans: HashMap<usize, Arc<dyn RealToComplex<T>>>,
     scratch: HashMap<usize, Vec<Complex<T>>>,
 }
 
-impl<T: RustFftFloat> fmt::Debug for RustFft<T> {
+impl<T: FftFloat<Complex = Complex<T>>> fmt::Debug for RustFft<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "RustFft<{}>", std::any::type_name::<T>())
     }
 }
 
-impl<T: RustFftFloat> Clone for RustFft<T> {
+impl<T: FftFloat<Complex = Complex<T>>> Clone for RustFft<T> {
     fn clone(&self) -> Self {
         // Create a fresh instance - FFT plans will be regenerated as needed.
         // This is fine since the FFT instances are stored in ThreadLocal storage
@@ -84,7 +71,7 @@ impl<T: RustFftFloat> Clone for RustFft<T> {
     }
 }
 
-impl<T: RustFftFloat> RustFft<T> {
+impl<T: FftFloat<Complex = Complex<T>>> RustFft<T> {
     fn get_plan(&mut self, n: usize) -> &Arc<dyn RealToComplex<T>> {
         self.plans.entry(n).or_insert_with(|| {
             let mut planner = RealFftPlanner::new();
@@ -97,7 +84,7 @@ impl<T: RustFftFloat> RustFft<T> {
     }
 }
 
-impl<T: RustFftFloat> Fft<T> for RustFft<T> {
+impl<T: FftFloat<Complex = Complex<T>>> Fft<T> for RustFft<T> {
     type InputArray = RustFftInputArray<T>;
     type OutputArray = RustFftOutputArray<T>;
 

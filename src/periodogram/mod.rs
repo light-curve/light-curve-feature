@@ -17,7 +17,7 @@ mod fft_fftw;
 pub use fft_fftw::{FftwFft, FftwFloat};
 
 mod fft_rustfft;
-pub use fft_rustfft::{RustFft, RustFftFloat};
+pub use fft_rustfft::RustFft;
 
 mod freq;
 pub use freq::{
