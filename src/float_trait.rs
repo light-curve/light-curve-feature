@@ -1,3 +1,7 @@
+use crate::periodogram::FftFloat;
+use num_complex::Complex;
+
+#[cfg(feature = "fftw")]
 use crate::periodogram::FftwFloat;
 
 use conv::prelude::*;
@@ -20,7 +24,11 @@ lazy_static! {
     static ref ARRAY0_UNITY_F64: Array0<f64> = Array0::from_elem((), 1.0);
 }
 
+// Note: Two trait definitions are needed because Rust doesn't support conditional trait bounds.
+// The only difference is the `+ FftwFloat` bound when the fftw feature is enabled.
+
 /// Floating number trait, it is implemented for [f32] and [f64] only
+#[cfg(feature = "fftw")]
 pub trait Float:
     'static
     + Sized
@@ -50,7 +58,54 @@ pub trait Float:
     + Display
     + Debug
     + LowerExp
+    + FftFloat<Complex = Complex<Self>>
     + FftwFloat
+    + DeserializeOwned
+    + Serialize
+    + JsonSchema
+{
+    fn half() -> Self;
+    fn two() -> Self;
+    fn three() -> Self;
+    fn four() -> Self;
+    fn five() -> Self;
+    fn ten() -> Self;
+    fn hundred() -> Self;
+    fn array0_unity() -> &'static Array0<Self>;
+}
+
+/// Floating number trait, it is implemented for [f32] and [f64] only
+#[cfg(not(feature = "fftw"))]
+pub trait Float:
+    'static
+    + Sized
+    + NumFloat
+    + FloatConst
+    + FromPrimitive
+    + PartialOrd
+    + Sum
+    + ValueFrom<u32>
+    + ValueFrom<usize>
+    + ValueFrom<f32>
+    + ValueInto<f64>
+    + ApproxFrom<usize>
+    + ApproxFrom<f64>
+    + ApproxInto<u32, RoundToNearest>
+    + ApproxInto<usize, RoundToNearest>
+    + ApproxInto<f32>
+    + ApproxInto<f64>
+    + Clone
+    + Copy
+    + Send
+    + Sync
+    + AddAssign
+    + MulAssign
+    + DivAssign
+    + ScalarOperand
+    + Display
+    + Debug
+    + LowerExp
+    + FftFloat<Complex = Complex<Self>>
     + DeserializeOwned
     + Serialize
     + JsonSchema

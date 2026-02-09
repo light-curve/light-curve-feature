@@ -1,5 +1,5 @@
 use crate::float_trait::Float;
-use crate::periodogram::fft::*;
+use crate::periodogram::fft_trait::*;
 use crate::periodogram::freq::{FreqGrid, FreqGridTrait, ZeroBasedPow2FreqGrid};
 use crate::periodogram::power_trait::*;
 use crate::time_series::TimeSeries;
@@ -8,8 +8,8 @@ use conv::{ConvAsUtil, RoundToNearest};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
-use std::collections::HashMap;
 use std::fmt::Debug;
+use std::marker::PhantomData;
 use std::sync::Arc;
 use thread_local::ThreadLocal;
 
@@ -31,38 +31,50 @@ use thread_local::ThreadLocal;
     from = "PeriodogramPowerFftParameters",
     bound = "T: Float"
 )]
-pub struct PeriodogramPowerFft<T>
+pub struct PeriodogramPowerFft<T, F>
 where
-    T: Float,
+    T: FftFloat,
+    F: Fft<T> + Clone,
 {
-    fft: Arc<ThreadLocal<RefCell<Fft<T>>>>,
-    arrays: Arc<ThreadLocal<RefCell<PeriodogramArraysMap<T>>>>,
+    fft: Arc<ThreadLocal<RefCell<F>>>,
+    arrays: Arc<ThreadLocal<RefCell<FftArraysMap<T, F>>>>,
+    _phantom: PhantomData<T>,
 }
 
-impl<T> PeriodogramPowerFft<T>
+impl<T, F> PeriodogramPowerFft<T, F>
 where
-    T: Float,
+    T: FftFloat,
+    F: Fft<T> + Clone,
 {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self {
             fft: Arc::new(ThreadLocal::new()),
             arrays: Arc::new(ThreadLocal::new()),
+            _phantom: PhantomData,
         }
     }
 }
 
-impl<T> Debug for PeriodogramPowerFft<T>
+impl<T, F> Debug for PeriodogramPowerFft<T, F>
 where
-    T: Float,
+    T: FftFloat,
+    F: Fft<T> + Clone,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", std::any::type_name::<Self>())
+        write!(
+            f,
+            "PeriodogramPowerFft<{}, {}>",
+            std::any::type_name::<T>(),
+            std::any::type_name::<F>()
+        )
     }
 }
 
-impl<T> PartialEq for PeriodogramPowerFft<T>
+impl<T, F> PartialEq for PeriodogramPowerFft<T, F>
 where
-    T: Float,
+    T: FftFloat,
+    F: Fft<T> + Clone,
 {
     fn eq(&self, _other: &Self) -> bool {
         // PeriodogramPowerFft instances are stateless from the user's perspective
@@ -71,18 +83,10 @@ where
     }
 }
 
-impl<T> Default for PeriodogramPowerFft<T>
+impl<T, F> PeriodogramPowerTrait<T> for PeriodogramPowerFft<T, F>
 where
     T: Float,
-{
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl<T> PeriodogramPowerTrait<T> for PeriodogramPowerFft<T>
-where
-    T: Float,
+    F: Fft<T> + Clone + 'static,
 {
     fn power(
         &self,
@@ -103,22 +107,22 @@ where
 
         let mut periodogram_arrays_map = self
             .arrays
-            .get_or(|| RefCell::new(PeriodogramArraysMap::new()))
+            .get_or(|| RefCell::new(FftArraysMap::new()))
             .borrow_mut();
-        let PeriodogramArrays {
+        let FftArrays {
             x_sch: m_for_sch,
             y_sch: sum_sin_cos_h,
             x_sc2: m_for_sc2,
             y_sc2: sum_sin_cos_2,
         } = periodogram_arrays_map.get(grid.size);
 
-        spread_arrays_for_fft(m_for_sch, m_for_sc2, &grid, ts);
+        spread_arrays_for_fft(m_for_sch.as_mut(), m_for_sc2.as_mut(), &grid, ts);
 
         {
-            let mut fft = self.fft.get_or(|| RefCell::new(Fft::new())).borrow_mut();
+            let mut fft = self.fft.get_or(|| RefCell::new(F::new())).borrow_mut();
 
-            fft.fft(m_for_sch, sum_sin_cos_h).unwrap();
-            fft.fft(m_for_sc2, sum_sin_cos_2).unwrap();
+            fft.fft(m_for_sch, sum_sin_cos_h);
+            fft.fft(m_for_sc2, sum_sin_cos_2);
         }
 
         let ts_size = ts.lenf();
@@ -140,7 +144,7 @@ where
                 };
 
                 let cos_wtau = T::sqrt(T::half() * (T::one() + cos_2wtau));
-                let sin_wtau = T::signum(sum_sin_2) * T::sqrt(T::half() * (T::one() - cos_2wtau));
+                let sin_wtau = sum_sin_2.signum() * (T::half() * (T::one() - cos_2wtau)).sqrt();
 
                 let sum_h_cos = sum_cos_h * cos_wtau + sum_sin_h * sin_wtau;
                 let sum_h_sin = sum_sin_h * cos_wtau - sum_cos_h * sin_wtau;
@@ -179,88 +183,32 @@ where
 #[serde(rename = "Fft")]
 struct PeriodogramPowerFftParameters {}
 
-impl<T> From<PeriodogramPowerFft<T>> for PeriodogramPowerFftParameters
+impl<T, F> From<PeriodogramPowerFft<T, F>> for PeriodogramPowerFftParameters
 where
-    T: Float,
+    T: FftFloat,
+    F: Fft<T> + Clone,
 {
-    fn from(_: PeriodogramPowerFft<T>) -> Self {
+    fn from(_: PeriodogramPowerFft<T, F>) -> Self {
         Self {}
     }
 }
 
-impl<T> From<PeriodogramPowerFftParameters> for PeriodogramPowerFft<T>
+impl<T, F> From<PeriodogramPowerFftParameters> for PeriodogramPowerFft<T, F>
 where
-    T: Float,
+    T: FftFloat,
+    F: Fft<T> + Clone,
 {
     fn from(_: PeriodogramPowerFftParameters) -> Self {
         Self::new()
     }
 }
 
-impl<T> JsonSchema for PeriodogramPowerFft<T>
+impl<T, F> JsonSchema for PeriodogramPowerFft<T, F>
 where
-    T: Float,
+    T: FftFloat,
+    F: Fft<T> + Clone,
 {
     json_schema!(PeriodogramPowerFftParameters, false);
-}
-
-struct PeriodogramArrays<T>
-where
-    T: Float,
-{
-    x_sch: AlignedVec<T>,
-    y_sch: AlignedVec<T::FftwComplex>,
-    x_sc2: AlignedVec<T>,
-    y_sc2: AlignedVec<T::FftwComplex>,
-}
-
-impl<T> PeriodogramArrays<T>
-where
-    T: Float,
-{
-    fn new(n: usize) -> Self {
-        let c_n = n / 2 + 1;
-        Self {
-            x_sch: AlignedVec::new(n),
-            y_sch: AlignedVec::new(c_n),
-            x_sc2: AlignedVec::new(n),
-            y_sc2: AlignedVec::new(c_n),
-        }
-    }
-}
-
-impl<T> Debug for PeriodogramArrays<T>
-where
-    T: Float,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "PeriodogramArrays(n = {})", self.x_sch.len())
-    }
-}
-
-#[derive(Debug)]
-struct PeriodogramArraysMap<T>
-where
-    T: Float,
-{
-    arrays: HashMap<usize, PeriodogramArrays<T>>,
-}
-
-impl<T> PeriodogramArraysMap<T>
-where
-    T: Float,
-{
-    fn new() -> Self {
-        Self {
-            arrays: HashMap::new(),
-        }
-    }
-
-    fn get(&mut self, n: usize) -> &mut PeriodogramArrays<T> {
-        self.arrays
-            .entry(n)
-            .or_insert_with(|| PeriodogramArrays::new(n))
-    }
 }
 
 struct TimeGrid<T> {
@@ -331,6 +279,12 @@ mod tests {
     use super::*;
 
     use crate::periodogram::freq::{AverageNyquistFreq, DynamicFreqGridParams};
+
+    #[cfg(feature = "fftw")]
+    use crate::periodogram::fft_fftw::FftwFft;
+
+    use crate::periodogram::fft_rustfft::RustFft;
+
     use approx::assert_relative_eq;
     use light_curve_common::{all_close, linspace};
     use rand::prelude::*;
@@ -344,8 +298,18 @@ mod tests {
         assert!(f32::abs(freq_grid.step() - orig_freq_grid.step()) < 1e-10);
     }
 
+    #[cfg(feature = "fftw")]
     #[test]
-    fn spread_arrays_for_fft_one_to_one() {
+    fn spread_arrays_for_fft_one_to_one_fftw() {
+        spread_arrays_for_fft_one_to_one_impl::<FftwFft<f64>>();
+    }
+
+    #[test]
+    fn spread_arrays_for_fft_one_to_one_rustfft() {
+        spread_arrays_for_fft_one_to_one_impl::<RustFft<f64>>();
+    }
+
+    fn spread_arrays_for_fft_one_to_one_impl<F: Fft<f64>>() {
         const N: usize = 32;
 
         let mut rng = StdRng::seed_from_u64(0);
@@ -359,9 +323,16 @@ mod tests {
         let time_grid = TimeGrid::from_freq_grid(&freq_grid);
 
         let (mh, m2) = {
-            let mut mh = vec![0.0; time_grid.size];
-            let mut m2 = vec![0.0; time_grid.size];
-            spread_arrays_for_fft(&mut mh, &mut m2, &time_grid, &mut ts);
+            let mut arrays_map = FftArraysMap::<f64, F>::new();
+            let arrays = arrays_map.get(time_grid.size);
+            spread_arrays_for_fft(
+                arrays.x_sch.as_mut(),
+                arrays.x_sc2.as_mut(),
+                &time_grid,
+                &mut ts,
+            );
+            let mh: Vec<_> = arrays.x_sch.as_mut().to_vec();
+            let m2: Vec<_> = arrays.x_sc2.as_mut().to_vec();
             (mh, m2)
         };
 
@@ -372,9 +343,21 @@ mod tests {
         assert_eq!(&m2[..], &desired_m2[..]);
     }
 
+    #[cfg(feature = "fftw")]
     #[test]
     #[allow(clippy::float_cmp)]
-    fn spread_arrays_for_fft_one_to_one_resolution() {
+    fn spread_arrays_for_fft_one_to_one_resolution_fftw() {
+        spread_arrays_for_fft_one_to_one_resolution_impl::<FftwFft<f64>>();
+    }
+
+    #[test]
+    #[allow(clippy::float_cmp)]
+    fn spread_arrays_for_fft_one_to_one_resolution_rustfft() {
+        spread_arrays_for_fft_one_to_one_resolution_impl::<RustFft<f64>>();
+    }
+
+    #[allow(clippy::float_cmp)]
+    fn spread_arrays_for_fft_one_to_one_resolution_impl<F: Fft<f64>>() {
         const N: usize = 8;
         const RESOLUTION: usize = 4;
 
@@ -389,9 +372,16 @@ mod tests {
         let freq_grid = ZeroBasedPow2FreqGrid::from_t(&t, &dynamic_freq_grid);
         let time_grid = TimeGrid::from_freq_grid(&freq_grid);
         let (mh, m2) = {
-            let mut mh = vec![0.0; time_grid.size];
-            let mut m2 = vec![0.0; time_grid.size];
-            spread_arrays_for_fft(&mut mh, &mut m2, &time_grid, &mut ts);
+            let mut arrays_map = FftArraysMap::<f64, F>::new();
+            let arrays = arrays_map.get(time_grid.size);
+            spread_arrays_for_fft(
+                arrays.x_sch.as_mut(),
+                arrays.x_sc2.as_mut(),
+                &time_grid,
+                &mut ts,
+            );
+            let mh: Vec<_> = arrays.x_sch.as_mut().to_vec();
+            let m2: Vec<_> = arrays.x_sc2.as_mut().to_vec();
             (mh, m2)
         };
 
@@ -402,5 +392,24 @@ mod tests {
         let desired_m2: Vec<_> = (0..2 * N).map(|i| ((i + 1) % 2) as f64).collect();
         assert_eq!(&m2[..2 * N], &desired_m2[..]);
         assert_eq!(&m2[2 * N..], &[0.0; (RESOLUTION - 2) * N]);
+    }
+
+    #[test]
+    fn periodogram_power_fft_debug_rustfft() {
+        let power: PeriodogramPowerFft<f64, RustFft<f64>> = PeriodogramPowerFft::new();
+        let debug_str = format!("{:?}", power);
+        assert!(debug_str.contains("PeriodogramPowerFft"));
+        assert!(debug_str.contains("f64"));
+        assert!(debug_str.contains("RustFft"));
+    }
+
+    #[cfg(feature = "fftw")]
+    #[test]
+    fn periodogram_power_fft_debug_fftw() {
+        let power: PeriodogramPowerFft<f64, FftwFft<f64>> = PeriodogramPowerFft::new();
+        let debug_str = format!("{:?}", power);
+        assert!(debug_str.contains("PeriodogramPowerFft"));
+        assert!(debug_str.contains("f64"));
+        assert!(debug_str.contains("FftwFft"));
     }
 }

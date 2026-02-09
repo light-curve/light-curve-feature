@@ -18,9 +18,11 @@ bench = false
 default = ["fftw-source"]
 ceres-system = ["ceres-solver/system"]
 ceres-source = ["ceres-solver/source"]
-fftw-system = ["fftw/system"]
-fftw-source = ["fftw/source"]
-fftw-mkl = ["fftw/intel-mkl"]
+# Base feature indicating FFTW is available (used for conditional compilation)
+fftw = ["dep:fftw"]
+fftw-system = ["fftw", "fftw/system"]
+fftw-source = ["fftw", "fftw/source"]
+fftw-mkl = ["fftw", "fftw/intel-mkl"]
 gsl = ["GSL/v2_1"]
 nuts = ["dep:nuts-rs", "dep:nuts-storable", "dep:rand"]
 
@@ -39,7 +41,9 @@ emcee = "^0.3.0"
 # Transitive dependency of emcee
 emcee_rand = { version = "^0.3.15", package = "rand" }
 enum_dispatch = "^0.3.9"
-fftw = { version = "^0.8", default-features = false }
+fftw = { version = "^0.8", default-features = false, optional = true }
+realfft = "3.4"
+rustfft = "6.2"
 GSL = { version = "^7", default-features = false, optional = true }
 itertools = "^0.14"
 lazy_static = "^1.4"
@@ -47,7 +51,7 @@ libm = "^0.2"
 macro_const = "^0.1"
 ndarray = { version = "^0.17", features = ["serde"] }
 ndarray-stats = "^0.7"
-num-complex = "^0.4" # the same version as used by fftw
+num-complex = "^0.4"
 num-traits = "^0.2"
 nuts-rs = { version = "^0.17", optional = true }
 nuts-storable = { version = "^0.2", optional = true }
@@ -63,7 +67,6 @@ unzip3 = "1"
 [dev-dependencies]
 light-curve-feature-test-util = { path = "test-util" }
 approx = "0.5"
-chfft = "0.3.4"
 clap = { version = "3.2.6", features = ["std", "color", "suggestions", "derive", "wrap_help", "unstable-v4"] }
 criterion = "0.6"
 hyperdual = "1.1"

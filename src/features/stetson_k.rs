@@ -66,7 +66,7 @@ where
         let mean = ts.get_m_weighted_mean();
         let value = Zip::from(&ts.m.sample)
             .and(&ts.w.sample)
-            .fold(T::zero(), |acc, &y, &w| acc + T::abs(y - mean) * T::sqrt(w))
+            .fold(T::zero(), |acc, &y, &w| acc + (y - mean).abs() * w.sqrt())
             / T::sqrt(ts.lenf() * chi2);
         Ok(vec![value])
     }
