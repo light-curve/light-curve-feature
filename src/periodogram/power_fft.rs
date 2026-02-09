@@ -393,4 +393,23 @@ mod tests {
         assert_eq!(&m2[..2 * N], &desired_m2[..]);
         assert_eq!(&m2[2 * N..], &[0.0; (RESOLUTION - 2) * N]);
     }
+
+    #[test]
+    fn periodogram_power_fft_debug_rustfft() {
+        let power: PeriodogramPowerFft<f64, RustFft<f64>> = PeriodogramPowerFft::new();
+        let debug_str = format!("{:?}", power);
+        assert!(debug_str.contains("PeriodogramPowerFft"));
+        assert!(debug_str.contains("f64"));
+        assert!(debug_str.contains("RustFft"));
+    }
+
+    #[cfg(feature = "fftw")]
+    #[test]
+    fn periodogram_power_fft_debug_fftw() {
+        let power: PeriodogramPowerFft<f64, FftwFft<f64>> = PeriodogramPowerFft::new();
+        let debug_str = format!("{:?}", power);
+        assert!(debug_str.contains("PeriodogramPowerFft"));
+        assert!(debug_str.contains("f64"));
+        assert!(debug_str.contains("FftwFft"));
+    }
 }

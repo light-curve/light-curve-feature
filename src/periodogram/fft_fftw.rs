@@ -232,4 +232,12 @@ mod tests {
         let debug_str = format!("{:?}", fft);
         assert!(debug_str.contains("FftwFft"));
     }
+
+    #[test]
+    fn fftw_clone() {
+        let fft: FftwFft<f64> = FftwFft::new();
+        let cloned = fft.clone();
+        // Cloning creates a fresh instance with empty plans
+        assert!(cloned.plans.is_empty());
+    }
 }
