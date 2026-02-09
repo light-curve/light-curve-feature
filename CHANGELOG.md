@@ -9,6 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+--
+
+### Changed
+
+--
+
+### Deprecated
+
+--
+
+### Removed
+
+--
+
+### Fixed
+
+--
+
+### Security
+
+--
+
+# [0.11.0] 2026 February 9
+
+### Added
+
 - **Breaking** Add RustFFT as the default pure Rust FFT backend for periodogram computation,
   with abstract `Fft<T>` trait enabling pluggable backends. RustFFT is now always used by default
   via `PeriodogramPower::Fft` variant. When FFTW is enabled, `PeriodogramPower::FftFftw` variant
@@ -35,22 +61,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Breaking** `CurveFitTrait::curve_fit` now accepts priors implementing `LnPriorEvaluator` trait instead of bare `Fn` closures, providing better type safety and extensibility https://github.com/light-curve/light-curve-feature/pull/248
 - Bump `ceres-solver` from 0.4.0 to 0.5.0 https://github.com/light-curve/light-curve-feature/pull/246
 - Refactored prior transformation to use trait-based `TransformedLnPrior` wrapper instead of closures, improving debuggability and avoiding function wrapping https://github.com/light-curve/light-curve-feature/pull/248
-
-### Deprecated
-
---
-
-### Removed
-
---
-
-### Fixed
-
---
-
-### Security
-
---
 
 # [0.10.0] 2025 June 4
 
