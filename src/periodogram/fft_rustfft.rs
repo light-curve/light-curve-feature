@@ -42,12 +42,6 @@ impl<T: FftFloat> FftOutputArray<T> for RustFftOutputArray<T> {
     }
 }
 
-impl<T: FftFloat> AsMut<[T::Complex]> for RustFftOutputArray<T> {
-    fn as_mut(&mut self) -> &mut [T::Complex] {
-        &mut self.0
-    }
-}
-
 /// RustFFT-based real-to-complex FFT implementation.
 ///
 /// A pure Rust FFT backend using the `realfft` crate. Works with f32 and f64.
@@ -266,5 +260,12 @@ mod tests {
                     .all(|c| c.get_re().is_finite() && c.get_im().is_finite())
             );
         }
+    }
+
+    #[test]
+    fn rustfft_debug() {
+        let fft: RustFft<f64> = RustFft::new();
+        let debug_str = format!("{:?}", fft);
+        assert!(debug_str.contains("RustFft"));
     }
 }

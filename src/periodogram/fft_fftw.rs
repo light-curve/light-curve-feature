@@ -56,12 +56,6 @@ impl<T: FftwFloat> FftOutputArray<T> for FftwOutputArray<T> {
     }
 }
 
-impl<T: FftwFloat> AsMut<[T::Complex]> for FftwOutputArray<T> {
-    fn as_mut(&mut self) -> &mut [T::Complex] {
-        &mut self.0
-    }
-}
-
 /// FFTW-based real-to-complex FFT implementation
 pub struct FftwFft<T>
 where
@@ -230,5 +224,12 @@ mod tests {
 
         all_close(&actual_re, &desired_re, 1e-8);
         all_close(&actual_im, &desired_im, 1e-8);
+    }
+
+    #[test]
+    fn fftw_debug() {
+        let fft: FftwFft<f64> = FftwFft::new();
+        let debug_str = format!("{:?}", fft);
+        assert!(debug_str.contains("FftwFft"));
     }
 }

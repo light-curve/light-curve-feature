@@ -67,7 +67,7 @@ pub trait FftInputArray<T>: AsMut<[T]> {
 }
 
 /// Trait for output arrays from FFT (complex values)
-pub trait FftOutputArray<T: FftFloat>: AsMut<[T::Complex]> {
+pub trait FftOutputArray<T: FftFloat> {
     /// Create a new array with the given size
     fn new_with_size(n: usize) -> Self;
 
