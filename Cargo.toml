@@ -1,6 +1,6 @@
 [package]
 name = "light-curve-feature"
-version = "0.11.0"
+version = "0.12.0"
 description = "Feature extractor from noisy time series"
 categories = ["science"]
 keywords = ["astronomy", "time-series"]
@@ -15,7 +15,7 @@ edition = "2024"
 bench = false
 
 [features]
-default = ["fftw-source"]
+default = []
 ceres-system = ["ceres-solver/system"]
 ceres-source = ["ceres-solver/source"]
 # Base feature indicating FFTW is available (used for conditional compilation)
