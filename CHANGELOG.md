@@ -9,11 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
---
+- **Breaking** Add configurable `PeriodogramNormalization` to the feature-level `Periodogram`, allowing users to select
+  normalization strategy (Psd, Standard, Model, Log) at the feature extraction level
 
 ### Changed
 
---
+- **Breaking** `periodogram::Periodogram::from_t` now requires an additional `PeriodogramNormalization`
+  parameter. `set_normalization` and `normalization` methods have been removed from the low-level
+  periodogram in favor of constructor-based configuration
 
 ### Deprecated
 
