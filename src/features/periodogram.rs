@@ -4,7 +4,7 @@ use crate::peak_indices::peak_indices_reverse_sorted;
 use crate::periodogram;
 use crate::periodogram::{
     AverageNyquistFreq, DefaultPeriodogramPowerFft, FreqGrid, FreqGridStrategy, NyquistFreq,
-    PeriodogramPower, PeriodogramPowerError,
+    PeriodogramNormalization, PeriodogramPower, PeriodogramPowerError,
 };
 
 use std::convert::TryInto;
@@ -196,6 +196,7 @@ where
     freq_grid_strategy: FreqGridStrategy<T>,
     feature_extractor: FeatureExtractor<T, F>,
     periodogram_algorithm: PeriodogramPower<T>,
+    normalization: PeriodogramNormalization,
     properties: Box<EvaluatorProperties>,
 }
 
@@ -217,6 +218,18 @@ where
     #[inline]
     pub fn default_max_freq_factor() -> f32 {
         1.0
+    }
+
+    /// Default normalization strategy (Psd)
+    #[inline]
+    pub fn default_normalization() -> PeriodogramNormalization {
+        PeriodogramNormalization::default()
+    }
+
+    /// Set the power normalization strategy
+    pub fn set_normalization(&mut self, normalization: PeriodogramNormalization) -> &mut Self {
+        self.normalization = normalization;
+        self
     }
 
     /// Set frequency resolution
@@ -319,6 +332,7 @@ where
             self.periodogram_algorithm.clone(),
             ts.t.as_slice(),
             &self.freq_grid_strategy,
+            self.normalization,
         )
     }
 
@@ -380,6 +394,7 @@ where
             freq_grid_strategy: freq_grid_strategy.into(),
             feature_extractor: FeatureExtractor::new(vec![peaks.into()]),
             periodogram_algorithm: DefaultPeriodogramPowerFft::new().into(),
+            normalization: PeriodogramNormalization::default(),
         }
     }
 }
@@ -469,6 +484,8 @@ where
     features: Vec<F>,
     peaks: usize,
     periodogram_algorithm: PeriodogramPower<T>,
+    #[serde(default)]
+    normalization: PeriodogramNormalization,
 }
 
 impl<T, F> From<Periodogram<T, F>> for PeriodogramParameters<T, F>
@@ -482,6 +499,7 @@ where
             freq_grid_strategy,
             feature_extractor,
             periodogram_algorithm,
+            normalization,
             properties: _,
         } = f;
 
@@ -495,6 +513,7 @@ where
             features: rest_of_features,
             peaks,
             periodogram_algorithm,
+            normalization,
         }
     }
 }
@@ -510,6 +529,7 @@ where
             features,
             peaks,
             periodogram_algorithm,
+            normalization,
         } = p;
 
         let mut periodogram = Periodogram::with_freq_frid_strategy(peaks, freq_grid_strategy);
@@ -517,6 +537,7 @@ where
             periodogram.add_feature(feature);
         }
         periodogram.set_periodogram_algorithm(periodogram_algorithm);
+        periodogram.set_normalization(normalization);
         periodogram
     }
 }

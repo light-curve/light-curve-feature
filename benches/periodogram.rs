@@ -4,7 +4,7 @@ use light_curve_feature::TimeSeries;
 use light_curve_feature::periodogram::fft_trait::{FftInputArray, FftOutputArray};
 use light_curve_feature::periodogram::{
     AverageNyquistFreq, DefaultPeriodogramPowerFft, FreqGridStrategy, MedianNyquistFreq,
-    Periodogram, PeriodogramPower, PeriodogramPowerDirect, RustFft,
+    Periodogram, PeriodogramNormalization, PeriodogramPower, PeriodogramPowerDirect, RustFft,
 };
 #[cfg(feature = "fftw")]
 use light_curve_feature::periodogram::{FftwFft, PeriodogramPowerFft};
@@ -35,8 +35,13 @@ pub fn bench_periodogram(c: &mut Criterion) {
                 |b| {
                     b.iter(|| {
                         let mut ts = TimeSeries::new_without_weight(&x, &y);
-                        let periodogram =
-                            Periodogram::from_t(power.clone(), &x, &freq_grid_strategy).unwrap();
+                        let periodogram = Periodogram::from_t(
+                            power.clone(),
+                            &x,
+                            &freq_grid_strategy,
+                            PeriodogramNormalization::default(),
+                        )
+                        .unwrap();
                         periodogram.power(black_box(&mut ts));
                     })
                 },
@@ -76,8 +81,13 @@ pub fn bench_periodogram_fft_backends(c: &mut Criterion) {
                 |b| {
                     b.iter(|| {
                         let mut ts = TimeSeries::new_without_weight(&x, &y);
-                        let periodogram =
-                            Periodogram::from_t(power.clone(), &x, &freq_grid_strategy).unwrap();
+                        let periodogram = Periodogram::from_t(
+                            power.clone(),
+                            &x,
+                            &freq_grid_strategy,
+                            PeriodogramNormalization::default(),
+                        )
+                        .unwrap();
                         periodogram.power(black_box(&mut ts));
                     })
                 },
@@ -93,8 +103,13 @@ pub fn bench_periodogram_fft_backends(c: &mut Criterion) {
                 |b| {
                     b.iter(|| {
                         let mut ts = TimeSeries::new_without_weight(&x, &y);
-                        let periodogram =
-                            Periodogram::from_t(power.clone(), &x, &freq_grid_strategy).unwrap();
+                        let periodogram = Periodogram::from_t(
+                            power.clone(),
+                            &x,
+                            &freq_grid_strategy,
+                            PeriodogramNormalization::default(),
+                        )
+                        .unwrap();
                         periodogram.power(black_box(&mut ts));
                     })
                 },

@@ -118,23 +118,14 @@ where
         periodogram_power: PeriodogramPower<T>,
         t: &[T],
         freq_grid_strategy: &'a FreqGridStrategy<T>,
+        normalization: PeriodogramNormalization,
     ) -> Result<Self, PeriodogramPowerError> {
         let zero_base = !matches!(periodogram_power, PeriodogramPower::Direct(_));
-        Self::new(
+        Self::with_normalization(
             periodogram_power,
             freq_grid_strategy.freq_grid(t, zero_base),
+            normalization,
         )
-    }
-
-    /// Set the power normalization strategy
-    pub fn set_normalization(&mut self, normalization: PeriodogramNormalization) -> &mut Self {
-        self.normalization = normalization;
-        self
-    }
-
-    /// Get the current power normalization strategy
-    pub fn normalization(&self) -> PeriodogramNormalization {
-        self.normalization
     }
 
     pub fn freq(&self, i: usize) -> T {
@@ -242,13 +233,19 @@ mod tests {
         let params = DynamicFreqGridParams::new(RESOLUTION, MAX_FREQ_FACTOR, AverageNyquistFreq);
         let freq_grid_strategy = ZeroBasedPow2FreqGrid::from_t(&t, &params).into();
 
-        let direct = Periodogram::from_t(PeriodogramPowerDirect.into(), &t, &freq_grid_strategy)
-            .unwrap()
-            .power(&mut ts);
+        let direct = Periodogram::from_t(
+            PeriodogramPowerDirect.into(),
+            &t,
+            &freq_grid_strategy,
+            PeriodogramNormalization::default(),
+        )
+        .unwrap()
+        .power(&mut ts);
         let fft = Periodogram::from_t(
             DefaultPeriodogramPowerFft::new().into(),
             &t,
             &freq_grid_strategy,
+            PeriodogramNormalization::default(),
         )
         .unwrap()
         .power(&mut ts);
@@ -273,13 +270,19 @@ mod tests {
         let params = DynamicFreqGridParams::new(RESOLUTION, MAX_FREQ_FACTOR, AverageNyquistFreq);
         let freq_grid_strategy = ZeroBasedPow2FreqGrid::from_t(&t, &params).into();
 
-        let direct = Periodogram::from_t(PeriodogramPowerDirect.into(), &t, &freq_grid_strategy)
-            .unwrap()
-            .power(&mut ts);
+        let direct = Periodogram::from_t(
+            PeriodogramPowerDirect.into(),
+            &t,
+            &freq_grid_strategy,
+            PeriodogramNormalization::default(),
+        )
+        .unwrap()
+        .power(&mut ts);
         let fft = Periodogram::from_t(
             DefaultPeriodogramPowerFft::new().into(),
             &t,
             &freq_grid_strategy,
+            PeriodogramNormalization::default(),
         )
         .unwrap()
         .power(&mut ts);
@@ -318,13 +321,19 @@ mod tests {
             .unwrap()
             .into();
 
-        let direct = Periodogram::from_t(PeriodogramPowerDirect.into(), &t, &freq_grid_strategy)
-            .unwrap()
-            .power(&mut ts);
+        let direct = Periodogram::from_t(
+            PeriodogramPowerDirect.into(),
+            &t,
+            &freq_grid_strategy,
+            PeriodogramNormalization::default(),
+        )
+        .unwrap()
+        .power(&mut ts);
         let fft = Periodogram::from_t(
             DefaultPeriodogramPowerFft::new().into(),
             &t,
             &freq_grid_strategy,
+            PeriodogramNormalization::default(),
         )
         .unwrap()
         .power(&mut ts);
@@ -414,12 +423,12 @@ mod tests {
         let m: Vec<_> = t.iter().map(|&x| f64::sin(OMEGA_SIN * x)).collect();
         let mut ts = TimeSeries::new_without_weight(&t, &m);
 
-        let mut periodogram = Periodogram::new(
+        let periodogram = Periodogram::with_normalization(
             PeriodogramPowerDirect.into(),
             FreqGrid::zero_based_pow2(OMEGA_SIN, 0).into(),
+            PeriodogramNormalization::Standard,
         )
         .unwrap();
-        periodogram.set_normalization(PeriodogramNormalization::Standard);
 
         let power = periodogram.power(&mut ts);
         // Peak power at frequency index 1 should be close to 1.0
@@ -449,9 +458,6 @@ mod tests {
         )
         .unwrap();
 
-        // Default is Psd
-        assert_eq!(periodogram.normalization(), PeriodogramNormalization::Psd);
-
         let power = periodogram.power(&mut ts);
         // Manually applying the factor should give ~1.0
         assert_relative_eq!(
@@ -469,12 +475,12 @@ mod tests {
         let m: Vec<_> = t.iter().map(|&x| f64::sin(OMEGA_SIN * x)).collect();
         let mut ts = TimeSeries::new_without_weight(&t, &m);
 
-        let mut periodogram = Periodogram::new(
+        let periodogram = Periodogram::with_normalization(
             PeriodogramPowerDirect.into(),
             FreqGrid::zero_based_pow2(OMEGA_SIN, 0).into(),
+            PeriodogramNormalization::Model,
         )
         .unwrap();
-        periodogram.set_normalization(PeriodogramNormalization::Model);
 
         let power = periodogram.power(&mut ts);
         // Model normalization: P_model = P_std / (1 - P_std)
@@ -494,12 +500,12 @@ mod tests {
         let m: Vec<_> = t.iter().map(|&x| f64::sin(OMEGA_SIN * x)).collect();
         let mut ts = TimeSeries::new_without_weight(&t, &m);
 
-        let mut periodogram = Periodogram::new(
+        let periodogram = Periodogram::with_normalization(
             PeriodogramPowerDirect.into(),
             FreqGrid::zero_based_pow2(OMEGA_SIN, 0).into(),
+            PeriodogramNormalization::Log,
         )
         .unwrap();
-        periodogram.set_normalization(PeriodogramNormalization::Log);
 
         let power = periodogram.power(&mut ts);
         // Log normalization: P_log = -ln(1 - P_std)
@@ -525,17 +531,21 @@ mod tests {
         let params = DynamicFreqGridParams::new(RESOLUTION, MAX_FREQ_FACTOR, AverageNyquistFreq);
         let freq_grid_strategy = ZeroBasedPow2FreqGrid::from_t(&t, &params).into();
 
-        let mut direct =
-            Periodogram::from_t(PeriodogramPowerDirect.into(), &t, &freq_grid_strategy).unwrap();
-        direct.set_normalization(PeriodogramNormalization::Standard);
+        let direct = Periodogram::from_t(
+            PeriodogramPowerDirect.into(),
+            &t,
+            &freq_grid_strategy,
+            PeriodogramNormalization::Standard,
+        )
+        .unwrap();
 
-        let mut fft = Periodogram::from_t(
+        let fft = Periodogram::from_t(
             DefaultPeriodogramPowerFft::new().into(),
             &t,
             &freq_grid_strategy,
+            PeriodogramNormalization::Standard,
         )
         .unwrap();
-        fft.set_normalization(PeriodogramNormalization::Standard);
 
         let direct_power = direct.power(&mut ts);
         let fft_power = fft.power(&mut ts);
@@ -567,12 +577,23 @@ mod tests {
         // Use the explicit FftFftw variant
         let fftw_power: PeriodogramPower<f64> =
             PeriodogramPower::FftFftw(PeriodogramPowerFft::new());
-        let fftw_periodogram = Periodogram::from_t(fftw_power, &t, &freq_grid_strategy).unwrap();
+        let fftw_periodogram = Periodogram::from_t(
+            fftw_power,
+            &t,
+            &freq_grid_strategy,
+            PeriodogramNormalization::default(),
+        )
+        .unwrap();
         let fftw_result = fftw_periodogram.power(&mut ts);
 
         // Compare with direct method
-        let direct_periodogram =
-            Periodogram::from_t(PeriodogramPowerDirect.into(), &t, &freq_grid_strategy).unwrap();
+        let direct_periodogram = Periodogram::from_t(
+            PeriodogramPowerDirect.into(),
+            &t,
+            &freq_grid_strategy,
+            PeriodogramNormalization::default(),
+        )
+        .unwrap();
         let direct_result = direct_periodogram.power(&mut ts);
 
         // Results should be close
@@ -603,7 +624,13 @@ mod tests {
         // Use explicit FftFftw variant
         let fftw_power: PeriodogramPower<f64> =
             PeriodogramPower::FftFftw(PeriodogramPowerFft::new());
-        let fftw_periodogram = Periodogram::from_t(fftw_power, &t, &freq_grid_strategy).unwrap();
+        let fftw_periodogram = Periodogram::from_t(
+            fftw_power,
+            &t,
+            &freq_grid_strategy,
+            PeriodogramNormalization::default(),
+        )
+        .unwrap();
         let fftw_result = fftw_periodogram.power(&mut ts);
 
         // Use default FFT (RustFFT)
@@ -611,6 +638,7 @@ mod tests {
             DefaultPeriodogramPowerFft::new().into(),
             &t,
             &freq_grid_strategy,
+            PeriodogramNormalization::default(),
         )
         .unwrap();
         let default_result = default_fft_periodogram.power(&mut ts);
@@ -642,7 +670,13 @@ mod tests {
 
             let fftw_power: PeriodogramPower<f64> =
                 PeriodogramPower::FftFftw(PeriodogramPowerFft::new());
-            let periodogram = Periodogram::from_t(fftw_power, &t, &freq_grid_strategy).unwrap();
+            let periodogram = Periodogram::from_t(
+                fftw_power,
+                &t,
+                &freq_grid_strategy,
+                PeriodogramNormalization::default(),
+            )
+            .unwrap();
             let power = periodogram.power(&mut ts);
 
             // Verify we get a valid result
@@ -669,7 +703,13 @@ mod tests {
 
         let fftw_power: PeriodogramPower<f32> =
             PeriodogramPower::FftFftw(PeriodogramPowerFft::new());
-        let periodogram = Periodogram::from_t(fftw_power, &t, &freq_grid_strategy).unwrap();
+        let periodogram = Periodogram::from_t(
+            fftw_power,
+            &t,
+            &freq_grid_strategy,
+            PeriodogramNormalization::default(),
+        )
+        .unwrap();
         let power = periodogram.power(&mut ts);
 
         // Verify we get valid results
@@ -697,6 +737,7 @@ mod tests {
             DefaultPeriodogramPowerFft::new().into(),
             &t,
             &freq_grid_strategy,
+            PeriodogramNormalization::default(),
         )
         .unwrap();
         let rustfft_result = rustfft_periodogram.power(&mut ts);
@@ -704,7 +745,13 @@ mod tests {
         // FFTW (explicit)
         let fftw_power: PeriodogramPower<f64> =
             PeriodogramPower::FftFftw(PeriodogramPowerFft::new());
-        let fftw_periodogram = Periodogram::from_t(fftw_power, &t, &freq_grid_strategy).unwrap();
+        let fftw_periodogram = Periodogram::from_t(
+            fftw_power,
+            &t,
+            &freq_grid_strategy,
+            PeriodogramNormalization::default(),
+        )
+        .unwrap();
         let fftw_result = fftw_periodogram.power(&mut ts);
 
         // Results should be very close
@@ -739,8 +786,8 @@ mod tests {
 
             let fftw_power: PeriodogramPower<f64> =
                 PeriodogramPower::FftFftw(PeriodogramPowerFft::new());
-            let mut periodogram = Periodogram::from_t(fftw_power, &t, &freq_grid_strategy).unwrap();
-            periodogram.set_normalization(normalization);
+            let periodogram =
+                Periodogram::from_t(fftw_power, &t, &freq_grid_strategy, normalization).unwrap();
 
             let power = periodogram.power(&mut ts);
 
