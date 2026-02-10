@@ -9,14 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Breaking** Add configurable `PeriodogramNormalization` to the feature-level `Periodogram`, allowing users to select
-  normalization strategy (Psd, Standard, Model, Log) at the feature extraction level
+--
 
 ### Changed
 
-- **Breaking** `periodogram::Periodogram::from_t` now requires an additional `PeriodogramNormalization`
-  parameter. `set_normalization` and `normalization` methods have been removed from the low-level
-  periodogram in favor of constructor-based configuration
+--
 
 ### Deprecated
 
@@ -33,6 +30,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 --
+
+# [0.12.0] 2026 February 11
+
+### Added
+
+- **Breaking** Add configurable `PeriodogramNormalization` to the feature-level `Periodogram`, allowing users to select
+  normalization strategy (Psd, Standard, Model, Log) at the feature extraction level https://github.com/light-curve/light-curve-feature/pull/257
+
+### Changed
+
+- **Breaking** `periodogram::Periodogram::from_t` now requires an additional `PeriodogramNormalization`
+  parameter. `set_normalization` and `normalization` methods have been removed from the low-level
+  periodogram in favor of constructor-based configuration https://github.com/light-curve/light-curve-feature/pull/257
+- **Breaking** make default Cargo feature set empty, now RustFFT is the default FFT back-end for the fast periodogram calculation https://github.com/light-curve/light-curve-feature/pull/258
 
 # [0.11.0] 2026 February 9
 
