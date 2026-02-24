@@ -632,7 +632,6 @@ mod tests {
         let _result = bazin.eval(&mut ts).unwrap();
     }
 
-    #[cfg(feature = "nuts")]
     #[test]
     fn bazin_fit_noisy_nuts() {
         use crate::NutsCurveFit;
@@ -643,10 +642,7 @@ mod tests {
         ));
     }
 
-    #[cfg(all(
-        feature = "nuts",
-        any(feature = "ceres-source", feature = "ceres-system")
-    ))]
+    #[cfg(any(feature = "ceres-source", feature = "ceres-system"))]
     #[test]
     fn bazin_fit_noisy_nuts_plus_ceres() {
         use crate::NutsCurveFit;

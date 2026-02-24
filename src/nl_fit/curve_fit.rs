@@ -4,7 +4,6 @@ use crate::nl_fit::data::Data;
 #[cfg(feature = "gsl")]
 use crate::nl_fit::lmsder::LmsderCurveFit;
 use crate::nl_fit::mcmc::McmcCurveFit;
-#[cfg(feature = "nuts")]
 use crate::nl_fit::nuts::NutsCurveFit;
 use crate::nl_fit::prior::ln_prior::LnPriorEvaluator;
 
@@ -49,6 +48,5 @@ pub enum CurveFitAlgorithm {
     #[cfg(feature = "gsl")]
     Lmsder(LmsderCurveFit),
     Mcmc(McmcCurveFit),
-    #[cfg(feature = "nuts")]
     Nuts(NutsCurveFit),
 }

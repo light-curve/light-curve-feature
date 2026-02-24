@@ -539,7 +539,6 @@ mod tests {
         let _result = linexp.eval(&mut ts).unwrap();
     }
 
-    #[cfg(feature = "nuts")]
     #[test]
     fn linexp_fit_noisy_nuts() {
         use crate::NutsCurveFit;
@@ -550,7 +549,7 @@ mod tests {
         ));
     }
 
-    #[cfg(all(feature = "nuts", feature = "gsl"))]
+    #[cfg(feature = "gsl")]
     #[test]
     fn linexp_fit_noisy_nuts_plus_lmsder() {
         use crate::NutsCurveFit;
