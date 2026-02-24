@@ -632,14 +632,34 @@ mod tests {
         let _result = bazin.eval(&mut ts).unwrap();
     }
 
+    // NUTS without fine-tuning picks the best *sample*, so the tolerance must be loose enough
+    // to accommodate stochastic variation across platforms and optimization levels.
     #[test]
     fn bazin_fit_noisy_nuts() {
         use crate::NutsCurveFit;
-        bazin_fit_noisy(BazinFit::new(
+
+        const N: usize = 50;
+        let mut rng = StdRng::seed_from_u64(0);
+        let param_true = [1e4, 1e3, 30.0, 10.0, 30.0];
+        let t = linspace(0.0, 100.0, N);
+        let model: Vec<_> = t.iter().map(|&x| BazinFit::model(x, &param_true)).collect();
+        let m: Vec<_> = model
+            .iter()
+            .map(|&y| {
+                let std = f64::sqrt(y);
+                y + std * rng.sample::<f64, _>(StandardNormal)
+            })
+            .collect();
+        let w: Vec<_> = model.iter().copied().map(f64::recip).collect();
+        let mut ts = TimeSeries::new(&t, &m, &w);
+
+        let eval = BazinFit::new(
             NutsCurveFit::new(1000, 1000, None).into(),
             LnPrior::none(),
             BazinInitsBounds::Default,
-        ));
+        );
+        let values = eval.eval(&mut ts).unwrap();
+        assert_relative_eq!(&values[..5], &param_true[..], max_relative = 0.15);
     }
 
     #[cfg(any(feature = "ceres-source", feature = "ceres-system"))]
