@@ -539,8 +539,6 @@ mod tests {
         let _result = linexp.eval(&mut ts).unwrap();
     }
 
-    // NUTS without fine-tuning picks the best *sample*, so the tolerance must be loose enough
-    // to accommodate stochastic variation across platforms and optimization levels.
     #[test]
     fn linexp_fit_noisy_nuts() {
         use crate::NutsCurveFit;
@@ -561,6 +559,7 @@ mod tests {
             })
             .collect();
         let w: Vec<_> = model.iter().copied().map(f64::recip).collect();
+        println!("t = {t:?}\nmodel = {model:?}\nm = {m:?}\nw = {w:?}");
         let mut ts = TimeSeries::new(&t, &m, &w);
 
         let eval = LinexpFit::new(
@@ -569,7 +568,8 @@ mod tests {
             LinexpInitsBounds::Default,
         );
         let values = eval.eval(&mut ts).unwrap();
-        assert_relative_eq!(&values[..NPARAMS], &param_true[..], max_relative = 0.15);
+        // NUTS is a sampler, not an optimizer, so we only check against the true parameters
+        assert_relative_eq!(&values[..NPARAMS], &param_true[..], max_relative = 0.07);
     }
 
     #[cfg(feature = "gsl")]

@@ -6,7 +6,8 @@ use crate::nl_fit::prior::ln_prior::LnPriorEvaluator;
 use ndarray::Zip;
 use nuts_rs::{Chain, CpuLogpFunc, CpuMath, DiagGradNutsSettings, LogpError, Settings};
 use nuts_storable::HasDims;
-use rand::rng;
+use rand::SeedableRng;
+use rand::rngs::StdRng;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -211,7 +212,7 @@ impl CurveFitTrait for NutsCurveFit {
             ..Default::default()
         };
 
-        let mut rng = rng();
+        let mut rng = StdRng::seed_from_u64(0);
         let mut sampler = settings.new_chain(0, math, &mut rng);
 
         // Set initial position
