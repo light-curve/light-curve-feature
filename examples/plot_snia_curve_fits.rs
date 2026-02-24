@@ -158,7 +158,7 @@ fn main() {
             )
             .into(),
         ));
-        #[cfg(feature = "ceres-source")]
+        #[cfg(all(feature = "ceres-source", feature = "gsl"))]
         features.push((
             "BazinFit NUTS+Ceres",
             BazinFit::new(

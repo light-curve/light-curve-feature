@@ -40,7 +40,7 @@ where
     pub fn median(&self) -> T {
         assert_ne!(self.len(), 0);
         let i = (self.len() - 1) / 2;
-        if self.len() % 2 == 0 {
+        if self.len().is_multiple_of(2) {
             T::half() * (self[i] + self[i + 1])
         } else {
             self[i]

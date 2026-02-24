@@ -543,7 +543,7 @@ mod tests {
     fn linexp_fit_noisy_nuts() {
         use crate::NutsCurveFit;
         linexp_fit_noisy(LinexpFit::new(
-            NutsCurveFit::new(500, 500, None).into(),
+            NutsCurveFit::new(1000, 1000, None).into(),
             LnPrior::none(),
             LinexpInitsBounds::Default,
         ));

@@ -636,7 +636,7 @@ mod tests {
     fn bazin_fit_noisy_nuts() {
         use crate::NutsCurveFit;
         bazin_fit_noisy(BazinFit::new(
-            NutsCurveFit::new(400, 400, None).into(),
+            NutsCurveFit::new(1000, 1000, None).into(),
             LnPrior::none(),
             BazinInitsBounds::Default,
         ));

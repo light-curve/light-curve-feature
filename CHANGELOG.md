@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Build breaking**: bump minimum supported Rust version (MSRV) from 1.85 to 1.88 due to `nuts-derive` dependency requiring `let_chains` (stabilized in Rust 1.88)
 - Bump `rand` from 0.9 to 0.10, `rand_distr` from 0.5 to 0.6 https://github.com/light-curve/light-curve-feature/pull/260
 
 ### Deprecated
