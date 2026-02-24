@@ -168,7 +168,7 @@ where
         Ok(lnlike + lnprior)
     }
 
-    fn expand_vector<R: rand::Rng + ?Sized>(
+    fn expand_vector<R: rand::RngExt + ?Sized>(
         &mut self,
         _rng: &mut R,
         array: &[f64],
