@@ -542,34 +542,11 @@ mod tests {
     #[test]
     fn linexp_fit_noisy_nuts() {
         use crate::NutsCurveFit;
-
-        const N: usize = 50;
-        let mut rng = StdRng::seed_from_u64(42);
-        let param_true = [1000.0, -15.0, 20.0, 15.0];
-        let t = linspace(-10.0, 100.0, N);
-        let model: Vec<_> = t
-            .iter()
-            .map(|&x| LinexpFit::model(x, &param_true))
-            .collect();
-        let m: Vec<_> = model
-            .iter()
-            .map(|&y| {
-                let std = f64::sqrt(y);
-                y + std * rng.sample::<f64, _>(StandardNormal)
-            })
-            .collect();
-        let w: Vec<_> = model.iter().copied().map(f64::recip).collect();
-        println!("t = {t:?}\nmodel = {model:?}\nm = {m:?}\nw = {w:?}");
-        let mut ts = TimeSeries::new(&t, &m, &w);
-
-        let eval = LinexpFit::new(
-            NutsCurveFit::new(1000, 1000, None).into(),
+        linexp_fit_noisy(LinexpFit::new(
+            NutsCurveFit::new(3000, 3000, None).into(),
             LnPrior::none(),
             LinexpInitsBounds::Default,
-        );
-        let values = eval.eval(&mut ts).unwrap();
-        // NUTS is a sampler, not an optimizer, so we only check against the true parameters
-        assert_relative_eq!(&values[..NPARAMS], &param_true[..], max_relative = 0.07);
+        ));
     }
 
     #[cfg(feature = "gsl")]
