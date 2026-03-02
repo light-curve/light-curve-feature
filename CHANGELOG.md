@@ -26,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
---
+- Fix non-deterministic `NutsCurveFit` results by seeding the RNG with a fixed value (`StdRng::seed_from_u64(0)`), matching the reproducibility guarantee of `McmcCurveFit` https://github.com/light-curve/light-curve-feature/pull/262
 
 ### Security
 
