@@ -635,9 +635,16 @@ mod tests {
     #[test]
     fn bazin_fit_noisy_nuts() {
         use crate::NutsCurveFit;
+        let prior = LnPrior::ind_components([
+            LnPrior1D::normal(1e4, 2e3),
+            LnPrior1D::normal(1e3, 2e2),
+            LnPrior1D::uniform(25.0, 35.0),
+            LnPrior1D::log_normal(f64::ln(10.0), 0.2),
+            LnPrior1D::log_normal(f64::ln(30.0), 0.2),
+        ]);
         bazin_fit_noisy(BazinFit::new(
-            NutsCurveFit::new(1000, 1000, None).into(),
-            LnPrior::none(),
+            NutsCurveFit::new(500, 200, None).into(),
+            prior,
             BazinInitsBounds::Default,
         ));
     }

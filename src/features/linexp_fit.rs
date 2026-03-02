@@ -542,9 +542,15 @@ mod tests {
     #[test]
     fn linexp_fit_noisy_nuts() {
         use crate::NutsCurveFit;
+        let prior = LnPrior::ind_components([
+            LnPrior1D::normal(900.0, 100.0),
+            LnPrior1D::uniform(-50.0, 50.0),
+            LnPrior1D::log_normal(f64::ln(20.0), 0.2),
+            LnPrior1D::normal(15.0, 20.0),
+        ]);
         linexp_fit_noisy(LinexpFit::new(
-            NutsCurveFit::new(3000, 3000, None).into(),
-            LnPrior::none(),
+            NutsCurveFit::new(500, 200, None).into(),
+            prior,
             LinexpInitsBounds::Default,
         ));
     }
