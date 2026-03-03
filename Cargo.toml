@@ -8,7 +8,7 @@ repository = "https://github.com/light-curve/light-curve-feature"
 readme = "README.md"
 authors = ["Konstantin Malanchev <hombit@gmail.com>"]
 license = "GPL-3.0-or-later"
-rust-version = "1.85"
+rust-version = "1.88"
 edition = "2024"
 
 [lib]
@@ -24,7 +24,6 @@ fftw-system = ["fftw", "fftw/system"]
 fftw-source = ["fftw", "fftw/source"]
 fftw-mkl = ["fftw", "fftw/intel-mkl"]
 gsl = ["GSL/v2_1"]
-nuts = ["dep:nuts-rs", "dep:nuts-storable", "dep:rand"]
 
 [profile.release]
 lto = true
@@ -53,11 +52,11 @@ ndarray = { version = "^0.17", features = ["serde"] }
 ndarray-stats = "^0.7"
 num-complex = "^0.4"
 num-traits = "^0.2"
-nuts-rs = { version = "^0.17", optional = true }
-nuts-storable = { version = "^0.2", optional = true }
+nuts-rs = { version = "^0.17" }
+nuts-storable = { version = "^0.2" }
 ordered-float = { version = "5", features = ["serde", "schemars"] }
 paste = "1"
-rand = { version = "0.10", optional = true }
+rand = { version = "0.10" }
 schemars = "^0.8"
 serde = { version = "1", features = ["derive"] }
 thiserror = "2"

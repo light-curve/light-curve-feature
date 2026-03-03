@@ -169,10 +169,10 @@ impl<T: Float> FreqGrid<T> {
 
     /// Construct a linear grid
     pub fn linear(start: T, step: T, size: usize) -> Self {
-        if start.is_zero() {
-            if let Some(zero_based_pow2) = ZeroBasedPow2FreqGrid::try_with_size(step, size) {
-                return Self::ZeroBasedPow2(zero_based_pow2);
-            }
+        if start.is_zero()
+            && let Some(zero_based_pow2) = ZeroBasedPow2FreqGrid::try_with_size(step, size)
+        {
+            return Self::ZeroBasedPow2(zero_based_pow2);
         }
         Self::Linear(LinearFreqGrid::new(start, step, size))
     }

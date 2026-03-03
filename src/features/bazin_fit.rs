@@ -632,21 +632,24 @@ mod tests {
         let _result = bazin.eval(&mut ts).unwrap();
     }
 
-    #[cfg(feature = "nuts")]
     #[test]
     fn bazin_fit_noisy_nuts() {
         use crate::NutsCurveFit;
+        let prior = LnPrior::ind_components([
+            LnPrior1D::normal(1e4, 2e3),
+            LnPrior1D::normal(1e3, 2e2),
+            LnPrior1D::uniform(25.0, 35.0),
+            LnPrior1D::log_normal(f64::ln(10.0), 0.2),
+            LnPrior1D::log_normal(f64::ln(30.0), 0.2),
+        ]);
         bazin_fit_noisy(BazinFit::new(
-            NutsCurveFit::new(400, 400, None).into(),
-            LnPrior::none(),
+            NutsCurveFit::new(500, 200, None).into(),
+            prior,
             BazinInitsBounds::Default,
         ));
     }
 
-    #[cfg(all(
-        feature = "nuts",
-        any(feature = "ceres-source", feature = "ceres-system")
-    ))]
+    #[cfg(any(feature = "ceres-source", feature = "ceres-system"))]
     #[test]
     fn bazin_fit_noisy_nuts_plus_ceres() {
         use crate::NutsCurveFit;
