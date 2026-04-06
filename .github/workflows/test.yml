@@ -236,10 +236,26 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: true
+      - name: Cache vcpkg binary cache
+        uses: actions/cache@v4
+        with:
+          path: C:\vcpkg_cache
+          key: vcpkg-ceres-gsl-x64-windows-static-md
+      - name: Install ceres and GSL via vcpkg
+        env:
+          VCPKG_BINARY_SOURCES: "clear;files,C:\\vcpkg_cache,readwrite"
+        run: |
+          New-Item -ItemType Directory -Force -Path C:\vcpkg_cache | Out-Null
+          vcpkg install ceres:x64-windows-static-md gsl:x64-windows-static-md
+          $root = $env:VCPKG_INSTALLATION_ROOT
+          $prefix = "$root\installed\x64-windows-static-md"
+          echo "VCPKG_ROOT=$root" >> $env:GITHUB_ENV
+          echo "VCPKGRS_TRIPLET=x64-windows-static-md" >> $env:GITHUB_ENV
+          echo "RUSTFLAGS=-L $prefix\lib" >> $env:GITHUB_ENV
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: "windows"
-      - run: cargo build --all-targets --no-default-features --features=fftw-source
+      - run: cargo test --no-default-features --features=ceres-system,gsl
