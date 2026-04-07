@@ -10,7 +10,7 @@ mod tests;
 mod macros;
 
 mod data;
-pub use data::{DataSample, TimeSeries};
+pub use data::{DataSample, MultiColorTimeSeries, TimeSeries};
 
 mod evaluator;
 pub use evaluator::{EvaluatorInfoTrait, FeatureEvaluator, FeatureNamesDescriptionsTrait};
@@ -32,7 +32,7 @@ pub use float_trait::Float;
 
 mod lnerfc;
 
-mod multicolor;
+pub mod multicolor;
 pub use multicolor::*;
 
 mod nl_fit;
@@ -46,12 +46,15 @@ pub use nl_fit::evaluator::FitFeatureEvaluatorGettersTrait;
 pub use nl_fit::{CurveFitAlgorithm, McmcCurveFit};
 pub use nl_fit::{LnPrior, LnPrior1D, prior};
 
+mod number_ending;
+pub(crate) use number_ending::number_ending;
+
 #[doc(hidden)]
 pub mod periodogram;
 pub use periodogram::sin_cos_iterator::RecurrentSinCos;
 pub use periodogram::{
-    AverageNyquistFreq, FixedNyquistFreq, MedianNyquistFreq, NyquistFreq, PeriodogramPower,
-    PeriodogramPowerDirect, PeriodogramPowerFft, QuantileNyquistFreq,
+    AverageNyquistFreq, FixedNyquistFreq, FreqGrid, LinearFreqGrid, MedianNyquistFreq, NyquistFreq,
+    PeriodogramPower, PeriodogramPowerDirect, PeriodogramPowerFft, QuantileNyquistFreq,
 };
 
 pub mod prelude;

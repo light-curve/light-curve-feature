@@ -21,6 +21,15 @@ where
     std2: Option<T>,
 }
 
+impl<'a, T> PartialEq for DataSample<'a, T>
+where
+    T: Float,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.sample == other.sample
+    }
+}
+
 macro_rules! data_sample_getter {
     ($attr: ident, $getter: ident, $func: expr, $method_sorted: ident) => {
         // This lint is false-positive in macros

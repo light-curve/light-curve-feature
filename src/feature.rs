@@ -51,7 +51,7 @@ where
     PercentAmplitude,
     PercentDifferenceMagnitudePercentile,
     Periodogram(Periodogram<T, Self>),
-    _PeriodogramPeaks,
+    _PeriodogramPeaks(PeriodogramPeaks),
     ReducedChi2,
     Roms,
     Skew,

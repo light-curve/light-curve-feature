@@ -12,6 +12,9 @@ pub use serde::Serialize;
 use std::collections::BTreeSet;
 use std::fmt::Debug;
 
+/// Difference of median magnitudes in two passbands
+///
+/// Note that median is calculated for each passband separately
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(bound(deserialize = "P: PassbandTrait + Deserialize<'de>"))]
 pub struct ColorOfMedian<P>
