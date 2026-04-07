@@ -54,7 +54,10 @@ where
     T: Float,
 {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.partial_cmp(other).unwrap()
+        // wavelengths are guaranteed to be positive normal numbers, so partial_cmp never returns None
+        self.wavelength
+            .partial_cmp(&other.wavelength)
+            .unwrap_or(std::cmp::Ordering::Equal)
     }
 }
 

@@ -278,6 +278,7 @@ impl CurveFitTrait for NutsCurveFit {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::data::TimeSeries;
     use crate::nl_fit::data::NormalizedData;
     use crate::nl_fit::evaluator::{
         FitParametersInternalDimlessTrait, FitParametersInternalExternalTrait,
@@ -285,7 +286,6 @@ mod tests {
     };
     use crate::nl_fit::prior::ln_prior::LnPrior;
     use crate::nl_fit::prior::ln_prior_1d::LnPrior1D;
-    use crate::time_series::TimeSeries;
     use approx::assert_relative_eq;
     use ndarray::Array1;
     use std::rc::Rc;

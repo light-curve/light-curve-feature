@@ -107,7 +107,7 @@ lazy_info!(
     m_required: true,
     w_required: true,
     sorting_required: true, // improve reproducibility
-    variability_required: false,
+    variability_required: true,
 );
 
 struct Params<'a, T> {
@@ -408,13 +408,14 @@ mod tests {
 
     check_fit_model_derivatives!(LinexpFit);
 
-    feature_test!(
-        linexp_fit_plateau,
-        [LinexpFit::default()],
-        [0.0, 6.25, 2.5, 0.0, 0.0], // initial model parameters and zero chi2
-        linspace(0.0, 10.0, 11),
-        [0.0; 11],
-    );
+    #[test]
+    fn linexp_fit_plateau() {
+        let fe = LinexpFit::default();
+        let t = linspace(0.0, 10.0, 11);
+        let f = [0.0; 11];
+        let mut ts = TimeSeries::new_without_weight(&t, &f);
+        assert!(fe.eval(&mut ts).is_err());
+    }
 
     fn linexp_fit_noisy(eval: LinexpFit) {
         const N: usize = 50;

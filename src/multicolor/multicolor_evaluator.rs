@@ -1,8 +1,7 @@
 pub use crate::data::MultiColorTimeSeries;
 pub use crate::error::MultiColorEvaluatorError;
 pub use crate::evaluator::{
-    EvaluatorError, EvaluatorInfo, EvaluatorInfoTrait, FeatureEvaluator,
-    FeatureNamesDescriptionsTrait,
+    EvaluatorError, EvaluatorInfo, EvaluatorInfoTrait, FeatureNamesDescriptionsTrait,
 };
 pub use crate::feature::Feature;
 pub use crate::float_trait::Float;
