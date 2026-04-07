@@ -22,7 +22,7 @@ pub use fft_rustfft::RustFft;
 mod freq;
 pub use freq::{
     AverageNyquistFreq, FixedNyquistFreq, FreqGrid, FreqGridStrategy, FreqGridTrait,
-    MedianNyquistFreq, NyquistFreq, QuantileNyquistFreq,
+    LinearFreqGrid, MedianNyquistFreq, NyquistFreq, QuantileNyquistFreq,
 };
 
 mod power_fft;
@@ -157,15 +157,14 @@ mod tests {
 
     use approx::assert_relative_eq;
     use light_curve_common::{all_close, linspace};
-    use ndarray::Array1;
     use rand::prelude::*;
 
     #[test]
     fn compr_direct_with_scipy() {
         const OMEGA_SIN: f64 = 0.07;
         const N: usize = 100;
-        let t = linspace(0.0, 99.0, N);
-        let m: Vec<_> = t.iter().map(|&x| f64::sin(OMEGA_SIN * x)).collect();
+        let t: Vec<f64> = (0..N).map(|i| i as f64).collect();
+        let m: Vec<f64> = t.iter().map(|&x| f64::sin(OMEGA_SIN * x)).collect();
         let mut ts = TimeSeries::new_without_weight(&t, &m);
         let periodogram = Periodogram::new(
             PeriodogramPowerDirect.into(),
@@ -193,15 +192,13 @@ mod tests {
             FreqGrid::ZeroBasedPow2(freq_grid.clone()).into(),
         )
         .unwrap();
+        let expected_freqs: Vec<f64> = (0..freq_grid.size())
+            .map(|i| freq_grid.step() * i as f64)
+            .collect();
+        let actual_freqs: Vec<f64> = (0..freq_grid.size()).map(|i| periodogram.freq(i)).collect();
         assert_relative_eq!(
-            &Array1::linspace(
-                0.0,
-                freq_grid.step() * (freq_grid.size() as f64 - 1.0),
-                freq_grid.size(),
-            ),
-            &(0..freq_grid.size())
-                .map(|i| periodogram.freq(i))
-                .collect::<Array1<_>>(),
+            expected_freqs.as_slice(),
+            actual_freqs.as_slice(),
             max_relative = 1e-12,
         );
         let desired = [
@@ -249,7 +246,8 @@ mod tests {
         )
         .unwrap()
         .power(&mut ts);
-        all_close(&fft[..direct.len() - 1], &direct[..direct.len() - 1], 1e-8);
+        let n = direct.len() - 1;
+        assert_relative_eq!(fft[..n], direct[..n], epsilon = 1e-8);
     }
 
     #[test]

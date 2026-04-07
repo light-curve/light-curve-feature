@@ -1,4 +1,4 @@
-mod features;
+pub mod features;
 
 mod monochrome_feature;
 pub use monochrome_feature::MonochromeFeature;

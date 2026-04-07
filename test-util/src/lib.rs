@@ -5,7 +5,7 @@ pub use lc_data::from_issues::{
     iter_issue_light_curves_flux, iter_issue_light_curves_mag, iter_issue_ts_flux,
     iter_issue_ts_mag,
 };
-pub use lc_data::rrlyr::RRLYR_LIGHT_CURVES_MAG_F64;
+pub use lc_data::rrlyr::{RR_LYRAE_F64, RRLYR_LIGHT_CURVES_MAG_F64, RrLyr};
 pub use lc_data::snia::{SNIA_LIGHT_CURVES_FLUX_F64, iter_sn1a_flux_arrays, iter_sn1a_flux_ts};
 
 mod lc_data;

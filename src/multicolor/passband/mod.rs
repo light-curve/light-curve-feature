@@ -6,3 +6,6 @@ pub use dump_passband::DumpPassband;
 
 mod passband_trait;
 pub use passband_trait::PassbandTrait;
+
+mod string_passband;
+pub use string_passband::StringPassband;
