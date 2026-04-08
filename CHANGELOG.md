@@ -13,8 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `ceres-solver` from `0.5.0` to `0.5.1` (adds Windows support) https://github.com/light-curve/light-curve-feature/pull/263
-- Add Windows CI job: vcpkg-installed ceres and GSL, vcpkg artifact caching https://github.com/light-curve/light-curve-feature/pull/263
+--
 
 ### Deprecated
 
@@ -31,6 +30,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 --
+
+# [0.13.1] 2026 April 8
+
+### Changed
+
+- Bump `ceres-solver` from `0.5.0` to `0.5.1` (adds Windows support) https://github.com/light-curve/light-curve-feature/pull/263
+- Add Windows CI job: vcpkg-installed ceres and GSL, vcpkg artifact caching https://github.com/light-curve/light-curve-feature/pull/263
+
 
 # [0.13.0] 2026 March 3
 
