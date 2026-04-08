@@ -196,3 +196,59 @@ where
 {
     json_schema!(MultiColorExtractorParameters<MCF>, true);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::multicolor::features::{ColorOfMaximum, ColorOfMinimum};
+    use crate::{MultiColorFeature, MultiColorTimeSeries, StringPassband};
+
+    type McFeature = MultiColorFeature<StringPassband, f64>;
+    type McExtractor = MultiColorExtractor<StringPassband, f64, McFeature>;
+
+    #[test]
+    fn extractor_combines_features() {
+        let passbands = [StringPassband::from("g"), StringPassband::from("r")];
+        let features: Vec<McFeature> = vec![
+            ColorOfMaximum::new(passbands.clone()).into(),
+            ColorOfMinimum::new(passbands.clone()).into(),
+        ];
+        let extractor = McExtractor::new(features);
+
+        assert_eq!(extractor.size_hint(), 2);
+        assert_eq!(
+            extractor.get_names(),
+            vec!["color_max_g_r", "color_min_g_r"]
+        );
+
+        // g band: [4.0, 5.0, 6.0] max=6, min=4; r band: [1.0, 3.0, 2.0] max=3, min=1
+        let t = vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0];
+        let m = vec![4.0_f64, 5.0, 6.0, 1.0, 3.0, 2.0];
+        let w = vec![1.0_f64; 6];
+        let bands: Vec<StringPassband> = vec!["g", "g", "g", "r", "r", "r"]
+            .into_iter()
+            .map(StringPassband::from)
+            .collect();
+        let mut mcts = MultiColorTimeSeries::from_flat(t, m, w, bands);
+        let result = extractor.eval_multicolor(&mut mcts).unwrap();
+        assert!((result[0] - (6.0 - 3.0)).abs() < 1e-10); // color_max_g_r
+        assert!((result[1] - (4.0 - 1.0)).abs() < 1e-10); // color_min_g_r
+    }
+
+    #[test]
+    fn extractor_empty() {
+        let extractor = McExtractor::new(vec![]);
+        assert_eq!(extractor.size_hint(), 0);
+        assert_eq!(extractor.get_names(), Vec::<&str>::new());
+    }
+
+    #[test]
+    fn extractor_serde() {
+        let passbands = [StringPassband::from("g"), StringPassband::from("r")];
+        let features: Vec<McFeature> = vec![ColorOfMaximum::new(passbands).into()];
+        let extractor = McExtractor::new(features);
+        let json = serde_json::to_string(&extractor).unwrap();
+        let extractor2: McExtractor = serde_json::from_str(&json).unwrap();
+        assert_eq!(json, serde_json::to_string(&extractor2).unwrap());
+    }
+}
