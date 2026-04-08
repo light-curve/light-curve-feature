@@ -2,7 +2,9 @@ use crate::data::{MultiColorTimeSeries, TimeSeries};
 use crate::error::MultiColorEvaluatorError;
 use crate::evaluator::{EvaluatorInfoTrait, FeatureNamesDescriptionsTrait};
 use crate::float_trait::Float;
-use crate::multicolor::features::{ColorOfMaximum, ColorOfMedian, ColorOfMinimum};
+use crate::multicolor::features::{
+    ColorOfMaximum, ColorOfMedian, ColorOfMinimum, MultiColorPeriodogram,
+};
 use crate::multicolor::multicolor_evaluator::*;
 use crate::multicolor::{MonochromeFeature, MultiColorExtractor};
 
@@ -29,6 +31,7 @@ where
     ColorOfMaximum(ColorOfMaximum<P>),
     ColorOfMedian(ColorOfMedian<P>),
     ColorOfMinimum(ColorOfMinimum<P>),
+    MultiColorPeriodogram(MultiColorPeriodogram<T, Feature<T>>),
 }
 
 impl<P, T> MultiColorFeature<P, T>
