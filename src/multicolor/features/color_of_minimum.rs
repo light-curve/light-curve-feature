@@ -117,3 +117,40 @@ where
         Ok(vec![minima[0] - minima[1]])
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{MultiColorTimeSeries, StringPassband};
+
+    #[test]
+    fn color_of_minimum_values() {
+        let eval = ColorOfMinimum::new([StringPassband::from("g"), StringPassband::from("r")]);
+        // g band: [6.0, 4.0, 5.0] -> min = 4.0; r band: [3.0, 1.0, 2.0] -> min = 1.0
+        let t = vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0];
+        let m = vec![6.0_f64, 4.0, 5.0, 3.0, 1.0, 2.0];
+        let w = vec![1.0_f64; 6];
+        let bands: Vec<StringPassband> = vec!["g", "g", "g", "r", "r", "r"]
+            .into_iter()
+            .map(StringPassband::from)
+            .collect();
+        let mut mcts = MultiColorTimeSeries::from_flat(t, m, w, bands);
+        let result = eval.eval_multicolor(&mut mcts).unwrap();
+        assert!((result[0] - (4.0 - 1.0)).abs() < 1e-10);
+    }
+
+    #[test]
+    fn color_of_minimum_names() {
+        let eval = ColorOfMinimum::new([StringPassband::from("g"), StringPassband::from("r")]);
+        assert_eq!(eval.get_names(), vec!["color_min_g_r"]);
+        assert_eq!(eval.size_hint(), 1);
+    }
+
+    #[test]
+    fn color_of_minimum_serde() {
+        let eval = ColorOfMinimum::new([StringPassband::from("g"), StringPassband::from("r")]);
+        let json = serde_json::to_string(&eval).unwrap();
+        let eval2: ColorOfMinimum<StringPassband> = serde_json::from_str(&json).unwrap();
+        assert_eq!(json, serde_json::to_string(&eval2).unwrap());
+    }
+}

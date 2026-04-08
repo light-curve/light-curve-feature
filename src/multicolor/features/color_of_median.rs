@@ -124,3 +124,40 @@ where
         Ok(vec![medians[0] - medians[1]])
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{MultiColorTimeSeries, StringPassband};
+
+    #[test]
+    fn color_of_median_values() {
+        let eval = ColorOfMedian::new([StringPassband::from("g"), StringPassband::from("r")]);
+        // g band: [4.0, 6.0, 5.0] -> median = 5.0; r band: [1.0, 3.0, 2.0] -> median = 2.0
+        let t = vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0];
+        let m = vec![4.0_f64, 6.0, 5.0, 1.0, 3.0, 2.0];
+        let w = vec![1.0_f64; 6];
+        let bands: Vec<StringPassband> = vec!["g", "g", "g", "r", "r", "r"]
+            .into_iter()
+            .map(StringPassband::from)
+            .collect();
+        let mut mcts = MultiColorTimeSeries::from_flat(t, m, w, bands);
+        let result = eval.eval_multicolor(&mut mcts).unwrap();
+        assert!((result[0] - (5.0 - 2.0)).abs() < 1e-10);
+    }
+
+    #[test]
+    fn color_of_median_names() {
+        let eval = ColorOfMedian::new([StringPassband::from("g"), StringPassband::from("r")]);
+        assert_eq!(eval.get_names(), vec!["color_median_g_r"]);
+        assert_eq!(eval.size_hint(), 1);
+    }
+
+    #[test]
+    fn color_of_median_serde() {
+        let eval = ColorOfMedian::new([StringPassband::from("g"), StringPassband::from("r")]);
+        let json = serde_json::to_string(&eval).unwrap();
+        let eval2: ColorOfMedian<StringPassband> = serde_json::from_str(&json).unwrap();
+        assert_eq!(json, serde_json::to_string(&eval2).unwrap());
+    }
+}
