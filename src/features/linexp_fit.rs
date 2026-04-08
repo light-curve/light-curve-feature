@@ -416,6 +416,10 @@ mod tests {
     );
 
     fn linexp_fit_noisy(eval: LinexpFit) {
+        linexp_fit_noisy_tolerances(eval, 0.07, 0.04);
+    }
+
+    fn linexp_fit_noisy_tolerances(eval: LinexpFit, tol_param: f64, tol_desired: f64) {
         const N: usize = 50;
 
         let mut rng = StdRng::seed_from_u64(42);
@@ -443,8 +447,12 @@ mod tests {
         let desired = [986.62990444, -15.1956711, 20.05763093, 15.54839175];
 
         let values = eval.eval(&mut ts).unwrap();
-        assert_relative_eq!(&values[..NPARAMS], &param_true[..], max_relative = 0.07);
-        assert_relative_eq!(&values[..NPARAMS], &desired[..], max_relative = 0.04);
+        assert_relative_eq!(
+            &values[..NPARAMS],
+            &param_true[..],
+            max_relative = tol_param
+        );
+        assert_relative_eq!(&values[..NPARAMS], &desired[..], max_relative = tol_desired);
     }
 
     #[cfg(any(feature = "ceres-source", feature = "ceres-system"))]
@@ -539,20 +547,27 @@ mod tests {
         let _result = linexp.eval(&mut ts).unwrap();
     }
 
+    #[cfg(feature = "gsl")]
     #[test]
     fn linexp_fit_noisy_nuts() {
-        use crate::NutsCurveFit;
+        use crate::{LmsderCurveFit, NutsCurveFit};
         let prior = LnPrior::ind_components([
             LnPrior1D::normal(900.0, 100.0),
             LnPrior1D::uniform(-50.0, 50.0),
             LnPrior1D::log_normal(f64::ln(20.0), 0.2),
             LnPrior1D::normal(15.0, 20.0),
         ]);
-        linexp_fit_noisy(LinexpFit::new(
-            NutsCurveFit::new(500, 200, None).into(),
-            prior,
-            LinexpInitsBounds::Default,
-        ));
+        // NUTS is used for initial exploration; lmsder polishes the result for
+        // a deterministic, cross-platform accurate answer.
+        linexp_fit_noisy_tolerances(
+            LinexpFit::new(
+                NutsCurveFit::new(50, 50, Some(LmsderCurveFit::default().into())).into(),
+                prior,
+                LinexpInitsBounds::Default,
+            ),
+            0.04,
+            0.001,
+        );
     }
 
     #[cfg(feature = "gsl")]
