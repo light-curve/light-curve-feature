@@ -3,45 +3,47 @@ use crate::error::MultiColorEvaluatorError;
 use crate::evaluator::{EvaluatorInfoTrait, FeatureNamesDescriptionsTrait};
 use crate::float_trait::Float;
 use crate::multicolor::multicolor_evaluator::*;
+use crate::multicolor::multicolor_feature::MultiColorFeature;
 
 use itertools::Itertools;
 pub use schemars::JsonSchema;
 pub use serde::Serialize;
 use std::collections::BTreeSet;
 use std::fmt::Debug;
-use std::marker::PhantomData;
 
 /// Bulk feature evaluator.
+///
+/// Evaluates multiple [`MultiColorFeature`]s on a [`MultiColorTimeSeries`] and returns
+/// a flat vector of all feature values.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(
-    into = "MultiColorExtractorParameters<MCF>",
-    from = "MultiColorExtractorParameters<MCF>",
+    into = "MultiColorExtractorParameters<P, T>",
+    from = "MultiColorExtractorParameters<P, T>",
     bound(
-        serialize = "P: PassbandTrait, T: Float, MCF: MultiColorEvaluator<P, T>",
-        deserialize = "P: PassbandTrait + Deserialize<'de>, T: Float, MCF: MultiColorEvaluator<P, T> + Deserialize<'de>"
+        serialize = "P: PassbandTrait, T: Float",
+        deserialize = "P: PassbandTrait + Deserialize<'de>, T: Float"
     )
 )]
-pub struct MultiColorExtractor<P, T, MCF>
-where
-    P: Ord,
-{
-    features: Vec<MCF>,
-    info: Box<EvaluatorInfo>,
-    passband_set: PassbandSet<P>,
-    phantom: PhantomData<T>,
-}
-
-impl<P, T, MCF> MultiColorExtractor<P, T, MCF>
+pub struct MultiColorExtractor<P, T>
 where
     P: PassbandTrait,
     T: Float,
-    MCF: MultiColorEvaluator<P, T>,
+{
+    features: Vec<MultiColorFeature<P, T>>,
+    info: Box<EvaluatorInfo>,
+    passband_set: PassbandSet<P>,
+}
+
+impl<P, T> MultiColorExtractor<P, T>
+where
+    P: PassbandTrait,
+    T: Float,
 {
     /// Create a new [MultiColorExtractor]
     ///
     /// # Arguments
     /// `features` - A vector of multi-color features to be evaluated
-    pub fn new(features: Vec<MCF>) -> Self {
+    pub fn new(features: Vec<MultiColorFeature<P, T>>) -> Self {
         let passband_set = {
             let set: BTreeSet<_> = features
                 .iter()
@@ -78,15 +80,14 @@ where
             features,
             passband_set,
             info,
-            phantom: PhantomData,
         }
     }
 }
 
-impl<P, T, MCF> FeatureNamesDescriptionsTrait for MultiColorExtractor<P, T, MCF>
+impl<P, T> FeatureNamesDescriptionsTrait for MultiColorExtractor<P, T>
 where
-    P: Ord,
-    MCF: FeatureNamesDescriptionsTrait,
+    P: PassbandTrait,
+    T: Float,
 {
     /// Get feature names
     fn get_names(&self) -> Vec<&str> {
@@ -102,29 +103,30 @@ where
     }
 }
 
-impl<P, T, MCF> EvaluatorInfoTrait for MultiColorExtractor<P, T, MCF>
+impl<P, T> EvaluatorInfoTrait for MultiColorExtractor<P, T>
 where
-    P: Ord,
+    P: PassbandTrait,
+    T: Float,
 {
     fn get_info(&self) -> &EvaluatorInfo {
         &self.info
     }
 }
 
-impl<P, T, F> MultiColorPassbandSetTrait<P> for MultiColorExtractor<P, T, F>
+impl<P, T> MultiColorPassbandSetTrait<P> for MultiColorExtractor<P, T>
 where
     P: PassbandTrait,
+    T: Float,
 {
     fn get_passband_set(&self) -> &PassbandSet<P> {
         &self.passband_set
     }
 }
 
-impl<P, T, MCF> MultiColorEvaluator<P, T> for MultiColorExtractor<P, T, MCF>
+impl<P, T> MultiColorEvaluator<P, T> for MultiColorExtractor<P, T>
 where
     P: PassbandTrait,
     T: Float,
-    MCF: MultiColorEvaluator<P, T>,
 {
     fn eval_multicolor_no_mcts_check<'slf, 'a, 'mcts>(
         &'slf self,
@@ -159,57 +161,64 @@ where
 }
 
 #[derive(Serialize, Deserialize, JsonSchema)]
-#[serde(rename = "MultiColorExtractor")]
-struct MultiColorExtractorParameters<MCF> {
-    features: Vec<MCF>,
-}
-
-impl<P, T, MCF> From<MultiColorExtractor<P, T, MCF>> for MultiColorExtractorParameters<MCF>
+#[serde(
+    rename = "MultiColorExtractor",
+    bound(
+        serialize = "P: PassbandTrait, T: Float",
+        deserialize = "P: PassbandTrait + Deserialize<'de>, T: Float"
+    )
+)]
+struct MultiColorExtractorParameters<P, T>
 where
     P: PassbandTrait,
     T: Float,
-    MCF: MultiColorEvaluator<P, T>,
 {
-    fn from(f: MultiColorExtractor<P, T, MCF>) -> Self {
+    features: Vec<MultiColorFeature<P, T>>,
+}
+
+impl<P, T> From<MultiColorExtractor<P, T>> for MultiColorExtractorParameters<P, T>
+where
+    P: PassbandTrait,
+    T: Float,
+{
+    fn from(f: MultiColorExtractor<P, T>) -> Self {
         Self {
             features: f.features,
         }
     }
 }
 
-impl<P, T, MCF> From<MultiColorExtractorParameters<MCF>> for MultiColorExtractor<P, T, MCF>
+impl<P, T> From<MultiColorExtractorParameters<P, T>> for MultiColorExtractor<P, T>
 where
     P: PassbandTrait,
     T: Float,
-    MCF: MultiColorEvaluator<P, T>,
 {
-    fn from(p: MultiColorExtractorParameters<MCF>) -> Self {
+    fn from(p: MultiColorExtractorParameters<P, T>) -> Self {
         Self::new(p.features)
     }
 }
 
-impl<P, T, MCF> JsonSchema for MultiColorExtractor<P, T, MCF>
+impl<P, T> JsonSchema for MultiColorExtractor<P, T>
 where
     P: PassbandTrait,
     T: Float,
-    MCF: JsonSchema,
+    MultiColorFeature<P, T>: JsonSchema,
 {
-    json_schema!(MultiColorExtractorParameters<MCF>, true);
+    json_schema!(MultiColorExtractorParameters<P, T>, true);
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::multicolor::features::{ColorOfMaximum, ColorOfMinimum};
-    use crate::{MultiColorFeature, MultiColorTimeSeries, StringPassband};
+    use crate::{MultiColorTimeSeries, StringPassband};
 
-    type McFeature = MultiColorFeature<StringPassband, f64>;
-    type McExtractor = MultiColorExtractor<StringPassband, f64, McFeature>;
+    type McExtractor = MultiColorExtractor<StringPassband, f64>;
 
     #[test]
     fn extractor_combines_features() {
         let passbands = [StringPassband::from("g"), StringPassband::from("r")];
-        let features: Vec<McFeature> = vec![
+        let features = vec![
             ColorOfMaximum::new(passbands.clone()).into(),
             ColorOfMinimum::new(passbands.clone()).into(),
         ];
@@ -245,7 +254,7 @@ mod tests {
     #[test]
     fn extractor_serde() {
         let passbands = [StringPassband::from("g"), StringPassband::from("r")];
-        let features: Vec<McFeature> = vec![ColorOfMaximum::new(passbands).into()];
+        let features = vec![ColorOfMaximum::new(passbands).into()];
         let extractor = McExtractor::new(features);
         let json = serde_json::to_string(&extractor).unwrap();
         let extractor2: McExtractor = serde_json::from_str(&json).unwrap();

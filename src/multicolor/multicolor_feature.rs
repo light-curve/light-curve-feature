@@ -24,7 +24,7 @@ where
     T: Float,
 {
     // Extractor
-    MultiColorExtractor(MultiColorExtractor<P, T, MultiColorFeature<P, T>>),
+    MultiColorExtractor(MultiColorExtractor<P, T>),
     // Monochrome Features
     MonochromeFeature(MonochromeFeature<P, T, Feature<T>>),
     // Features
