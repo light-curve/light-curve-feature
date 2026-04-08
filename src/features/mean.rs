@@ -56,7 +56,6 @@ where
     T: Float,
 {
     fn eval_no_ts_check(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
-        self.check_ts_length(ts)?;
         Ok(vec![ts.m.get_mean()])
     }
 }

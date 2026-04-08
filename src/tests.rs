@@ -274,7 +274,7 @@ fn eval_info_variability_required_test(
 ) {
     assert!(
         !eval.is_variability_required() || eval.is_m_required(),
-        "variability_required is treu, but m_required is false"
+        "variability_required is true, but m_required is false"
     );
 
     let m = vec![rng.sample::<f64, StandardNormal>(StandardNormal).abs(); t.len()];

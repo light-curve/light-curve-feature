@@ -5,16 +5,16 @@ use crate::float_trait::Float;
 use crate::multicolor::multicolor_evaluator::*;
 use crate::multicolor::{PassbandSet, PassbandTrait};
 
-pub use lazy_static::lazy_static;
-pub use schemars::JsonSchema;
-pub use serde::Serialize;
+use lazy_static::lazy_static;
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 use std::fmt::Debug;
 
 /// Difference maximum value magnitudes of two passbands
 ///
 /// Note that maximum is calculated for each passband separately, and maximum has mathematical
-/// meaning, not "magnitudial" (astronomical) one.
+/// meaning, not magnitude in the astronomical sense (where brighter objects have smaller magnitude).
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(bound(deserialize = "P: PassbandTrait + Deserialize<'de>"))]
 pub struct ColorOfMaximum<P>

@@ -9,8 +9,8 @@ use crate::multicolor::multicolor_evaluator::*;
 use crate::multicolor::{MonochromeFeature, MultiColorExtractor};
 
 use enum_dispatch::enum_dispatch;
-pub use schemars::JsonSchema;
-pub use serde::Serialize;
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 use std::fmt::Debug;
 

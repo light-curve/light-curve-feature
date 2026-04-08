@@ -6,8 +6,8 @@ use crate::multicolor::multicolor_evaluator::*;
 use crate::multicolor::multicolor_feature::MultiColorFeature;
 
 use itertools::Itertools;
-pub use schemars::JsonSchema;
-pub use serde::Serialize;
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 use std::fmt::Debug;
 

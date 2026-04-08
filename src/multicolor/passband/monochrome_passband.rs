@@ -1,8 +1,8 @@
 use crate::float_trait::Float;
 use crate::multicolor::PassbandTrait;
 
-pub use schemars::JsonSchema;
-pub use serde::{Deserialize, Serialize};
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::fmt::Debug;
 

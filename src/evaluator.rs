@@ -29,10 +29,6 @@ pub struct EvaluatorProperties {
     pub descriptions: Vec<String>,
 }
 
-// pub trait EvaluatorPropertiesTrait {
-//     fn get_properties(&self) -> &EvaluatorProperties;
-// }
-
 #[enum_dispatch]
 pub trait EvaluatorInfoTrait {
     /// Get feature evaluator meta-information
@@ -112,15 +108,6 @@ pub trait EvaluatorInfoTrait {
     }
 }
 
-// impl<P> EvaluatorInfoTrait for P
-// where
-//     P: EvaluatorPropertiesTrait,
-// {
-//     fn get_info(&self) -> &EvaluatorInfo {
-//         &self.get_properties().info
-//     }
-// }
-
 #[enum_dispatch]
 pub trait FeatureNamesDescriptionsTrait {
     /// Vector of feature names. The length and feature order corresponds to
@@ -131,27 +118,6 @@ pub trait FeatureNamesDescriptionsTrait {
     /// [eval()](FeatureEvaluator::eval) output
     fn get_descriptions(&self) -> Vec<&str>;
 }
-
-// impl<P> FeatureNamesDescriptionsTrait for P
-// where
-//     P: EvaluatorPropertiesTrait,
-// {
-//     fn get_names(&self) -> Vec<&str> {
-//         self.get_properties()
-//             .names
-//             .iter()
-//             .map(|name| name.as_str())
-//             .collect()
-//     }
-//
-//     fn get_descriptions(&self) -> Vec<&str> {
-//         self.get_properties()
-//             .descriptions
-//             .iter()
-//             .map(|descr| descr.as_str())
-//             .collect()
-//     }
-// }
 
 /// The trait each feature should implement
 #[enum_dispatch]

@@ -1,7 +1,7 @@
 use crate::PassbandTrait;
 
-pub use schemars::JsonSchema;
-pub use serde::{Deserialize, Serialize};
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 /// A passband identified by a string name.
 ///

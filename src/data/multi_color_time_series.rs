@@ -311,7 +311,7 @@ where
             .filter_map(|either_or_both| match either_or_both {
                 // mcts misses required passband
                 EitherOrBoth::Left(p) => Some((p, None)),
-                // mcts has some passban passband_set doesn't require
+                // mcts has some passband passband_set doesn't require
                 EitherOrBoth::Right(_) => None,
                 // passbands match
                 EitherOrBoth::Both(p, (_, ts)) => Some((p, Some(ts))),
@@ -405,7 +405,7 @@ where
         }
     }
 
-    pub fn from_mapping(mapping: &mut BTreeMap<P, TimeSeries<T>>) -> Self {
+    pub fn from_mapping(mapping: &mut MappedMultiColorTimeSeries<'a, P, T>) -> Self {
         let (t, m, w, passbands): (Vec<_>, Vec<_>, Vec<_>, _) = mapping
             .iter_mut()
             .map(|(p, ts)| {
@@ -441,6 +441,16 @@ where
     }
 }
 
+impl<'a, P, T> From<BTreeMap<P, TimeSeries<'a, T>>> for MappedMultiColorTimeSeries<'a, P, T>
+where
+    P: PassbandTrait,
+    T: Float,
+{
+    fn from(map: BTreeMap<P, TimeSeries<'a, T>>) -> Self {
+        Self::new(map)
+    }
+}
+
 impl<'a, P, T> From<FlatMultiColorTimeSeries<'a, P, T>> for MappedMultiColorTimeSeries<'a, P, T>
 where
     P: PassbandTrait,
@@ -457,7 +467,7 @@ where
     T: Float,
 {
     fn from(mut mapped: MappedMultiColorTimeSeries<'a, P, T>) -> Self {
-        Self::from_mapping(&mut mapped.0)
+        Self::from_mapping(&mut mapped)
     }
 }
 

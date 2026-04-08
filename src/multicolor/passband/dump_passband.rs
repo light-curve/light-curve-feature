@@ -1,7 +1,7 @@
 use crate::PassbandTrait;
 
-pub use schemars::JsonSchema;
-pub use serde::{Deserialize, Serialize};
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
 /// A passband for the cases where we don't care about the actual passband.

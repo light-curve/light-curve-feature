@@ -11,6 +11,8 @@ use crate::multicolor::{PassbandSet, PassbandTrait};
 use crate::periodogram::{self, FreqGridStrategy, NyquistFreq, PeriodogramPower};
 
 use ndarray::Array1;
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
 /// Normalisation of the combined periodogram across passbands
@@ -543,5 +545,106 @@ mod tests {
         let json = serde_json::to_string(&eval).unwrap();
         let eval2: McPeriodogram = serde_json::from_str(&json).unwrap();
         assert_eq!(json, serde_json::to_string(&eval2).unwrap());
+    }
+
+    /// Verify Chi2 normalization with unity weights weights by magnitude variance,
+    /// which is different from Count normalization (which weights by observation count).
+    ///
+    /// Setup: two bands with the same number of observations.
+    ///   - Band "g": sinusoidal — non-zero variance, gets all the Chi2 weight.
+    ///   - Band "r": constant  — zero variance, gets weight 0 under Chi2.
+    ///
+    /// With Count:  power = 0.5·power_g + 0.5·power_r
+    /// With Chi2:   power = 1.0·power_g  (r contributes 0)
+    ///
+    /// Since power_r ≈ 0 for a constant signal, the two combined power spectra
+    /// differ by a factor of ~2.  We also verify that all-flat bands are rejected.
+    #[test]
+    fn chi2_norm_unity_weights_differ_from_count() {
+        use crate::data::TimeSeries;
+        use crate::{LinearFreqGrid, PeriodogramPowerDirect};
+
+        let n = 20usize;
+        let period = 0.3_f64;
+        let t: Vec<f64> = (0..n).map(|i| i as f64 * 0.05).collect();
+        // Band g: sinusoidal — non-zero variance
+        let m_g: Vec<f64> = t
+            .iter()
+            .map(|&ti| (2.0 * std::f64::consts::PI * ti / period).sin())
+            .collect();
+        // Band r: constant — zero variance → chi2 = 0 with unity weights
+        let m_r: Vec<f64> = vec![1.0; n];
+
+        let make_mcts = || {
+            let mut map = std::collections::BTreeMap::new();
+            map.insert(
+                StringPassband::from("g"),
+                TimeSeries::new_without_weight(t.as_slice(), m_g.as_slice()),
+            );
+            map.insert(
+                StringPassband::from("r"),
+                TimeSeries::new_without_weight(t.as_slice(), m_r.as_slice()),
+            );
+            MultiColorTimeSeries::from_map(map)
+        };
+
+        let make_eval = |norm| {
+            let mut eval = McPeriodogram::new(1, norm);
+            eval.set_periodogram_algorithm(PeriodogramPowerDirect.into());
+            eval.set_freq_grid(LinearFreqGrid::new(1.0 / 2.0, 1.0 / 0.1, 200));
+            eval
+        };
+
+        let mut mcts_count = make_mcts();
+        let mut mcts_chi2 = make_mcts();
+
+        let eval_count = make_eval(MultiColorPeriodogramNormalisation::Count);
+        let eval_chi2 = make_eval(MultiColorPeriodogramNormalisation::Chi2);
+
+        // Compare raw power arrays (not extracted peaks, whose SNR would cancel the scale factor)
+        let power_count = eval_count.power(&mut mcts_count).unwrap();
+        let power_chi2 = eval_chi2.power(&mut mcts_chi2).unwrap();
+
+        // Both should be finite
+        assert!(
+            power_count.iter().all(|v| v.is_finite()),
+            "Count: non-finite power"
+        );
+        assert!(
+            power_chi2.iter().all(|v| v.is_finite()),
+            "Chi2: non-finite power"
+        );
+
+        // The constant band r contributes zero LS power, so:
+        //   Count power ≈ 0.5 · power_g
+        //   Chi2  power ≈ 1.0 · power_g
+        // → Chi2 power should be ≈ 2× Count power at every frequency.
+        for (&pc, &pchi2) in power_count.iter().zip(power_chi2.iter()) {
+            let ratio = pchi2 / pc;
+            assert!(
+                (ratio - 2.0).abs() < 1e-10,
+                "Expected Chi2/Count power ratio ≈ 2, got {ratio}"
+            );
+        }
+
+        // All-flat bands → Chi2 must return an error
+        let m_flat: Vec<f64> = vec![1.0; n];
+        let mut mcts_flat = {
+            let mut map = std::collections::BTreeMap::new();
+            map.insert(
+                StringPassband::from("g"),
+                TimeSeries::new_without_weight(t.as_slice(), m_flat.as_slice()),
+            );
+            map.insert(
+                StringPassband::from("r"),
+                TimeSeries::new_without_weight(t.as_slice(), m_flat.as_slice()),
+            );
+            MultiColorTimeSeries::from_map(map)
+        };
+        let eval_chi2_flat = make_eval(MultiColorPeriodogramNormalisation::Chi2);
+        assert!(
+            eval_chi2_flat.eval_multicolor(&mut mcts_flat).is_err(),
+            "Chi2 with all-flat bands should return an error"
+        );
     }
 }

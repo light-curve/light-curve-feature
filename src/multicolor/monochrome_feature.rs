@@ -7,8 +7,8 @@ use crate::float_trait::Float;
 use crate::multicolor::multicolor_evaluator::*;
 
 use itertools::Itertools;
-pub use schemars::JsonSchema;
-pub use serde::Serialize;
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 use std::fmt::Debug;
 use std::marker::PhantomData;
@@ -161,5 +161,39 @@ mod tests {
             vec!["mean magnitude, passband g", "mean magnitude, passband r"]
         );
         assert_eq!(feature.get_info().size, 2);
+    }
+
+    #[test]
+    fn test_monochrome_feature_values() {
+        use crate::MultiColorTimeSeries;
+        use crate::data::TimeSeries;
+        use crate::multicolor::multicolor_evaluator::MultiColorEvaluator;
+        use std::collections::BTreeMap;
+
+        let passband_g = MonochromePassband::new(4700e-8, "g");
+        let passband_r = MonochromePassband::new(6200e-8, "r");
+
+        let t = vec![0.0_f64, 1.0, 2.0];
+        let m_g = vec![1.0_f64, 2.0, 3.0]; // mean = 2.0
+        let m_r = vec![4.0_f64, 5.0, 6.0]; // mean = 5.0
+
+        let mut mcts = {
+            let mut map = BTreeMap::new();
+            map.insert(passband_g.clone(), TimeSeries::new_without_weight(&t, &m_g));
+            map.insert(passband_r.clone(), TimeSeries::new_without_weight(&t, &m_r));
+            MultiColorTimeSeries::from_map(map)
+        };
+
+        let feature: MonochromeFeature<MonochromePassband<_>, f64, Feature<_>> =
+            MonochromeFeature::new(
+                Mean::default().into(),
+                [passband_g.clone(), passband_r.clone()]
+                    .into_iter()
+                    .collect(),
+            );
+
+        let result = feature.eval_multicolor(&mut mcts).unwrap();
+        // Passbands are ordered by wavelength (g before r), so mean_g=2.0 comes first
+        assert_eq!(result, vec![2.0_f64, 5.0_f64]);
     }
 }

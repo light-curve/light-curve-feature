@@ -9,8 +9,8 @@ pub use crate::multicolor::PassbandTrait;
 
 use enum_dispatch::enum_dispatch;
 use itertools::Itertools;
-pub use schemars::JsonSchema;
-pub use serde::{Deserialize, Serialize};
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 use std::fmt::Debug;
 
@@ -282,5 +282,34 @@ mod tests {
             ),
         };
         assert!(feature.eval_multicolor(&mut mcts).is_err());
+    }
+
+    #[test]
+    fn test_eval_or_fill_multicolor() {
+        let t = vec![0.0_f64, 1.0, 2.0];
+        let m = vec![0.0_f64, 1.0, 2.0];
+        let passband_b = MonochromePassband::new(4400e-8, "B");
+        let passband_r = MonochromePassband::new(6400e-8, "R");
+
+        // mcts only has passband B, but feature requires R
+        let mut mcts = {
+            let mut mapping = BTreeMap::new();
+            mapping.insert(passband_b.clone(), TimeSeries::new_without_weight(&t, &m));
+            MultiColorTimeSeries::from_map(mapping)
+        };
+
+        let feature = TestTimeMultiColorFeature {
+            passband_set: PassbandSet::FixedSet([passband_r.clone()].into()),
+        };
+
+        // eval_multicolor should fail (missing passband R)
+        assert!(feature.eval_multicolor(&mut mcts).is_err());
+
+        // eval_or_fill_multicolor should succeed and return the fill value
+        let fill = -1.0_f64;
+        let result = feature
+            .eval_or_fill_multicolor(&mut mcts, fill)
+            .expect("eval_or_fill_multicolor must not return Err");
+        assert_eq!(result, vec![fill; feature.size_hint()]);
     }
 }

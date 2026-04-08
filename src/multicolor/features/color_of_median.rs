@@ -6,9 +6,9 @@ use crate::float_trait::Float;
 use crate::multicolor::multicolor_evaluator::*;
 use crate::multicolor::{PassbandSet, PassbandTrait};
 
-pub use lazy_static::lazy_static;
-pub use schemars::JsonSchema;
-pub use serde::Serialize;
+use lazy_static::lazy_static;
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 use std::fmt::Debug;
 
