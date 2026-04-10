@@ -1,0 +1,156 @@
+use crate::data::MultiColorTimeSeries;
+use crate::error::MultiColorEvaluatorError;
+use crate::evaluator::{EvaluatorInfoTrait, FeatureNamesDescriptionsTrait};
+use crate::float_trait::Float;
+use crate::multicolor::multicolor_evaluator::*;
+use crate::multicolor::{PassbandSet, PassbandTrait};
+
+use lazy_static::lazy_static;
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+use std::collections::BTreeSet;
+use std::fmt::Debug;
+
+/// Difference of minimum magnitudes of two passbands
+///
+/// Note that minimum is calculated for each passband separately, and maximum has mathematical
+/// meaning, not "magnitudial" (astronomical) one.
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[serde(bound(deserialize = "P: PassbandTrait + Deserialize<'de>"))]
+pub struct ColorOfMinimum<P>
+where
+    P: Ord,
+{
+    passband_set: PassbandSet<P>,
+    passbands: [P; 2],
+    name: String,
+    description: String,
+}
+
+impl<P> ColorOfMinimum<P>
+where
+    P: PassbandTrait,
+{
+    /// Create new [ColorOfMinimum] evaluator
+    ///
+    /// # Arguments
+    /// - `passbands` - two passbands
+    pub fn new(passbands: [P; 2]) -> Self {
+        let set: BTreeSet<_> = passbands.clone().into();
+        Self {
+            passband_set: set.into(),
+            name: format!("color_min_{}_{}", passbands[0].name(), passbands[1].name()),
+            description: format!(
+                "difference of minimum value magnitudes {}-{}",
+                passbands[0].name(),
+                passbands[1].name()
+            ),
+            passbands,
+        }
+    }
+}
+
+lazy_info!(
+    COLOR_OF_MINIMUM_INFO,
+    size: 1,
+    min_ts_length: 1,
+    t_required: false,
+    m_required: true,
+    w_required: false,
+    sorting_required: false,
+    variability_required: false,
+);
+
+impl<P> EvaluatorInfoTrait for ColorOfMinimum<P>
+where
+    P: Ord,
+{
+    fn get_info(&self) -> &EvaluatorInfo {
+        &COLOR_OF_MINIMUM_INFO
+    }
+}
+
+impl<P> FeatureNamesDescriptionsTrait for ColorOfMinimum<P>
+where
+    P: Ord,
+{
+    fn get_names(&self) -> Vec<&str> {
+        vec![self.name.as_str()]
+    }
+
+    fn get_descriptions(&self) -> Vec<&str> {
+        vec![self.description.as_str()]
+    }
+}
+
+impl<P> MultiColorPassbandSetTrait<P> for ColorOfMinimum<P>
+where
+    P: PassbandTrait,
+{
+    fn get_passband_set(&self) -> &PassbandSet<P> {
+        &self.passband_set
+    }
+}
+
+impl<P, T> MultiColorEvaluator<P, T> for ColorOfMinimum<P>
+where
+    P: PassbandTrait,
+    T: Float,
+{
+    fn eval_multicolor_no_mcts_check<'slf, 'a, 'mcts>(
+        &'slf self,
+        mcts: &'mcts mut MultiColorTimeSeries<'a, P, T>,
+    ) -> Result<Vec<T>, MultiColorEvaluatorError>
+    where
+        'slf: 'a,
+        'a: 'mcts,
+    {
+        let mut minima = [T::zero(); 2];
+        for ((_passband, mcts), minimum) in mcts
+            .mapping_mut()
+            .iter_matched_passbands_mut(self.passbands.iter())
+            .zip(minima.iter_mut())
+        {
+            let mcts = mcts.expect("MultiColorTimeSeries must have all required passbands");
+            *minimum = mcts.m.get_min()
+        }
+        Ok(vec![minima[0] - minima[1]])
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{MultiColorTimeSeries, StringPassband};
+
+    #[test]
+    fn color_of_minimum_values() {
+        let eval = ColorOfMinimum::new([StringPassband::from("g"), StringPassband::from("r")]);
+        // g band: [6.0, 4.0, 5.0] -> min = 4.0; r band: [3.0, 1.0, 2.0] -> min = 1.0
+        let t = vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0];
+        let m = vec![6.0_f64, 4.0, 5.0, 3.0, 1.0, 2.0];
+        let w = vec![1.0_f64; 6];
+        let bands: Vec<StringPassband> = vec!["g", "g", "g", "r", "r", "r"]
+            .into_iter()
+            .map(StringPassband::from)
+            .collect();
+        let mut mcts = MultiColorTimeSeries::from_flat(t, m, w, bands);
+        let result = eval.eval_multicolor(&mut mcts).unwrap();
+        assert!((result[0] - (4.0 - 1.0)).abs() < 1e-10);
+    }
+
+    #[test]
+    fn color_of_minimum_names() {
+        let eval = ColorOfMinimum::new([StringPassband::from("g"), StringPassband::from("r")]);
+        assert_eq!(eval.get_names(), vec!["color_min_g_r"]);
+        assert_eq!(eval.size_hint(), 1);
+    }
+
+    #[test]
+    fn color_of_minimum_serde() {
+        let eval = ColorOfMinimum::new([StringPassband::from("g"), StringPassband::from("r")]);
+        let json = serde_json::to_string(&eval).unwrap();
+        let eval2: ColorOfMinimum<StringPassband> = serde_json::from_str(&json).unwrap();
+        assert_eq!(json, serde_json::to_string(&eval2).unwrap());
+    }
+}

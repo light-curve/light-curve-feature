@@ -260,7 +260,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::time_series::TimeSeries;
+    use crate::data::TimeSeries;
 
     #[test]
     fn test_ln_prior_evaluator_trait_none() {

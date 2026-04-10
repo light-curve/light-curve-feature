@@ -1,8 +1,8 @@
+use crate::data::TimeSeries;
 use crate::float_trait::Float;
 use crate::periodogram::freq::{FreqGrid, FreqGridTrait};
 use crate::periodogram::power_trait::*;
 use crate::periodogram::sin_cos_iterator::*;
-use crate::time_series::TimeSeries;
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

@@ -1,6 +1,6 @@
+pub use crate::data::TimeSeries;
 pub use crate::error::EvaluatorError;
 pub use crate::float_trait::Float;
-pub use crate::time_series::TimeSeries;
 
 use enum_dispatch::enum_dispatch;
 pub use lazy_static::lazy_static;
@@ -11,7 +11,7 @@ use serde::de::DeserializeOwned;
 pub use serde::{Deserialize, Serialize};
 pub use std::fmt::Debug;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct EvaluatorInfo {
     pub size: usize,
     pub min_ts_length: usize,
@@ -19,18 +19,15 @@ pub struct EvaluatorInfo {
     pub m_required: bool,
     pub w_required: bool,
     pub sorting_required: bool,
+    pub variability_required: bool,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct EvaluatorProperties {
     pub info: EvaluatorInfo,
     pub names: Vec<String>,
     pub descriptions: Vec<String>,
 }
-
-// pub trait EvaluatorPropertiesTrait {
-//     fn get_properties(&self) -> &EvaluatorProperties;
-// }
 
 #[enum_dispatch]
 pub trait EvaluatorInfoTrait {
@@ -68,16 +65,48 @@ pub trait EvaluatorInfoTrait {
     fn is_sorting_required(&self) -> bool {
         self.get_info().sorting_required
     }
-}
 
-// impl<P> EvaluatorInfoTrait for P
-// where
-//     P: EvaluatorPropertiesTrait,
-// {
-//     fn get_info(&self) -> &EvaluatorInfo {
-//         &self.get_properties().info
-//     }
-// }
+    /// If feature requires magnitude array elements to be different
+    fn is_variability_required(&self) -> bool {
+        self.get_info().variability_required
+    }
+
+    fn check_ts<F>(&self, ts: &mut TimeSeries<F>) -> Result<(), EvaluatorError>
+    where
+        F: Float,
+    {
+        self.check_ts_length(ts)?;
+        self.check_ts_variability(ts)
+    }
+
+    /// Checks if [TimeSeries] has enough points to evaluate the feature
+    fn check_ts_length<F>(&self, ts: &TimeSeries<F>) -> Result<(), EvaluatorError>
+    where
+        F: Float,
+    {
+        let length = ts.lenu();
+        if length < self.min_ts_length() {
+            Err(EvaluatorError::ShortTimeSeries {
+                actual: length,
+                minimum: self.min_ts_length(),
+            })
+        } else {
+            Ok(())
+        }
+    }
+
+    /// Checks if [TimeSeries] meets variability requirement
+    fn check_ts_variability<F>(&self, ts: &mut TimeSeries<F>) -> Result<(), EvaluatorError>
+    where
+        F: Float,
+    {
+        if self.is_variability_required() && ts.is_plateau() {
+            Err(EvaluatorError::FlatTimeSeries)
+        } else {
+            Ok(())
+        }
+    }
+}
 
 #[enum_dispatch]
 pub trait FeatureNamesDescriptionsTrait {
@@ -89,27 +118,6 @@ pub trait FeatureNamesDescriptionsTrait {
     /// [eval()](FeatureEvaluator::eval) output
     fn get_descriptions(&self) -> Vec<&str>;
 }
-
-// impl<P> FeatureNamesDescriptionsTrait for P
-// where
-//     P: EvaluatorPropertiesTrait,
-// {
-//     fn get_names(&self) -> Vec<&str> {
-//         self.get_properties()
-//             .names
-//             .iter()
-//             .map(|name| name.as_str())
-//             .collect()
-//     }
-//
-//     fn get_descriptions(&self) -> Vec<&str> {
-//         self.get_properties()
-//             .descriptions
-//             .iter()
-//             .map(|descr| descr.as_str())
-//             .collect()
-//     }
-// }
 
 /// The trait each feature should implement
 #[enum_dispatch]
@@ -123,8 +131,14 @@ pub trait FeatureEvaluator<T: Float>:
     + DeserializeOwned
     + JsonSchema
 {
+    /// Version of [FeatureEvaluator::eval] which can panic for incorrect input
+    fn eval_no_ts_check(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError>;
+
     /// Vector of feature values or `EvaluatorError`
-    fn eval(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError>;
+    fn eval(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
+        self.check_ts(ts)?;
+        self.eval_no_ts_check(ts)
+    }
 
     /// Returns vector of feature values and fill invalid components with given value
     fn eval_or_fill(&self, ts: &mut TimeSeries<T>, fill_value: T) -> Vec<T> {
@@ -132,46 +146,6 @@ pub trait FeatureEvaluator<T: Float>:
             Ok(v) => v,
             Err(_) => vec![fill_value; self.size_hint()],
         }
-    }
-
-    /// Checks if [TimeSeries] has enough points to evaluate the feature
-    fn check_ts_length(&self, ts: &TimeSeries<T>) -> Result<usize, EvaluatorError> {
-        let length = ts.lenu();
-        if length < self.min_ts_length() {
-            Err(EvaluatorError::ShortTimeSeries {
-                actual: length,
-                minimum: self.min_ts_length(),
-            })
-        } else {
-            Ok(length)
-        }
-    }
-}
-
-pub fn get_nonzero_m_std<T: Float>(ts: &mut TimeSeries<T>) -> Result<T, EvaluatorError> {
-    let std = ts.m.get_std();
-    if std.is_zero() || ts.is_plateau() {
-        Err(EvaluatorError::FlatTimeSeries)
-    } else {
-        Ok(std)
-    }
-}
-
-pub fn get_nonzero_m_std2<T: Float>(ts: &mut TimeSeries<T>) -> Result<T, EvaluatorError> {
-    let std2 = ts.m.get_std2();
-    if std2.is_zero() || ts.is_plateau() {
-        Err(EvaluatorError::FlatTimeSeries)
-    } else {
-        Ok(std2)
-    }
-}
-
-pub fn get_nonzero_reduced_chi2<T: Float>(ts: &mut TimeSeries<T>) -> Result<T, EvaluatorError> {
-    let reduced_chi2 = ts.get_m_reduced_chi2();
-    if reduced_chi2.is_zero() || ts.is_plateau() {
-        Err(EvaluatorError::FlatTimeSeries)
-    } else {
-        Ok(reduced_chi2)
     }
 }
 

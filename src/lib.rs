@@ -1,11 +1,16 @@
 #![doc = include_str!("../README.md")]
 
+extern crate core;
+
 #[cfg(test)]
 #[macro_use]
 mod tests;
 
 #[macro_use]
 mod macros;
+
+mod data;
+pub use data::{DataSample, MultiColorTimeSeries, TimeSeries};
 
 mod evaluator;
 pub use evaluator::{EvaluatorInfoTrait, FeatureEvaluator, FeatureNamesDescriptionsTrait};
@@ -27,6 +32,9 @@ pub use float_trait::Float;
 
 mod lnerfc;
 
+pub mod multicolor;
+pub use multicolor::*;
+
 mod nl_fit;
 #[cfg(any(feature = "ceres-source", feature = "ceres-system"))]
 pub use nl_fit::CeresCurveFit;
@@ -38,17 +46,18 @@ pub use nl_fit::evaluator::FitFeatureEvaluatorGettersTrait;
 pub use nl_fit::{CurveFitAlgorithm, McmcCurveFit};
 pub use nl_fit::{LnPrior, LnPrior1D, prior};
 
+mod number_ending;
+pub(crate) use number_ending::number_ending;
+
 #[doc(hidden)]
 pub mod periodogram;
 pub use periodogram::sin_cos_iterator::RecurrentSinCos;
 pub use periodogram::{
-    AverageNyquistFreq, FixedNyquistFreq, MedianNyquistFreq, NyquistFreq, PeriodogramPower,
-    PeriodogramPowerDirect, PeriodogramPowerFft, QuantileNyquistFreq,
+    AverageNyquistFreq, FixedNyquistFreq, FreqGrid, LinearFreqGrid, MedianNyquistFreq, NyquistFreq,
+    PeriodogramPower, PeriodogramPowerDirect, PeriodogramPowerFft, QuantileNyquistFreq,
 };
 
 pub mod prelude;
-
-mod sorted_array;
 
 mod straight_line_fit;
 #[doc(hidden)]
@@ -60,9 +69,6 @@ pub use transformers::{Transformer, TransformerTrait};
 mod peak_indices;
 #[doc(hidden)]
 pub use peak_indices::peak_indices;
-
-mod time_series;
-pub use time_series::{DataSample, TimeSeries};
 
 mod types;
 

@@ -42,6 +42,7 @@ lazy_info!(
     m_required: true,
     w_required: false,
     sorting_required: false,
+    variability_required: true,
 );
 
 impl MagnitudePercentageRatio {
@@ -117,8 +118,7 @@ impl<T> FeatureEvaluator<T> for MagnitudePercentageRatio
 where
     T: Float,
 {
-    fn eval(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
-        self.check_ts_length(ts)?;
+    fn eval_no_ts_check(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
         let m_sorted = ts.m.get_sorted();
         let quantile_numerator = self.quantile_numerator.into_inner();
         let quantile_denominator = self.quantile_denominator.into_inner();

@@ -1,8 +1,8 @@
+use crate::data::TimeSeries;
 use crate::evaluator::*;
 use crate::extractor::FeatureExtractor;
 use crate::features::*;
 use crate::float_trait::Float;
-use crate::time_series::TimeSeries;
 use crate::transformers::Transformer;
 
 use enum_dispatch::enum_dispatch;
@@ -51,7 +51,7 @@ where
     PercentAmplitude,
     PercentDifferenceMagnitudePercentile,
     Periodogram(Periodogram<T, Self>),
-    _PeriodogramPeaks,
+    _PeriodogramPeaks(PeriodogramPeaks),
     ReducedChi2,
     Roms,
     Skew,

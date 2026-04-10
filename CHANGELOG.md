@@ -9,11 +9,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
---
+- `m_chi2` attribute and `get_m_chi2` method for `TimeSeries`
+- `take_mut` dependency
+- New `multicolor` module for multi-passband light curve feature extraction https://github.com/light-curve/light-curve-feature/pull/202:
+  - `MultiColorTimeSeries<P, T>` — multi-passband time series storing per-band observations,
+    with efficient lazy conversion between flat and mapped representations
+  - `PassbandTrait` — trait for defining custom passband types
+  - Built-in passband types: `StringPassband` (label-based), `MonochromePassband` (wavelength-based),
+    `DumpPassband` (no-op placeholder)
+  - `PassbandSet<P>` — selects either a fixed set of passbands or all available ones
+  - `MultiColorEvaluator<P, T>` — core evaluation trait for multi-color features
+  - `MultiColorExtractor<P, T>` — bulk evaluator combining multiple `MultiColorFeature`s
+  - `MultiColorFeature<P, T>` — enum over all built-in multi-color feature evaluators
+  - `MonochromeFeature<P, T, F>` — adaptor that applies any monochrome `FeatureEvaluator` independently to each passband
+  - `MultiColorEvaluatorError` — error type for multi-color evaluation failures
+  - Color features (two-band, fixed passbands): `ColorOfMaximum`, `ColorOfMedian`, `ColorOfMinimum`
+  - `ColorSpread` — population standard deviation of per-band weighted mean magnitudes across all available passbands
+  - `MultiColorPeriodogram<T, F>` — Lomb-Scargle periodogram combined across all passbands,
+    with `MultiColorPeriodogramNormalisation` supporting `Count` (observation-count-weighted) and
+    `Chi2` (variability-weighted) strategies
+- `variability_required` field in `EvaluatorInfo` and `is_variability_required()` method in `EvaluatorInfoTrait`
 
 ### Changed
 
---
+- **Breaking** `FeatureEvaluator::eval()` is now a provided method with a default implementation;
+  trait implementors must instead implement `eval_no_ts_check()`, which skips the pre-evaluation
+  time-series validation that `eval()` now performs automatically https://github.com/light-curve/light-curve-feature/pull/202
+- **Breaking** `EvaluatorInfo` gained a new `variability_required: bool` field;
+  callers constructing `EvaluatorInfo` directly must supply it (use the `lazy_info!` macro to avoid this) https://github.com/light-curve/light-curve-feature/pull/202
+- **Breaking** Removed `get_nonzero_m_std`, `get_nonzero_m_std2`, and `get_nonzero_reduced_chi2`
+  free functions from the `evaluator` module https://github.com/light-curve/light-curve-feature/pull/202
 
 ### Deprecated
 
@@ -25,7 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
---
+- **Breaking:** {Bazin,Villar,Linexp}Fit requires variability now and do not accept flat time series anymore https://github.com/light-curve/light-curve-feature/issues/112 https://github.com/light-curve/light-curve-feature/pull/113
 
 ### Security
 
