@@ -17,6 +17,8 @@ pub use beyond_n_std::BeyondNStd;
 
 mod bins;
 pub use bins::Bins;
+mod chi2_pvar;
+pub use chi2_pvar::Chi2Pvar;
 
 mod cusum;
 pub use cusum::Cusum;
