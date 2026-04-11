@@ -7,7 +7,7 @@ If you are looking for Python bindings for this package, please see <https://git
 
 [![docs.rs badge](https://docs.rs/light-curve-feature/badge.svg)](https://docs.rs/light-curve-feature)
 ![testing](https://github.com/light-curve/light-curve-feature/actions/workflows/test.yml/badge.svg)
-[![pre-commit.ci status](https://results.pre-commit.ci/badge/github/light-curve/light-curve-feature/master.svg)](https://results.pre-commit.ci/latest/github/light-curve/light-curve-feature/master)
+[![pre-commit.ci status](https://results.pre-commit.ci/badge/github/light-curve/light-curve-feature/main.svg)](https://results.pre-commit.ci/latest/github/light-curve/light-curve-feature/main)
 
 All features are available in [Feature](crate::Feature) enum, and the recommended way to extract multiple features at
 once is [FeatureExtractor](crate::FeatureExtractor) struct built from a `Vec<Feature>`. Data is represented by
@@ -65,10 +65,12 @@ println!("{:?}", result);
 The crate is configured with the following Cargo features:
 - `ceres-system` and `ceres-source` - enable [Ceres Solver](http://ceres-solver.org) support for non-linear fitting. The former
   uses system-wide installation of Ceres, the latter builds Ceres from source and links it statically. The latter overrides the former. See [`ceres-solver-rs` crate](https://github.com/light-curve/ceres-solver-rs) for details
-- `fftw-system`, `fftw-source` (enabled by default) and `fftw-mkl` - enable [FFTW](http://www.fftw.org) support for Fourier transforms needed by `Periodogram`. The
-  first uses system-wide installation of FFTW, the second builds FFTW from source and links it statically, the last downloads and links statically Intel MKL instead of FFTW.
-- `gsl` - enables [GNU Scientific Library](https://www.gnu.org/software/gsl/) support for non-linear fitting.
-- `default` - enables `fftw-source` feature only, has no side effects.
+- `fftw-system`, `fftw-source`, and `fftw-mkl` - enable [FFTW](http://www.fftw.org) as the FFT backend for `Periodogram`.
+  The first uses system-wide installation of FFTW, the second builds FFTW from source and links it statically,
+  the last downloads and links Intel MKL instead. When none of these are enabled (the default), the pure-Rust
+  [RustFFT](https://github.com/ejmahler/RustFFT) backend is used — no system libraries required.
+- `gsl` - enables [GNU Scientific Library](https://www.gnu.org/software/gsl/) support for LMSDER non-linear fitting.
+- `default` - empty; RustFFT is always available without any feature flag.
 
 ### Development
 
@@ -77,8 +79,9 @@ The crate is configured with the following Cargo features:
 Install Rust toolchain, the preferred way is [rustup](https://rustup.rs).
 
 Install the required system libraries.
-For main project you need Ceres Solver, FFTW and GSL, as well as C++ compiler and CMake.
+For the full feature set you need Ceres Solver, FFTW, and GSL, as well as a C++ compiler and CMake.
 The example script plots some stuff so it requires fontconfig.
+FFTW is only needed for the `fftw-*` features; the default RustFFT backend requires no system libraries.
 ```bash
 # On macOS:
 brew install ceres-solver cmake fftw gsl fontconfig
@@ -93,15 +96,20 @@ cd light-curve-feature
 ```
 
 Run tests with native libraries.
-Note that Ceres could require manual `CPATH` specification on some systems, like `CPATH=/opt/homebrew/include` on ARM macOS:
+Note that Ceres may require manual `CPATH` specification on some systems, e.g. `CPATH=/opt/homebrew/include` on ARM macOS:
 ```bash
+# Full feature set with system libraries (FFTW + Ceres + GSL)
 cargo test --no-default-features --features ceres-system,fftw-system,gsl
+# Minimal build using RustFFT (no FFTW needed)
+cargo test
 ```
 
 You may also run benchmarks, but be patient
 ```bash
 cargo bench --no-default-features --features ceres-system,fftw-system,gsl
 ```
+
+The minimum supported Rust version (MSRV) is 1.88.
 
 See `examples`, `.github/workflows` and tests for examples of the code usage.
 
