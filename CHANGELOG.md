@@ -9,6 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+--
+
+### Changed
+
+--
+
+### Deprecated
+
+--
+
+### Removed
+
+--
+
+### Fixed
+
+--
+
+### Security
+
+--
+
+# [0.14.0] 2026 April 11
+
+### Added
+
 - `m_chi2` attribute and `get_m_chi2` method for `TimeSeries`
 - `take_mut` dependency
 - New `multicolor` module for multi-passband light curve feature extraction https://github.com/light-curve/light-curve-feature/pull/202:
@@ -30,6 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `Chi2` (variability-weighted) strategies
 - `variability_required` field in `EvaluatorInfo` and `is_variability_required()` method in `EvaluatorInfoTrait`
 
+
 ### Changed
 
 - **Breaking** `FeatureEvaluator::eval()` is now a provided method with a default implementation;
@@ -40,13 +67,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Breaking** Removed `get_nonzero_m_std`, `get_nonzero_m_std2`, and `get_nonzero_reduced_chi2`
   free functions from the `evaluator` module https://github.com/light-curve/light-curve-feature/pull/202
 
-### Deprecated
-
---
-
-### Removed
-
---
 
 ### Fixed
 
