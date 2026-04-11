@@ -7,9 +7,9 @@ This document provides comprehensive guidance for AI assistants working with the
 `light-curve-feature` is a Rust library for extracting numerous light curve features used in astrophysics. It processes noisy time series data from astronomical observations to compute statistical and model-fit features used for anomaly detection and classification of variable stars and transient objects.
 
 **Repository**: https://github.com/light-curve/light-curve-feature
-**Current Version**: 0.10.0
+**Current Version**: 0.13.1
 **Rust Edition**: 2024
-**MSRV**: 1.85
+**MSRV**: 1.88
 **License**: GPL-3.0-or-later
 
 Python bindings are available separately at https://github.com/light-curve/light-curve-python
@@ -43,9 +43,11 @@ light-curve-feature/
 │   │   ├── bins.rs            # Meta-feature for binning
 │   │   └── ...                # Other statistical/model features
 │   │
-│   ├── periodogram/           # FFT-based periodogram (7 modules)
+│   ├── periodogram/           # FFT-based periodogram (9 modules)
 │   │   ├── mod.rs             # Main periodogram module
-│   │   ├── fft.rs             # FFT wrapper using FFTW
+│   │   ├── fft_trait.rs       # Abstract Fft<T> trait for pluggable backends
+│   │   ├── fft_rustfft.rs     # RustFFT backend (default, no system libs)
+│   │   ├── fft_fftw.rs        # FFTW backend (requires fftw-* feature)
 │   │   ├── freq.rs            # FreqGridStrategy implementations
 │   │   ├── power_fft.rs       # FFT-based power calculation
 │   │   ├── power_direct.rs    # Direct power calculation
@@ -61,7 +63,7 @@ light-curve-feature/
 │   │   ├── mcmc.rs            # MCMC fitting algorithm
 │   │   ├── ceres.rs           # Ceres Solver (optional)
 │   │   ├── lmsder.rs          # LMSDER/GSL (optional)
-│   │   ├── nuts.rs            # NUTS sampler (optional)
+│   │   ├── nuts.rs            # NUTS sampler (NutsCurveFit, always available)
 │   │   └── prior/             # Prior probability distributions
 │   │
 │   └── transformers/          # Feature transformation pipeline (7 modules)
@@ -111,11 +113,11 @@ light-curve-feature/
 ## Cargo Features
 
 ```toml
-# Default: fftw-source only
-default = ["fftw-source"]
+# Default: empty (RustFFT is always available, no feature flag needed)
+default = []
 
 # FFTW options (mutually exclusive preference: mkl > source > system)
-fftw-source    # Build FFTW from source (default)
+fftw-source    # Build FFTW from source
 fftw-system    # Use system FFTW installation
 fftw-mkl       # Use Intel MKL
 
@@ -123,11 +125,13 @@ fftw-mkl       # Use Intel MKL
 ceres-source   # Build Ceres Solver from source
 ceres-system   # Use system Ceres installation
 gsl            # GNU Scientific Library for LMSDER algorithm
-nuts           # NUTS sampler for Bayesian fitting
+
+# NutsCurveFit is always available (no feature flag since 0.13.0)
 
 # Common feature combinations for development:
 # --features ceres-source,fftw-source,gsl     # Full features, source builds
 # --features ceres-system,fftw-system,gsl     # Full features, system libs
+# (no flags needed)                           # Minimal build with RustFFT
 ```
 
 ## Development Setup
@@ -135,12 +139,14 @@ nuts           # NUTS sampler for Bayesian fitting
 ### System Dependencies
 
 ```bash
-# macOS
+# macOS (full features; FFTW only needed for fftw-* features)
 brew install ceres-solver cmake fftw gsl fontconfig
 
 # Debian/Ubuntu
 sudo apt-get install build-essential cmake libceres-dev libfftw3-dev libgsl-dev libfontconfig-dev
 ```
+
+For a minimal build using the default RustFFT backend, no system libraries are required beyond a Rust toolchain.
 
 ### Clone and Build
 
@@ -148,11 +154,17 @@ sudo apt-get install build-essential cmake libceres-dev libfftw3-dev libgsl-dev 
 git clone --recursive https://github.com/light-curve/light-curve-feature
 cd light-curve-feature
 
-# Build with all features
+# Build with all features (FFTW + Ceres + GSL)
 cargo build --no-default-features --features ceres-source,fftw-source,gsl
 
-# Run tests
+# Build minimal (RustFFT only, no system deps)
+cargo build
+
+# Run tests (full features)
 cargo test --no-default-features --features ceres-source,fftw-source,gsl
+
+# Run tests (minimal)
+cargo test
 ```
 
 Note: On ARM macOS, Ceres may require `CPATH=/opt/homebrew/include`
