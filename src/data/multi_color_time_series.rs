@@ -268,31 +268,25 @@ where
     pub fn iter_passband_set<'slf, 'ps>(
         &'slf self,
         passband_set: &'ps PassbandSet<P>,
-    ) -> impl Iterator<Item = (&'slf P, Option<&'slf TimeSeries<'a, T>>)> + 'slf
+    ) -> impl Iterator<Item = (&'ps P, Option<&'slf TimeSeries<'a, T>>)> + 'slf
     where
         'a: 'slf,
-        'ps: 'a,
+        'ps: 'slf,
     {
-        match passband_set {
-            PassbandSet::AllAvailable => Either::Left(self.iter().map(|(p, ts)| (p, Some(ts)))),
-            PassbandSet::FixedSet(set) => Either::Right(self.iter_matched_passbands(set.iter())),
-        }
+        let PassbandSet::FixedSet(set) = passband_set;
+        self.iter_matched_passbands(set.iter())
     }
 
     pub fn iter_passband_set_mut<'slf, 'ps>(
         &'slf mut self,
         passband_set: &'ps PassbandSet<P>,
-    ) -> impl Iterator<Item = (&'slf P, Option<&'slf mut TimeSeries<'a, T>>)> + 'slf
+    ) -> impl Iterator<Item = (&'ps P, Option<&'slf mut TimeSeries<'a, T>>)> + 'slf
     where
         'a: 'slf,
-        'ps: 'a,
+        'ps: 'slf,
     {
-        match passband_set {
-            PassbandSet::AllAvailable => Either::Left(self.iter_mut().map(|(p, ts)| (p, Some(ts)))),
-            PassbandSet::FixedSet(set) => {
-                Either::Right(self.iter_matched_passbands_mut(set.iter()))
-            }
-        }
+        let PassbandSet::FixedSet(set) = passband_set;
+        self.iter_matched_passbands_mut(set.iter())
     }
 
     pub fn iter_matched_passbands(
