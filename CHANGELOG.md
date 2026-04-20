@@ -13,7 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
---
+- **Breaking** `MonochromeFeature<P, T, F>` renamed to `PerBandFeature<P, T, F>`; `MultiColorFeature::from_monochrome_feature` renamed to `from_per_band_feature` https://github.com/light-curve/light-curve-feature/pull/269
+- **Breaking** `ColorSpread` is now generic over passband type `P` and requires a passband set at construction via `ColorSpread::new(passbands)`. Input data is subsampled to the specified bands https://github.com/light-curve/light-curve-feature/pull/269
+- **Breaking** `MultiColorPeriodogram<T, F>` is now `MultiColorPeriodogram<P, T, F>` and requires a passband set at construction via `MultiColorPeriodogram::new(peaks, normalization, passbands)`. Input data is subsampled to the specified bands. `Default` impl removed https://github.com/light-curve/light-curve-feature/pull/269
+- **Breaking** `PassbandSet::AllAvailable` variant removed; all multicolor features must now declare their required passbands upfront https://github.com/light-curve/light-curve-feature/pull/269
 
 ### Deprecated
 

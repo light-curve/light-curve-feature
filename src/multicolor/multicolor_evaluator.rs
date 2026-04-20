@@ -24,10 +24,10 @@ where
     fn get_passband_set(&self) -> &PassbandSet<P>;
 }
 
-/// Enum for passband set, which can be either fixed set or all available passbands.
-/// This is used for [MultiColorEvaluator]s, which can be evaluated on all available passbands
-/// (for example [MultiColorPeriodogram](super::features::MultiColorPeriodogram)) or on fixed set of
-/// passbands (for example [ColorOfMaximum](super::ColorOfMaximum)).
+/// Enum for passband set.
+/// This is used for [MultiColorEvaluator]s to declare which passbands they require.
+/// Input [MultiColorTimeSeries](crate::data::MultiColorTimeSeries) data is subsampled to
+/// contain only the passbands in this set when the evaluator is applied.
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(bound(deserialize = "P: PassbandTrait + Deserialize<'de>"))]
 #[non_exhaustive]
@@ -37,8 +37,6 @@ where
 {
     /// Fixed set of passbands
     FixedSet(BTreeSet<P>),
-    /// All available passbands
-    AllAvailable,
 }
 
 impl<P> From<BTreeSet<P>> for PassbandSet<P>
@@ -75,9 +73,6 @@ impl InternalMctsError {
                     mcts.passbands(),
                     match ps {
                         PassbandSet::FixedSet(ps) => ps.iter(),
-                        PassbandSet::AllAvailable => {
-                            panic!("PassbandSet cannot be ::AllAvailable here")
-                        }
                     },
                 )
             }
@@ -248,11 +243,6 @@ mod tests {
             );
             MultiColorTimeSeries::from_map(mapping)
         };
-
-        let feature = TestTimeMultiColorFeature {
-            passband_set: PassbandSet::AllAvailable,
-        };
-        assert!(feature.eval_multicolor(&mut mcts).is_ok());
 
         let feature = TestTimeMultiColorFeature {
             passband_set: PassbandSet::FixedSet(

@@ -6,7 +6,7 @@ use crate::multicolor::features::{
     ColorOfMaximum, ColorOfMedian, ColorOfMinimum, ColorSpread, MultiColorPeriodogram,
 };
 use crate::multicolor::multicolor_evaluator::*;
-use crate::multicolor::{MonochromeFeature, MultiColorExtractor};
+use crate::multicolor::{MultiColorExtractor, PerBandFeature};
 
 use enum_dispatch::enum_dispatch;
 use schemars::JsonSchema;
@@ -26,13 +26,13 @@ where
     // Extractor
     MultiColorExtractor(MultiColorExtractor<P, T>),
     // Monochrome Features
-    MonochromeFeature(MonochromeFeature<P, T, Feature<T>>),
+    PerBandFeature(PerBandFeature<P, T, Feature<T>>),
     // Features
     ColorOfMaximum(ColorOfMaximum<P>),
     ColorOfMedian(ColorOfMedian<P>),
     ColorOfMinimum(ColorOfMinimum<P>),
-    ColorSpread(ColorSpread),
-    MultiColorPeriodogram(MultiColorPeriodogram<T, Feature<T>>),
+    ColorSpread(ColorSpread<P>),
+    MultiColorPeriodogram(MultiColorPeriodogram<P, T, Feature<T>>),
 }
 
 impl<P, T> MultiColorFeature<P, T>
@@ -40,10 +40,10 @@ where
     P: PassbandTrait,
     T: Float,
 {
-    pub fn from_monochrome_feature<F>(feature: F, passband_set: BTreeSet<P>) -> Self
+    pub fn from_per_band_feature<F>(feature: F, passband_set: BTreeSet<P>) -> Self
     where
         F: Into<Feature<T>>,
     {
-        MonochromeFeature::new(feature.into(), passband_set).into()
+        PerBandFeature::new(feature.into(), passband_set).into()
     }
 }
