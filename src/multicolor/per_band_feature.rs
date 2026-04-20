@@ -13,12 +13,12 @@ use std::collections::BTreeSet;
 use std::fmt::Debug;
 use std::marker::PhantomData;
 
-/// Multi-color feature which evaluates non-color dependent feature for each passband.
+/// Multi-color feature which evaluates a monochrome feature independently for each passband.
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(bound(
     deserialize = "P: PassbandTrait + Deserialize<'de>, T: Float, F: FeatureEvaluator<T>"
 ))]
-pub struct MonochromeFeature<P, T, F>
+pub struct PerBandFeature<P, T, F>
 where
     P: Ord,
 {
@@ -28,13 +28,13 @@ where
     phantom: PhantomData<T>,
 }
 
-impl<P, T, F> MonochromeFeature<P, T, F>
+impl<P, T, F> PerBandFeature<P, T, F>
 where
     P: PassbandTrait,
     T: Float,
     F: FeatureEvaluator<T>,
 {
-    /// Creates a new instance of `MonochromeFeature`.
+    /// Creates a new instance of `PerBandFeature`.
     ///
     /// # Arguments
     /// - `feature` - non-multi-color feature to evaluate for each passband.
@@ -69,7 +69,7 @@ where
     }
 }
 
-impl<P, T, F> FeatureNamesDescriptionsTrait for MonochromeFeature<P, T, F>
+impl<P, T, F> FeatureNamesDescriptionsTrait for PerBandFeature<P, T, F>
 where
     P: Ord,
 {
@@ -86,7 +86,7 @@ where
     }
 }
 
-impl<P, T, F> EvaluatorInfoTrait for MonochromeFeature<P, T, F>
+impl<P, T, F> EvaluatorInfoTrait for PerBandFeature<P, T, F>
 where
     P: Ord,
 {
@@ -95,7 +95,7 @@ where
     }
 }
 
-impl<P, T, F> MultiColorPassbandSetTrait<P> for MonochromeFeature<P, T, F>
+impl<P, T, F> MultiColorPassbandSetTrait<P> for PerBandFeature<P, T, F>
 where
     P: PassbandTrait,
 {
@@ -104,7 +104,7 @@ where
     }
 }
 
-impl<P, T, F> MultiColorEvaluator<P, T> for MonochromeFeature<P, T, F>
+impl<P, T, F> MultiColorEvaluator<P, T> for PerBandFeature<P, T, F>
 where
     P: PassbandTrait,
     T: Float,
@@ -118,20 +118,21 @@ where
         'slf: 'a,
         'a: 'mcts,
     {
-        match &self.passband_set {
-            PassbandSet::FixedSet(set) => {
-                mcts.mapping_mut().iter_matched_passbands_mut(set.iter())
-                    .map(|(passband, ts)| {
-                        self.feature.eval_no_ts_check(
-                                ts.expect("we checked all needed passbands are in mcts, but we still cannot find one")
-                        ).map_err(|error| MultiColorEvaluatorError::MonochromeEvaluatorError {
-                            passband: passband.name().into(),
-                            error,
-                        })
-                    }).flatten_ok().collect()
-            }
-            PassbandSet::AllAvailable => panic!("passband_set must be FixedSet variant here"),
-        }
+        let PassbandSet::FixedSet(set) = &self.passband_set;
+        mcts.mapping_mut()
+            .iter_matched_passbands_mut(set.iter())
+            .map(|(passband, ts)| {
+                self.feature
+                    .eval_no_ts_check(ts.expect(
+                        "we checked all needed passbands are in mcts, but we still cannot find one",
+                    ))
+                    .map_err(|error| MultiColorEvaluatorError::MonochromeEvaluatorError {
+                        passband: passband.name().into(),
+                        error,
+                    })
+            })
+            .flatten_ok()
+            .collect()
     }
 }
 
@@ -140,21 +141,23 @@ mod tests {
     use super::*;
 
     use crate::Feature;
+    use crate::MultiColorTimeSeries;
+    use crate::StringPassband;
     use crate::features::Mean;
+    use crate::multicolor::multicolor_evaluator::MultiColorEvaluator;
     use crate::multicolor::passband::MonochromePassband;
 
     #[test]
-    fn test_monochrome_feature() {
-        let feature: MonochromeFeature<MonochromePassband<_>, f64, Feature<_>> =
-            MonochromeFeature::new(
-                Mean::default().into(),
-                [
-                    MonochromePassband::new(4700e-8, "g"),
-                    MonochromePassband::new(6200e-8, "r"),
-                ]
-                .into_iter()
-                .collect(),
-            );
+    fn test_per_band_feature() {
+        let feature: PerBandFeature<MonochromePassband<_>, f64, Feature<_>> = PerBandFeature::new(
+            Mean::default().into(),
+            [
+                MonochromePassband::new(4700e-8, "g"),
+                MonochromePassband::new(6200e-8, "r"),
+            ]
+            .into_iter()
+            .collect(),
+        );
         assert_eq!(feature.get_names(), vec!["mean_g", "mean_r"]);
         assert_eq!(
             feature.get_descriptions(),
@@ -164,10 +167,8 @@ mod tests {
     }
 
     #[test]
-    fn test_monochrome_feature_values() {
-        use crate::MultiColorTimeSeries;
+    fn test_per_band_feature_values() {
         use crate::data::TimeSeries;
-        use crate::multicolor::multicolor_evaluator::MultiColorEvaluator;
         use std::collections::BTreeMap;
 
         let passband_g = MonochromePassband::new(4700e-8, "g");
@@ -184,16 +185,57 @@ mod tests {
             MultiColorTimeSeries::from_map(map)
         };
 
-        let feature: MonochromeFeature<MonochromePassband<_>, f64, Feature<_>> =
-            MonochromeFeature::new(
-                Mean::default().into(),
-                [passband_g.clone(), passband_r.clone()]
-                    .into_iter()
-                    .collect(),
-            );
+        let feature: PerBandFeature<MonochromePassband<_>, f64, Feature<_>> = PerBandFeature::new(
+            Mean::default().into(),
+            [passband_g.clone(), passband_r.clone()]
+                .into_iter()
+                .collect(),
+        );
 
         let result = feature.eval_multicolor(&mut mcts).unwrap();
         // Passbands are ordered by wavelength (g before r), so mean_g=2.0 comes first
         assert_eq!(result, vec![2.0_f64, 5.0_f64]);
+    }
+
+    #[test]
+    fn test_per_band_feature_subsamples_bands() {
+        // Data has g, r, i but feature only requests g and r — i band must be ignored.
+        let t = vec![0.0_f64; 6];
+        let m = vec![1.0, 2.0, 4.0, 5.0, 10.0, 20.0];
+        let w = vec![1.0_f64; 6];
+        let bands: Vec<StringPassband> = ["g", "g", "r", "r", "i", "i"]
+            .iter()
+            .map(|&s| StringPassband::from(s))
+            .collect();
+        let mut mcts = MultiColorTimeSeries::from_flat(t, m, w, bands);
+
+        let feature: PerBandFeature<StringPassband, f64, Feature<f64>> = PerBandFeature::new(
+            Mean::default().into(),
+            ["g", "r"]
+                .iter()
+                .map(|&s| StringPassband::from(s))
+                .collect(),
+        );
+        let result = feature.eval_multicolor(&mut mcts).unwrap();
+        // mean_g = 1.5, mean_r = 4.5; i band ignored
+        assert!((result[0] - 1.5).abs() < 1e-10);
+        assert!((result[1] - 4.5).abs() < 1e-10);
+        assert_eq!(result.len(), 2);
+    }
+
+    #[test]
+    fn test_per_band_feature_serde() {
+        let feature: PerBandFeature<StringPassband, f64, Feature<f64>> = PerBandFeature::new(
+            Mean::default().into(),
+            ["g", "r"]
+                .iter()
+                .map(|&s| StringPassband::from(s))
+                .collect(),
+        );
+        let json = serde_json::to_string(&feature).unwrap();
+        let feature2: PerBandFeature<StringPassband, f64, Feature<f64>> =
+            serde_json::from_str(&json).unwrap();
+        assert_eq!(feature.get_names(), feature2.get_names());
+        assert_eq!(feature.get_descriptions(), feature2.get_descriptions());
     }
 }

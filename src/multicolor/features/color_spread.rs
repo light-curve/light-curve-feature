@@ -1,6 +1,6 @@
 use crate::data::MultiColorTimeSeries;
 use crate::error::MultiColorEvaluatorError;
-use crate::evaluator::{EvaluatorInfoTrait, FeatureNamesDescriptionsTrait};
+use crate::evaluator::{EvaluatorInfo, EvaluatorInfoTrait, FeatureNamesDescriptionsTrait};
 use crate::float_trait::Float;
 use crate::multicolor::multicolor_evaluator::*;
 use crate::multicolor::{PassbandSet, PassbandTrait};
@@ -24,13 +24,37 @@ use std::fmt::Debug;
 /// (e.g. a red star bright in the infrared and faint in the blue).
 /// A value of zero means all bands have the same mean magnitude.
 ///
-/// The feature operates on **all available passbands** and returns a single value.
+/// The set of passbands to include must be specified at construction time via
+/// [`ColorSpread::new`]. Input data is subsampled to the specified bands.
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
-pub struct ColorSpread;
+#[serde(bound(
+    serialize = "P: PassbandTrait",
+    deserialize = "P: PassbandTrait + Deserialize<'de>"
+))]
+pub struct ColorSpread<P>
+where
+    P: PassbandTrait,
+{
+    passband_set: PassbandSet<P>,
+}
+
+impl<P> ColorSpread<P>
+where
+    P: PassbandTrait,
+{
+    /// Create a new `ColorSpread` evaluator for the given set of passbands.
+    ///
+    /// Input [MultiColorTimeSeries](crate::data::MultiColorTimeSeries) is subsampled
+    /// to the specified passbands when this feature is evaluated.
+    pub fn new(passbands: impl IntoIterator<Item = P>) -> Self {
+        Self {
+            passband_set: PassbandSet::FixedSet(passbands.into_iter().collect()),
+        }
+    }
+}
 
 lazy_info!(
     COLOR_SPREAD_INFO,
-    ColorSpread,
     size: 1,
     min_ts_length: 1,
     t_required: false,
@@ -40,7 +64,19 @@ lazy_info!(
     variability_required: false,
 );
 
-impl FeatureNamesDescriptionsTrait for ColorSpread {
+impl<P> EvaluatorInfoTrait for ColorSpread<P>
+where
+    P: PassbandTrait,
+{
+    fn get_info(&self) -> &EvaluatorInfo {
+        &COLOR_SPREAD_INFO
+    }
+}
+
+impl<P> FeatureNamesDescriptionsTrait for ColorSpread<P>
+where
+    P: PassbandTrait,
+{
     fn get_names(&self) -> Vec<&str> {
         vec!["color_spread"]
     }
@@ -50,16 +86,16 @@ impl FeatureNamesDescriptionsTrait for ColorSpread {
     }
 }
 
-impl<P> MultiColorPassbandSetTrait<P> for ColorSpread
+impl<P> MultiColorPassbandSetTrait<P> for ColorSpread<P>
 where
     P: PassbandTrait,
 {
     fn get_passband_set(&self) -> &PassbandSet<P> {
-        &PassbandSet::AllAvailable
+        &self.passband_set
     }
 }
 
-impl<P, T> MultiColorEvaluator<P, T> for ColorSpread
+impl<P, T> MultiColorEvaluator<P, T> for ColorSpread<P>
 where
     P: PassbandTrait,
     T: Float,
@@ -72,12 +108,16 @@ where
         'slf: 'a,
         'a: 'mcts,
     {
+        let PassbandSet::FixedSet(set) = &self.passband_set;
         let mapping = mcts.mapping_mut();
 
-        // Compute weighted mean magnitude for each passband
-        let band_means: Vec<T> = mapping
-            .values_mut()
-            .map(|ts| {
+        // Compute weighted mean magnitude for each specified passband (in sorted order)
+        let band_means: Vec<T> = set
+            .iter()
+            .map(|p| {
+                let ts = mapping
+                    .get_mut(p)
+                    .expect("passband must be present after check_mcts");
                 let m = ts.m.as_slice();
                 let w = ts.w.as_slice();
                 let sum_wm = m
@@ -104,10 +144,15 @@ where
 mod tests {
     use super::*;
     use crate::{MultiColorTimeSeries, StringPassband};
+    use std::collections::BTreeSet;
+
+    fn make_passbands(names: &[&str]) -> BTreeSet<StringPassband> {
+        names.iter().map(|&s| StringPassband::from(s)).collect()
+    }
 
     #[test]
     fn color_spread_values() {
-        let eval = ColorSpread;
+        let eval = ColorSpread::new(make_passbands(&["g", "i", "r"]));
         // g band: [10.0, 12.0] w=[1.0, 1.0] -> mu_g = 11.0
         // i band: [14.0, 16.0] w=[1.0, 1.0] -> mu_i = 15.0
         // r band: [17.0, 19.0] w=[1.0, 1.0] -> mu_r = 18.0
@@ -135,9 +180,31 @@ mod tests {
     }
 
     #[test]
+    fn color_spread_subsamples_bands() {
+        // Data has g, i, r but we only request g and r — result should match two-band computation
+        let eval = ColorSpread::new(make_passbands(&["g", "r"]));
+        let t = vec![0.0_f64; 6];
+        let m = vec![10.0, 12.0, 14.0, 16.0, 17.0, 19.0];
+        let w = vec![1.0_f64; 6];
+        let bands: Vec<StringPassband> = vec!["g", "g", "i", "i", "r", "r"]
+            .into_iter()
+            .map(StringPassband::from)
+            .collect();
+        let mut mcts = MultiColorTimeSeries::from_flat(t, m, w, bands);
+        let result = eval.eval_multicolor(&mut mcts).unwrap();
+
+        // Only g (mu=11) and r (mu=18) used
+        let mu_g = 11.0_f64;
+        let mu_r = 18.0_f64;
+        let mean_mu = (mu_g + mu_r) / 2.0;
+        let expected = (((mu_g - mean_mu).powi(2) + (mu_r - mean_mu).powi(2)) / 2.0).sqrt();
+        assert!((result[0] - expected).abs() < 1e-10);
+    }
+
+    #[test]
     fn color_spread_uniform_bands() {
         // All bands have the same weighted mean -> spread should be 0
-        let eval = ColorSpread;
+        let eval = ColorSpread::new(make_passbands(&["g", "r"]));
         let t = vec![0.0_f64; 4];
         let m = vec![5.0, 5.0, 5.0, 5.0];
         let w = vec![1.0_f64; 4];
@@ -152,16 +219,16 @@ mod tests {
 
     #[test]
     fn color_spread_names() {
-        let eval = ColorSpread;
+        let eval = ColorSpread::new(make_passbands(&["g", "r"]));
         assert_eq!(eval.get_names(), vec!["color_spread"]);
         assert_eq!(eval.size_hint(), 1);
     }
 
     #[test]
     fn color_spread_serde() {
-        let eval = ColorSpread;
+        let eval = ColorSpread::new(make_passbands(&["g", "r"]));
         let json = serde_json::to_string(&eval).unwrap();
-        let eval2: ColorSpread = serde_json::from_str(&json).unwrap();
+        let eval2: ColorSpread<StringPassband> = serde_json::from_str(&json).unwrap();
         assert_eq!(json, serde_json::to_string(&eval2).unwrap());
     }
 }

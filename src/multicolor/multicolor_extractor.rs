@@ -47,18 +47,13 @@ where
         let passband_set = {
             let set: BTreeSet<_> = features
                 .iter()
-                .filter_map(|f| match f.get_passband_set() {
-                    PassbandSet::AllAvailable => None,
-                    PassbandSet::FixedSet(set) => Some(set),
+                .flat_map(|f| {
+                    let PassbandSet::FixedSet(set) = f.get_passband_set();
+                    set
                 })
-                .flatten()
                 .cloned()
                 .collect();
-            if set.is_empty() {
-                PassbandSet::AllAvailable
-            } else {
-                PassbandSet::FixedSet(set)
-            }
+            PassbandSet::FixedSet(set)
         };
 
         let info = EvaluatorInfo {

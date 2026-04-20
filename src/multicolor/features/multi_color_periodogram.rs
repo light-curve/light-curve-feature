@@ -42,8 +42,11 @@ pub enum MultiColorPeriodogramNormalisation {
 ///
 /// Combines per-band Lomb-Scargle periodograms into a single power spectrum
 /// using a common frequency grid derived from the union of all observation
-/// times. Individual band powers are weighted and summed according to the
-/// chosen [`MultiColorPeriodogramNormalisation`] strategy.
+/// times in the specified passbands. Individual band powers are weighted and
+/// summed according to the chosen [`MultiColorPeriodogramNormalisation`] strategy.
+///
+/// The set of passbands to include must be specified at construction time via
+/// [`MultiColorPeriodogram::new`]. Input data is subsampled to the specified bands.
 ///
 /// The frequency grid, peak-extraction features, and periodogram algorithm are
 /// inherited from the underlying [`Periodogram`] and can be configured through
@@ -58,9 +61,12 @@ pub enum MultiColorPeriodogramNormalisation {
 /// # Example
 ///
 /// ```rust,ignore
+/// use std::collections::BTreeSet;
+/// let passbands = ["g", "r"].iter().map(|&s| StringPassband::from(s)).collect::<BTreeSet<_>>();
 /// let mut eval = MultiColorPeriodogram::<StringPassband, f64, Feature<f64>>::new(
 ///     1,
 ///     MultiColorPeriodogramNormalisation::Count,
+///     passbands,
 /// );
 /// eval.set_periodogram_algorithm(PeriodogramPowerDirect.into());
 /// let result = eval.eval_multicolor(&mut mcts)?;
@@ -75,6 +81,7 @@ where
     // We use it to not reimplement some internals
     monochrome: Periodogram<T, F>,
     normalization: MultiColorPeriodogramNormalisation,
+    passband_set: PassbandSet<P>,
     /// Passbands on which phase features are evaluated. Empty = no phase features.
     phase_bands: Vec<P>,
     phase_extractor: FeatureExtractor<T, F>,
@@ -100,6 +107,7 @@ where
 {
     monochrome: Periodogram<T, F>,
     normalization: MultiColorPeriodogramNormalisation,
+    passband_set: PassbandSet<P>,
     #[serde(default)]
     phase_bands: Vec<P>,
     #[serde(default)]
@@ -117,6 +125,7 @@ where
         Self {
             monochrome: v.monochrome,
             normalization: v.normalization,
+            passband_set: v.passband_set,
             phase_bands: v.phase_bands,
             phase_features: v.phase_extractor.into_vec(),
         }
@@ -131,7 +140,7 @@ where
     <F as TryInto<PeriodogramPeaks>>::Error: Debug,
 {
     fn from(p: MultiColorPeriodogramParameters<P, T, F>) -> Self {
-        let mut mcp = Self::new_with_monochrome(p.monochrome, p.normalization);
+        let mut mcp = Self::new_with_monochrome(p.monochrome, p.normalization, p.passband_set);
         if !p.phase_bands.is_empty() {
             mcp.set_phase_bands(p.phase_bands);
         }
@@ -200,22 +209,31 @@ where
     F: FeatureEvaluator<T> + From<PeriodogramPeaks> + TryInto<PeriodogramPeaks>,
     <F as TryInto<PeriodogramPeaks>>::Error: Debug,
 {
-    /// Create a new multi-colour periodogram.
+    /// Create a new multi-colour periodogram for the given set of passbands.
     ///
     /// `peaks` sets the number of highest-power peaks whose period and
     /// signal-to-noise ratio are returned as features.
-    pub fn new(peaks: usize, normalization: MultiColorPeriodogramNormalisation) -> Self {
+    ///
+    /// Input [MultiColorTimeSeries](crate::data::MultiColorTimeSeries) is subsampled
+    /// to the specified passbands when this feature is evaluated.
+    pub fn new(
+        peaks: usize,
+        normalization: MultiColorPeriodogramNormalisation,
+        passbands: impl IntoIterator<Item = P>,
+    ) -> Self {
         let monochrome = Periodogram::with_name_description(
             peaks,
             "multicolor_periodogram",
             "of multi-color periodogram (interpreting frequency as time, power as magnitude)",
         );
-        Self::new_with_monochrome(monochrome, normalization)
+        let passband_set = PassbandSet::FixedSet(passbands.into_iter().collect());
+        Self::new_with_monochrome(monochrome, normalization, passband_set)
     }
 
     fn new_with_monochrome(
         monochrome: Periodogram<T, F>,
         normalization: MultiColorPeriodogramNormalisation,
+        passband_set: PassbandSet<P>,
     ) -> Self {
         let properties = EvaluatorProperties {
             info: monochrome.get_info().clone(),
@@ -234,6 +252,7 @@ where
         Self {
             monochrome,
             normalization,
+            passband_set,
             phase_bands: vec![],
             phase_extractor: FeatureExtractor::new(vec![]),
             properties,
@@ -411,21 +430,6 @@ where
     }
 }
 
-impl<P, T, F> Default for MultiColorPeriodogram<P, T, F>
-where
-    P: PassbandTrait,
-    T: Float,
-    F: FeatureEvaluator<T> + From<PeriodogramPeaks> + TryInto<PeriodogramPeaks>,
-    <F as TryInto<PeriodogramPeaks>>::Error: Debug,
-{
-    fn default() -> Self {
-        Self::new(
-            Self::default_peaks(),
-            MultiColorPeriodogramNormalisation::Count,
-        )
-    }
-}
-
 // ── EvaluatorInfoTrait / FeatureNamesDescriptionsTrait ────────────────────────
 
 impl<P, T, F> EvaluatorInfoTrait for MultiColorPeriodogram<P, T, F>
@@ -469,8 +473,27 @@ where
     F: FeatureEvaluator<T> + From<PeriodogramPeaks> + TryInto<PeriodogramPeaks>,
     <F as TryInto<PeriodogramPeaks>>::Error: Debug,
 {
+    /// Build a [Periodogram] from the observation times of the specified passbands only.
+    fn periodogram_from_mcts<'slf>(
+        &'slf self,
+        mcts: &mut MultiColorTimeSeries<'_, P, T>,
+    ) -> Result<periodogram::Periodogram<'slf, T>, MultiColorEvaluatorError> {
+        let PassbandSet::FixedSet(passband_set) = &self.passband_set;
+        let t_filtered: Vec<T> = {
+            let mapping = mcts.mapping_mut();
+            mapping
+                .iter_matched_passbands_mut(passband_set.iter())
+                .filter_map(|(_, ts)| ts)
+                .flat_map(|ts| ts.t.as_slice().to_vec())
+                .collect()
+        };
+        self.monochrome
+            .periodogram_from_t(&t_filtered)
+            .map_err(|e| MultiColorEvaluatorError::UnderlyingEvaluatorError(e.into()))
+    }
+
     fn power_from_periodogram<'slf, 'a, 'mcts>(
-        &self,
+        &'slf self,
         p: &periodogram::Periodogram<T>,
         mcts: &'mcts mut MultiColorTimeSeries<'a, P, T>,
     ) -> Result<Array1<T>, MultiColorEvaluatorError>
@@ -478,15 +501,24 @@ where
         'slf: 'a,
         'a: 'mcts,
     {
+        let PassbandSet::FixedSet(passband_set) = &self.passband_set;
         let mapping = mcts.mapping_mut();
         let ts_weights = {
             let mut a: Array1<_> = match self.normalization {
-                MultiColorPeriodogramNormalisation::Count => {
-                    mapping.values().map(|ts| ts.lenf()).collect()
-                }
-                MultiColorPeriodogramNormalisation::Chi2 => {
-                    mapping.values_mut().map(|ts| ts.get_m_chi2()).collect()
-                }
+                MultiColorPeriodogramNormalisation::Count => mapping
+                    .iter_matched_passbands_mut(passband_set.iter())
+                    .map(|(_, ts)| {
+                        ts.expect("passband must be present after check_mcts")
+                            .lenf()
+                    })
+                    .collect(),
+                MultiColorPeriodogramNormalisation::Chi2 => mapping
+                    .iter_matched_passbands_mut(passband_set.iter())
+                    .map(|(_, ts)| {
+                        ts.expect("passband must be present after check_mcts")
+                            .get_m_chi2()
+                    })
+                    .collect(),
             };
             let norm = a.sum();
             if norm.is_zero() {
@@ -506,7 +538,8 @@ where
             a
         };
         let combined = mapping
-            .values_mut()
+            .iter_matched_passbands_mut(passband_set.iter())
+            .filter_map(|(_, ts)| ts)
             .zip(ts_weights.iter())
             .filter(|(ts, _ts_weight)| self.monochrome.check_ts_length(ts).is_ok())
             .map(|(ts, &ts_weight)| {
@@ -524,43 +557,50 @@ where
     }
 
     /// Compute the combined multi-band Lomb-Scargle power spectrum.
+    ///
+    /// The frequency grid is derived from all observation times across the
+    /// specified passbands. Returns a 1-D array of power values, one per
+    /// frequency grid point.
     pub fn power<'slf, 'a, 'mcts>(
-        &self,
+        &'slf self,
         mcts: &'mcts mut MultiColorTimeSeries<'a, P, T>,
     ) -> Result<Array1<T>, MultiColorEvaluatorError>
     where
         'slf: 'a,
         'a: 'mcts,
     {
-        let p = self
-            .monochrome
-            .periodogram_from_t(mcts.flat_mut().t.as_slice())
-            .map_err(|e| MultiColorEvaluatorError::UnderlyingEvaluatorError(e.into()))?;
+        let p = self.periodogram_from_mcts(mcts)?;
         self.power_from_periodogram(&p, mcts)
     }
 
-    /// Compute the combined multi-band power spectrum together with the frequency grid.
+    /// Compute the combined multi-band power spectrum together with the
+    /// frequency grid.
+    ///
+    /// Returns `(frequencies, powers)` as a pair of 1-D arrays. The
+    /// frequencies are in the same units as the reciprocal of the time axis
+    /// (rad per time unit when using the default angular-frequency convention).
     pub fn freq_power<'slf, 'a, 'mcts>(
-        &self,
+        &'slf self,
         mcts: &'mcts mut MultiColorTimeSeries<'a, P, T>,
     ) -> Result<(Array1<T>, Array1<T>), MultiColorEvaluatorError>
     where
         'slf: 'a,
         'a: 'mcts,
     {
-        let p = self
-            .monochrome
-            .periodogram_from_t(mcts.flat_mut().t.as_slice())
-            .map_err(|e| MultiColorEvaluatorError::UnderlyingEvaluatorError(e.into()))?;
+        let p = self.periodogram_from_mcts(mcts)?;
         let power = self.power_from_periodogram(&p, mcts)?;
         let freq = (0..power.len()).map(|i| p.freq(i)).collect();
         Ok((freq, power))
     }
 
-    fn transform_mcts_to_ts<'a>(
-        &self,
-        mcts: &mut MultiColorTimeSeries<'a, P, T>,
-    ) -> Result<TmArrays<T>, MultiColorEvaluatorError> {
+    fn transform_mcts_to_ts<'slf, 'a, 'mcts>(
+        &'slf self,
+        mcts: &'mcts mut MultiColorTimeSeries<'a, P, T>,
+    ) -> Result<TmArrays<T>, MultiColorEvaluatorError>
+    where
+        'slf: 'a,
+        'a: 'mcts,
+    {
         let (freq, power) = self.freq_power(mcts)?;
         Ok(TmArrays { t: freq, m: power })
     }
@@ -575,7 +615,7 @@ where
     F: FeatureEvaluator<T>,
 {
     fn get_passband_set(&self) -> &PassbandSet<P> {
-        &PassbandSet::AllAvailable
+        &self.passband_set
     }
 }
 
@@ -724,17 +764,26 @@ where
 mod tests {
     use super::*;
     use crate::{Feature, MultiColorTimeSeries, StringPassband};
+    use std::collections::BTreeSet;
 
     type McPeriodogram = MultiColorPeriodogram<StringPassband, f64, Feature<f64>>;
 
+    fn passbands_from_array(bands: &ndarray::Array1<String>) -> BTreeSet<StringPassband> {
+        bands
+            .iter()
+            .map(|b| StringPassband::from(b.as_str()))
+            .collect()
+    }
+
     fn check_finite_with_norm(norm: MultiColorPeriodogramNormalisation) {
-        let eval = McPeriodogram::new(1, norm);
         for (name, mclc) in light_curve_feature_test_util::RRLYR_LIGHT_CURVES_MAG_F64.iter() {
             let (t, m, w, bands) = mclc.clone().into_quadruple();
             let passbands: Vec<StringPassband> = bands
                 .iter()
                 .map(|b| StringPassband::from(b.as_str()))
                 .collect();
+            let unique_passbands = passbands_from_array(&bands);
+            let eval = McPeriodogram::new(1, norm.clone(), unique_passbands);
             let mut mcts = MultiColorTimeSeries::from_flat(
                 t.into_raw_vec_and_offset().0,
                 m.into_raw_vec_and_offset().0,
@@ -763,8 +812,6 @@ mod tests {
     fn check_period_recovery() {
         use crate::{LinearFreqGrid, PeriodogramPowerDirect};
 
-        let mut eval = McPeriodogram::new(2, MultiColorPeriodogramNormalisation::Count);
-
         let n_tested = 10;
 
         let baseline = light_curve_feature_test_util::RR_LYRAE_F64
@@ -784,8 +831,6 @@ mod tests {
         let step = std::f64::consts::TAU / (resolution * baseline);
         let size = ((max_freq - min_freq) / step).ceil() as usize + 1;
         let grid = LinearFreqGrid::new(min_freq, step, size);
-        eval.set_freq_grid(grid);
-        eval.set_periodogram_algorithm(PeriodogramPowerDirect.into());
 
         let tolerance = 0.01;
 
@@ -799,6 +844,16 @@ mod tests {
                 .iter()
                 .map(|b| StringPassband::from(b.as_str()))
                 .collect();
+            let unique_passbands = passbands_from_array(&bands);
+            // Use 2 peaks: for short-period RRc stars the 2-day alias may rank higher than
+            // the true period, but the true period appears as the 2nd-highest peak.
+            let mut eval = McPeriodogram::new(
+                2,
+                MultiColorPeriodogramNormalisation::Count,
+                unique_passbands,
+            );
+            eval.set_freq_grid(grid.clone());
+            eval.set_periodogram_algorithm(PeriodogramPowerDirect.into());
             let mut mcts = MultiColorTimeSeries::from_flat(
                 t.into_raw_vec_and_offset().0,
                 m.into_raw_vec_and_offset().0,
@@ -821,9 +876,20 @@ mod tests {
         );
     }
 
+    fn make_gr_passbands() -> BTreeSet<StringPassband> {
+        ["g", "r"]
+            .iter()
+            .map(|&s| StringPassband::from(s))
+            .collect()
+    }
+
     #[test]
-    fn serde_json_default() {
-        let eval = McPeriodogram::default();
+    fn serde_json_roundtrip() {
+        let eval = McPeriodogram::new(
+            1,
+            MultiColorPeriodogramNormalisation::Count,
+            make_gr_passbands(),
+        );
         let json = serde_json::to_string(&eval).unwrap();
         let eval2: McPeriodogram = serde_json::from_str(&json).unwrap();
         assert_eq!(json, serde_json::to_string(&eval2).unwrap());
@@ -831,7 +897,11 @@ mod tests {
 
     #[test]
     fn serde_json_chi2_norm() {
-        let eval = McPeriodogram::new(2, MultiColorPeriodogramNormalisation::Chi2);
+        let eval = McPeriodogram::new(
+            2,
+            MultiColorPeriodogramNormalisation::Chi2,
+            make_gr_passbands(),
+        );
         let json = serde_json::to_string(&eval).unwrap();
         let eval2: McPeriodogram = serde_json::from_str(&json).unwrap();
         assert_eq!(json, serde_json::to_string(&eval2).unwrap());
@@ -840,7 +910,11 @@ mod tests {
     #[test]
     fn serde_json_direct_algorithm() {
         use crate::PeriodogramPowerDirect;
-        let mut eval = McPeriodogram::default();
+        let mut eval = McPeriodogram::new(
+            1,
+            MultiColorPeriodogramNormalisation::Count,
+            make_gr_passbands(),
+        );
         eval.set_periodogram_algorithm(PeriodogramPowerDirect.into());
         let json = serde_json::to_string(&eval).unwrap();
         let eval2: McPeriodogram = serde_json::from_str(&json).unwrap();
@@ -850,7 +924,7 @@ mod tests {
     #[test]
     fn serde_json_with_phase_features() {
         use crate::features::LaflerKinmanStringLength;
-        let mut eval = McPeriodogram::new(1, MultiColorPeriodogramNormalisation::Count);
+        let mut eval = McPeriodogram::new(1, MultiColorPeriodogramNormalisation::Count, make_gr_passbands());
         eval.set_phase_bands(vec![StringPassband::from("g"), StringPassband::from("r")]);
         eval.add_phase_feature(LaflerKinmanStringLength::new().into());
         let json = serde_json::to_string(&eval).unwrap();
@@ -865,7 +939,7 @@ mod tests {
     fn phase_feature_names_and_size() {
         use crate::features::LaflerKinmanStringLength;
 
-        let mut eval = McPeriodogram::new(1, MultiColorPeriodogramNormalisation::Count);
+        let mut eval = McPeriodogram::new(1, MultiColorPeriodogramNormalisation::Count, make_gr_passbands());
         eval.set_phase_bands(vec![StringPassband::from("g"), StringPassband::from("r")]);
         eval.add_phase_feature(LaflerKinmanStringLength::new().into());
 
@@ -913,7 +987,7 @@ mod tests {
         };
 
         let make_eval = |norm| {
-            let mut eval = McPeriodogram::new(1, norm);
+            let mut eval = McPeriodogram::new(1, norm, make_gr_passbands());
             eval.set_periodogram_algorithm(PeriodogramPowerDirect.into());
             eval.set_freq_grid(LinearFreqGrid::new(1.0 / 2.0, 1.0 / 0.1, 200));
             eval
@@ -965,6 +1039,10 @@ mod tests {
         );
     }
 
+    fn make_g_passband() -> BTreeSet<StringPassband> {
+        [StringPassband::from("g")].into_iter().collect()
+    }
+
     // Case 1: !t_required && !sorting_required — raw band_ts evaluated, no phase folding.
     // Amplitude only needs magnitudes; phase_fold_or_compute returns None and the extractor
     // is called directly on the original (unfolded) band time series.
@@ -989,7 +1067,7 @@ mod tests {
         );
         let mut mcts = MultiColorTimeSeries::from_map(map);
 
-        let mut eval = McPeriodogram::new(1, MultiColorPeriodogramNormalisation::Count);
+        let mut eval = McPeriodogram::new(1, MultiColorPeriodogramNormalisation::Count, make_g_passband());
         eval.set_periodogram_algorithm(PeriodogramPowerDirect.into());
         eval.set_phase_bands(vec![StringPassband::from("g")]);
         eval.add_phase_feature(Amplitude::default().into());
@@ -1032,7 +1110,7 @@ mod tests {
         );
         let mut mcts = MultiColorTimeSeries::from_map(map);
 
-        let mut eval = McPeriodogram::new(1, MultiColorPeriodogramNormalisation::Count);
+        let mut eval = McPeriodogram::new(1, MultiColorPeriodogramNormalisation::Count, make_g_passband());
         eval.set_periodogram_algorithm(PeriodogramPowerDirect.into());
         eval.set_phase_bands(vec![StringPassband::from("g")]);
         eval.add_phase_feature(TimeMean::default().into());
@@ -1072,7 +1150,7 @@ mod tests {
         );
         let mut mcts = MultiColorTimeSeries::from_map(map);
 
-        let mut eval = McPeriodogram::new(1, MultiColorPeriodogramNormalisation::Count);
+        let mut eval = McPeriodogram::new(1, MultiColorPeriodogramNormalisation::Count, make_g_passband());
         eval.set_periodogram_algorithm(PeriodogramPowerDirect.into());
         // Fixed grid: single frequency whose period equals 1.0 → all phases collapse to 0.0
         eval.set_freq_grid(crate::periodogram::FreqGrid::linear(
@@ -1115,7 +1193,7 @@ mod tests {
         );
         let mut mcts = MultiColorTimeSeries::from_map(map);
 
-        let mut eval = McPeriodogram::new(1, MultiColorPeriodogramNormalisation::Count);
+        let mut eval = McPeriodogram::new(1, MultiColorPeriodogramNormalisation::Count, make_g_passband());
         eval.set_periodogram_algorithm(PeriodogramPowerDirect.into());
         eval.set_phase_bands(vec![StringPassband::from("g")]);
         eval.add_phase_feature(LaflerKinmanStringLength::new().into());
@@ -1132,6 +1210,78 @@ mod tests {
         assert!(
             theta < 0.01,
             "phase-folded LaflerKinmanStringLength = {theta}, expected < 0.01 for smooth curve"
+        );
+    }
+
+    /// Verify that MultiColorPeriodogram ignores bands not in its passband set.
+    ///
+    /// Setup: three bands g, r, i with a sinusoidal signal in g, constant in r, constant in i.
+    /// An evaluator configured for only {g, r} must produce the same result regardless of
+    /// whether the i-band data is present in the MultiColorTimeSeries.
+    #[test]
+    fn subsamples_to_requested_passbands() {
+        use crate::data::TimeSeries;
+        use crate::{LinearFreqGrid, PeriodogramPowerDirect};
+
+        let n = 20usize;
+        let period = 0.3_f64;
+        let t: Vec<f64> = (0..n).map(|i| i as f64 * 0.05).collect();
+        let m_g: Vec<f64> = t
+            .iter()
+            .map(|&ti| (2.0 * std::f64::consts::PI * ti / period).sin())
+            .collect();
+        let m_r: Vec<f64> = vec![0.0; n];
+        let m_i: Vec<f64> = vec![99.0; n]; // large constant — should be ignored
+
+        let make_eval = || {
+            let passbands: BTreeSet<StringPassband> = ["g", "r"]
+                .iter()
+                .map(|&s| StringPassband::from(s))
+                .collect();
+            let mut eval =
+                McPeriodogram::new(1, MultiColorPeriodogramNormalisation::Count, passbands);
+            eval.set_periodogram_algorithm(PeriodogramPowerDirect.into());
+            eval.set_freq_grid(LinearFreqGrid::new(1.0 / 2.0, 1.0 / 0.1, 200));
+            eval
+        };
+
+        // mcts with only g and r
+        let mut mcts_gr = {
+            let mut map = std::collections::BTreeMap::new();
+            map.insert(
+                StringPassband::from("g"),
+                TimeSeries::new_without_weight(t.as_slice(), m_g.as_slice()),
+            );
+            map.insert(
+                StringPassband::from("r"),
+                TimeSeries::new_without_weight(t.as_slice(), m_r.as_slice()),
+            );
+            MultiColorTimeSeries::from_map(map)
+        };
+
+        // mcts with g, r, and extra i band — evaluator should ignore i
+        let mut mcts_gri = {
+            let mut map = std::collections::BTreeMap::new();
+            map.insert(
+                StringPassband::from("g"),
+                TimeSeries::new_without_weight(t.as_slice(), m_g.as_slice()),
+            );
+            map.insert(
+                StringPassband::from("r"),
+                TimeSeries::new_without_weight(t.as_slice(), m_r.as_slice()),
+            );
+            map.insert(
+                StringPassband::from("i"),
+                TimeSeries::new_without_weight(t.as_slice(), m_i.as_slice()),
+            );
+            MultiColorTimeSeries::from_map(map)
+        };
+
+        let result_gr = make_eval().eval_multicolor(&mut mcts_gr).unwrap();
+        let result_gri = make_eval().eval_multicolor(&mut mcts_gri).unwrap();
+        assert_eq!(
+            result_gr, result_gri,
+            "Extra i band must not affect the result"
         );
     }
 }

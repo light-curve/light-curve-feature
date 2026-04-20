@@ -1,7 +1,7 @@
 pub mod features;
 
-mod monochrome_feature;
-pub use monochrome_feature::MonochromeFeature;
+mod per_band_feature;
+pub use per_band_feature::PerBandFeature;
 
 mod multicolor_evaluator;
 pub use multicolor_evaluator::{MultiColorEvaluator, MultiColorPassbandSetTrait, PassbandSet};
