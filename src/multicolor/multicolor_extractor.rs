@@ -123,6 +123,24 @@ where
     P: PassbandTrait,
     T: Float,
 {
+    fn eval_multicolor<'slf, 'a, 'mcts>(
+        &'slf self,
+        mcts: &'mcts mut MultiColorTimeSeries<'a, P, T>,
+    ) -> Result<Vec<T>, MultiColorEvaluatorError>
+    where
+        'slf: 'a,
+        'a: 'mcts,
+        P: 'a,
+    {
+        // No extractor-level union check: each feature validates its own passband set
+        // independently, so features with different passband requirements can coexist.
+        let mut vec = Vec::with_capacity(self.size_hint());
+        for x in &self.features {
+            vec.extend(x.eval_multicolor(mcts)?);
+        }
+        Ok(vec)
+    }
+
     fn eval_multicolor_no_mcts_check<'slf, 'a, 'mcts>(
         &'slf self,
         mcts: &'mcts mut MultiColorTimeSeries<'a, P, T>,
@@ -131,9 +149,11 @@ where
         'slf: 'a,
         'a: 'mcts,
     {
+        // The extractor has no meaningful pre-checked state at the union level —
+        // delegate to each feature's own eval_multicolor (which includes its own check).
         let mut vec = Vec::with_capacity(self.size_hint());
         for x in &self.features {
-            vec.extend(x.eval_multicolor_no_mcts_check(mcts)?);
+            vec.extend(x.eval_multicolor(mcts)?);
         }
         Ok(vec)
     }
@@ -254,5 +274,63 @@ mod tests {
         let json = serde_json::to_string(&extractor).unwrap();
         let extractor2: McExtractor = serde_json::from_str(&json).unwrap();
         assert_eq!(json, serde_json::to_string(&extractor2).unwrap());
+    }
+
+    #[test]
+    fn extractor_different_passband_sets_partial_mcts() {
+        // Feature A needs {g, r}, Feature B needs {r, i}.
+        // mcts only has {g, r} → Feature A succeeds, Feature B fails.
+        // eval_or_fill_multicolor should return real values for A and fill for B.
+        use crate::multicolor::features::{ColorOfMaximum, ColorOfMinimum};
+
+        let gr = [StringPassband::from("g"), StringPassband::from("r")];
+        let ri = [StringPassband::from("r"), StringPassband::from("i")];
+
+        let extractor = McExtractor::new(vec![
+            ColorOfMaximum::new(gr.clone()).into(), // needs g, r
+            ColorOfMinimum::new(ri.clone()).into(), // needs r, i
+        ]);
+
+        // passband_set on the extractor is the union {g, i, r}
+        let PassbandSet::FixedSet(union) = extractor.get_passband_set();
+        assert_eq!(union.len(), 3);
+
+        let t = vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0];
+        let m = vec![4.0_f64, 5.0, 6.0, 1.0, 3.0, 2.0];
+        let w = vec![1.0_f64; 6];
+        let bands: Vec<StringPassband> = ["g", "g", "g", "r", "r", "r"]
+            .iter()
+            .map(|&s| StringPassband::from(s))
+            .collect();
+        let mut mcts = MultiColorTimeSeries::from_flat(t, m, w, bands);
+
+        // eval_multicolor: Feature B fails because "i" is absent
+        assert!(extractor.eval_multicolor(&mut mcts).is_err());
+
+        // eval_or_fill_multicolor: Feature A succeeds, Feature B is filled
+        let fill = f64::NAN;
+        let result = extractor.eval_or_fill_multicolor(&mut mcts, fill).unwrap();
+        assert_eq!(result.len(), 2);
+        // color_max_g_r = max(g) - max(r) = 6 - 3 = 3
+        assert!((result[0] - 3.0).abs() < 1e-10);
+        // color_min_r_i: i absent → fill
+        assert!(result[1].is_nan());
+    }
+
+    #[test]
+    fn extractor_passband_set_is_union() {
+        use crate::multicolor::features::{ColorOfMaximum, ColorOfMinimum};
+
+        let gr = [StringPassband::from("g"), StringPassband::from("r")];
+        let ri = [StringPassband::from("r"), StringPassband::from("i")];
+
+        let extractor = McExtractor::new(vec![
+            ColorOfMaximum::new(gr).into(),
+            ColorOfMinimum::new(ri).into(),
+        ]);
+
+        let PassbandSet::FixedSet(union) = extractor.get_passband_set();
+        let names: Vec<_> = union.iter().map(|p| p.name()).collect();
+        assert_eq!(names, vec!["g", "i", "r"]);
     }
 }
