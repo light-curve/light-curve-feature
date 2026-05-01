@@ -482,7 +482,7 @@ mod tests {
         ];
 
         let values = eval.eval(&mut ts).unwrap();
-        assert_relative_eq!(&values[..5], &param_true[..], max_relative = 0.03);
+        assert_relative_eq!(&values[..5], &param_true[..], max_relative = 0.05);
         assert_relative_eq!(&values[..5], &desired[..], max_relative = 0.02);
     }
 

@@ -52,8 +52,8 @@ ndarray = { version = "^0.17", features = ["serde"] }
 ndarray-stats = "^0.7"
 num-complex = "^0.4"
 num-traits = "^0.2"
-nuts-rs = { version = "^0.17" }
-nuts-storable = { version = "^0.2" }
+nuts-rs = { version = "^0.18" }
+nuts-storable = { version = "^0.3" }
 ordered-float = { version = "5", features = ["serde", "schemars"] }
 paste = "1"
 rand = { version = "0.10" }
