@@ -69,7 +69,7 @@ unzip3 = "1"
 light-curve-feature-test-util = { path = "test-util" }
 approx = "0.5"
 clap = { version = "3.2.6", features = ["std", "color", "suggestions", "derive", "wrap_help", "unstable-v4"] }
-criterion = "0.6"
+criterion = "0.8"
 hyperdual = "1.1"
 light-curve-common = "0.1.0"
 ndarray = { version = "0.17", features = ["approx", "serde"] }
