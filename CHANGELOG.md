@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
---
+- **Breaking** Bump `nuts-rs` from `^0.17` to `^0.18` and `nuts-storable` from `^0.2` to `^0.3`: `NutsCurveFit` results will differ numerically due to nuts-rs 0.18 switching its internal RNG to ChaCha8 https://github.com/light-curve/light-curve-feature/pull/270
 
 ### Deprecated
 
