@@ -4,8 +4,7 @@ use crate::nl_fit::data::Data;
 use crate::nl_fit::prior::ln_prior::LnPriorEvaluator;
 
 use ndarray::Zip;
-use nuts_rs::{Chain, CpuLogpFunc, CpuMath, DiagGradNutsSettings, LogpError, Settings};
-use nuts_storable::HasDims;
+use nuts_rs::{Chain, CpuLogpFunc, CpuMath, DiagNutsSettings, HasDims, LogpError, Settings};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 use schemars::JsonSchema;
@@ -169,7 +168,7 @@ where
         Ok(lnlike + lnprior)
     }
 
-    fn expand_vector<R: rand::RngExt + ?Sized>(
+    fn expand_vector<R: rand::Rng + ?Sized>(
         &mut self,
         _rng: &mut R,
         array: &[f64],
@@ -206,7 +205,7 @@ impl CurveFitTrait for NutsCurveFit {
 
         let math = CpuMath::new(logp_func);
 
-        let settings = DiagGradNutsSettings {
+        let settings = DiagNutsSettings {
             num_tune: self.num_tune as u64,
             num_draws: self.num_draws as u64,
             ..Default::default()
@@ -238,7 +237,7 @@ impl CurveFitTrait for NutsCurveFit {
                         .expect("Failed to convert draw to array");
 
                     // Use the log probability from the sampler stats
-                    let lnprob = stats.logp;
+                    let lnprob = stats.point.logp;
 
                     if lnprob > best_lnprob {
                         best_x = params;
