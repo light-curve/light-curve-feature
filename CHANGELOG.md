@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `Chi2Pvar` feature: probability of variability $p_{\rm var} = Q((N-1)/2, \chi^2/2)$ where $Q$ is the regularized upper incomplete gamma function https://github.com/light-curve/light-curve-feature/pull/268
+- Add `LaflerKinman` evaluator for the Lafler–Kinman string-length statistic https://github.com/light-curve/light-curve-feature/issues/278
 
 ### Changed
 
