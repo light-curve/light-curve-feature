@@ -882,7 +882,7 @@ mod tests {
             "period {}",
             result[0]
         );
-        // smooth phase curve: theta < 0.5
-        assert!(result[2] < 0.5, "lafler_kinman = {}", result[2]);
+        // smooth phase curve: theta << 1 (sine wave gives ~0.003)
+        assert!(result[2] < 0.05, "lafler_kinman = {}", result[2]);
     }
 }
