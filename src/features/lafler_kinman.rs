@@ -109,6 +109,40 @@ mod tests {
 
     check_feature!(LaflerKinman);
 
+    // θ = Σ(m[i+1]-m[i])² / (2*(N-1)*s²)
+    // m=[0,1,0]: sum_sq=2, s²=1/3, denom=4/3 → θ=1.5
+    feature_test!(
+        zigzag_exact,
+        [LaflerKinman::new()],
+        [1.5_f32],
+        [0.0_f32, 1.0, 2.0],
+        [0.0_f32, 1.0, 0.0],
+    );
+
+    // N=2: sum_sq=2*(m[1]-m[0])²=2, s²=0.5, denom=2*(N-1)*s²=1 → θ=2
+    feature_test!(
+        two_points,
+        [LaflerKinman::new()],
+        [2.0_f32],
+        [0.0_f32, 1.0],
+        [0.0_f32, 1.0],
+    );
+
+    // Alternating [0,1,0,1,...] → θ well above 1 (noisy, not smooth)
+    #[test]
+    fn alternating_is_noisy() {
+        let n = 20_usize;
+        let phase: Vec<f64> = (0..n).map(|i| i as f64).collect();
+        let magn: Vec<f64> = (0..n).map(|i| (i % 2) as f64).collect();
+        let mut ts = TimeSeries::new_without_weight(&phase, &magn);
+        let theta = LaflerKinman::new().eval(&mut ts).unwrap()[0];
+        assert!(
+            theta > 1.0,
+            "expected theta > 1 for alternating signal, got {theta}"
+        );
+    }
+
+    // Smooth sine wave → θ well below 1
     #[test]
     fn smooth_phase_folded_curve() {
         let n = 64_usize;
@@ -121,7 +155,39 @@ mod tests {
         let theta = LaflerKinman::new().eval(&mut ts).unwrap()[0];
         assert!(
             theta < 0.5,
-            "expected theta < 0.5 for smooth phase-folded curve, got {theta}"
+            "expected theta < 0.5 for smooth sine, got {theta}"
+        );
+    }
+
+    // Smooth is smaller than noisy for the same magnitude distribution
+    #[test]
+    fn smooth_smaller_than_shuffled() {
+        use rand::prelude::*;
+        let n = 64_usize;
+        let phase: Vec<f64> = (0..n).map(|i| i as f64 / n as f64).collect();
+        let magn: Vec<f64> = phase
+            .iter()
+            .map(|&p| (2.0 * std::f64::consts::PI * p).sin())
+            .collect();
+
+        let theta_smooth = {
+            let mut ts = TimeSeries::new_without_weight(&phase, &magn);
+            LaflerKinman::new().eval(&mut ts).unwrap()[0]
+        };
+
+        // Shuffle magnitudes keeping phase order (breaks the smooth structure)
+        let mut shuffled = magn.clone();
+        let mut rng = StdRng::seed_from_u64(42);
+        shuffled.shuffle(&mut rng);
+        // Sort phase to keep sorting_required satisfied
+        let theta_shuffled = {
+            let mut ts = TimeSeries::new_without_weight(&phase, &shuffled);
+            LaflerKinman::new().eval(&mut ts).unwrap()[0]
+        };
+
+        assert!(
+            theta_smooth < theta_shuffled,
+            "smooth θ={theta_smooth} should be less than shuffled θ={theta_shuffled}"
         );
     }
 }
