@@ -26,10 +26,9 @@ $$
 series without observation errors (unity weights are used if required). You can even pass one
 [Periodogram] to another one if you are crazy enough.
 
-Additionally, [Periodogram] supports `phase_features`: features extracted from the light curve
+Additionally, [Periodogram] supports phase features: features extracted from the light curve
 phase-folded at the best period. The phase runs from 0 to 1, with phase 0 at the magnitude minimum.
-Use [Periodogram::add_phase_feature] to register these features; their names are prefixed with
-`period_folded_`.
+Phase feature names are prefixed with `period_folded_`.
 
 - Depends on: **time**, **magnitude**
 - Minimum number of observations: as required by sub-features, but at least two
@@ -80,12 +79,6 @@ pub(crate) fn phase_fold_ts<T: Float>(ts: &mut TimeSeries<T>, period: T) -> TmAr
 }
 
 #[doc = DOC!()]
-/// ### Example
-/// ```
-/// use light_curve_feature::*;
-///
-/// let mut periodogram: Periodogram<f64, Feature<f64>> = Periodogram::default();
-/// ```
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(
     bound = "T: Float, F: FeatureEvaluator<T> + From<PeriodogramPeaks> + TryInto<PeriodogramPeaks>, <F as TryInto<PeriodogramPeaks>>::Error: Debug,",
