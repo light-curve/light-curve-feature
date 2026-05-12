@@ -955,8 +955,8 @@ mod tests {
         );
         let theta = result[2];
         assert!(
-            theta < 0.05,
-            "phase-folded LaflerKinman = {theta}, expected < 0.05 for smooth curve"
+            theta < 0.01,
+            "phase-folded LaflerKinman = {theta}, expected < 0.01 for smooth curve"
         );
     }
 }

@@ -883,6 +883,6 @@ mod tests {
             result[0]
         );
         // smooth phase curve: theta << 1 (sine wave gives ~0.003)
-        assert!(result[2] < 0.05, "lafler_kinman = {}", result[2]);
+        assert!(result[2] < 0.01, "lafler_kinman = {}", result[2]);
     }
 }
