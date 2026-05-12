@@ -24,15 +24,68 @@ $$
 
 [Periodogram] can accept other features for feature extraction from periodogram as it was time
 series without observation errors (unity weights are used if required). You can even pass one
-[Periodogram] to another one if you are crazy enough
+[Periodogram] to another one if you are crazy enough.
+
+Additionally, [Periodogram] supports `phase_features`: features extracted from the light curve
+phase-folded at the best period. The phase runs from 0 to 1, with phase 0 at the magnitude minimum.
+Use [Periodogram::add_phase_feature] to register these features; their names are prefixed with
+`period_folded_`.
 
 - Depends on: **time**, **magnitude**
 - Minimum number of observations: as required by sub-features, but at least two
-- Number of features: **$2 \times \mathrm{peaks}$** plus sub-features
+- Number of features: **$2 \times \mathrm{peaks}$** plus spectrum sub-features plus phase sub-features
 "#;
 }
 
+/// Phase-fold a time series at a given period, with phase 0 at the magnitude minimum.
+///
+/// Returns a new `TmArrays` where `t` is the phase in `[0, 1)` and `m` is the magnitude,
+/// sorted by phase.
+pub(crate) fn phase_fold_ts<T: Float>(ts: &mut TimeSeries<T>, period: T) -> TmArrays<T> {
+    let t = ts.t.as_slice();
+    let m = ts.m.as_slice();
+
+    // phase in [0, 1)
+    let mut phases: Vec<T> = t
+        .iter()
+        .map(|&ti| {
+            let p = (ti / period) % T::one();
+            if p < T::zero() { p + T::one() } else { p }
+        })
+        .collect();
+
+    // index of minimum m (zero phase is defined here)
+    let min_idx = m
+        .iter()
+        .enumerate()
+        .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+        .map(|(i, _)| i)
+        .unwrap_or(0);
+    let phase_offset = phases[min_idx];
+
+    // shift so minimum-m observation is at phase 0
+    for p in &mut phases {
+        *p = (*p - phase_offset + T::one()) % T::one();
+    }
+
+    // sort by phase
+    let mut pairs: Vec<(T, T)> = phases.into_iter().zip(m.iter().copied()).collect();
+    pairs.sort_unstable_by(|(a, _), (b, _)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+
+    let (sorted_phases, sorted_m): (Vec<T>, Vec<T>) = pairs.into_iter().unzip();
+    TmArrays {
+        t: ndarray::Array1::from_vec(sorted_phases),
+        m: ndarray::Array1::from_vec(sorted_m),
+    }
+}
+
 #[doc = DOC!()]
+/// ### Example
+/// ```
+/// use light_curve_feature::*;
+///
+/// let mut periodogram: Periodogram<f64, Feature<f64>> = Periodogram::default();
+/// ```
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(
     bound = "T: Float, F: FeatureEvaluator<T> + From<PeriodogramPeaks> + TryInto<PeriodogramPeaks>, <F as TryInto<PeriodogramPeaks>>::Error: Debug,",
@@ -44,7 +97,8 @@ where
     T: Float,
 {
     freq_grid_strategy: FreqGridStrategy<T>,
-    pub(crate) feature_extractor: FeatureExtractor<T, F>,
+    pub(crate) spectrum_extractor: FeatureExtractor<T, F>,
+    pub(crate) phase_extractor: FeatureExtractor<T, F>,
     // Can be re-defined in MultiColorPeriodogram
     pub(crate) name_prefix: String,
     // Can be re-defined in MultiColorPeriodogram
@@ -151,8 +205,8 @@ where
         self
     }
 
-    /// Extend a feature to extract from periodogram
-    pub fn add_feature(&mut self, feature: F) -> &mut Self {
+    /// Add a feature to extract from the periodogram spectrum (frequency as time, power as magnitude)
+    pub fn add_spectrum_feature(&mut self, feature: F) -> &mut Self {
         self.properties.info.size += feature.size_hint();
         self.properties.names.extend(
             feature
@@ -166,7 +220,34 @@ where
                 .into_iter()
                 .map(|desc| format!("{} {}", desc, self.description_suffix)),
         );
-        self.feature_extractor.add_feature(feature);
+        self.spectrum_extractor.add_feature(feature);
+        self
+    }
+
+    /// Add a feature to extract from the phase-folded light curve at the best period.
+    ///
+    /// Feature names are prefixed with `period_folded_`. Phase runs from 0 to 1 with phase 0
+    /// at the magnitude minimum. The phase-folded series is sorted by phase.
+    pub fn add_phase_feature(&mut self, feature: F) -> &mut Self {
+        self.properties.info.size += feature.size_hint();
+        self.properties.info.min_ts_length = self
+            .properties
+            .info
+            .min_ts_length
+            .max(feature.min_ts_length());
+        self.properties.names.extend(
+            feature
+                .get_names()
+                .iter()
+                .map(|name| format!("period_folded_{}", name)),
+        );
+        self.properties.descriptions.extend(
+            feature
+                .get_descriptions()
+                .into_iter()
+                .map(|desc| format!("{} (light curve folded at the best period)", desc)),
+        );
+        self.phase_extractor.add_feature(feature);
         self
     }
 
@@ -197,8 +278,13 @@ where
         )
     }
 
-    pub(crate) fn feature_extractor_ref(&self) -> &FeatureExtractor<T, F> {
-        &self.feature_extractor
+    pub(crate) fn spectrum_extractor_ref(&self) -> &FeatureExtractor<T, F> {
+        &self.spectrum_extractor
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn phase_extractor_ref(&self) -> &FeatureExtractor<T, F> {
+        &self.phase_extractor
     }
 
     pub fn power(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, PeriodogramPowerError> {
@@ -287,28 +373,13 @@ where
             freq_grid_strategy: freq_grid_strategy.into(),
             name_prefix: name_prefix.to_string(),
             description_suffix: description_suffix.to_string(),
-            feature_extractor: FeatureExtractor::new(vec![]),
+            spectrum_extractor: FeatureExtractor::new(vec![]),
+            phase_extractor: FeatureExtractor::new(vec![]),
             periodogram_algorithm: DefaultPeriodogramPowerFft::new().into(),
             normalization: PeriodogramNormalization::default(),
         };
-        slf.add_feature(PeriodogramPeaks::new(peaks).into());
+        slf.add_spectrum_feature(PeriodogramPeaks::new(peaks).into());
         slf
-    }
-}
-
-impl<T, F> Periodogram<T, F>
-where
-    T: Float,
-    F: FeatureEvaluator<T> + From<PeriodogramPeaks> + TryInto<PeriodogramPeaks>,
-    <F as TryInto<PeriodogramPeaks>>::Error: Debug,
-{
-    fn transform_ts(&self, ts: &mut TimeSeries<T>) -> Result<TmArrays<T>, EvaluatorError> {
-        self.check_ts_length(ts)?;
-        let (freq, power) = self.freq_power(ts)?;
-        Ok(TmArrays {
-            t: freq.into(),
-            m: power.into(),
-        })
     }
 }
 
@@ -367,7 +438,53 @@ where
     F: FeatureEvaluator<T> + From<PeriodogramPeaks> + TryInto<PeriodogramPeaks>,
     <F as TryInto<PeriodogramPeaks>>::Error: Debug,
 {
-    transformer_eval!();
+    fn eval_no_ts_check(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
+        let (freq, power) = self.freq_power(ts)?;
+        let mut spectrum_ts = TmArrays {
+            t: freq.into(),
+            m: power.into(),
+        }
+        .ts();
+        let mut result = self.spectrum_extractor.eval(&mut spectrum_ts)?;
+        if !self.phase_extractor.get_features().is_empty() {
+            let best_period = result[0];
+            if !best_period.is_finite() || best_period <= T::zero() {
+                return Err(EvaluatorError::ZeroDivision(
+                    "best period from periodogram is not positive, cannot phase-fold",
+                ));
+            }
+            let phase_arrays = phase_fold_ts(ts, best_period);
+            let mut phase_ts = phase_arrays.ts();
+            result.extend(self.phase_extractor.eval(&mut phase_ts)?);
+        }
+        Ok(result)
+    }
+
+    fn eval_or_fill(&self, ts: &mut TimeSeries<T>, fill_value: T) -> Vec<T> {
+        let (freq, power) = match self.freq_power(ts) {
+            Ok(x) => x,
+            Err(_) => return vec![fill_value; self.size_hint()],
+        };
+        let mut spectrum_ts = TmArrays {
+            t: freq.into(),
+            m: power.into(),
+        }
+        .ts();
+        let mut result = self
+            .spectrum_extractor
+            .eval_or_fill(&mut spectrum_ts, fill_value);
+        if !self.phase_extractor.get_features().is_empty() {
+            let best_period = result[0];
+            if best_period.is_finite() && best_period > T::zero() {
+                let phase_arrays = phase_fold_ts(ts, best_period);
+                let mut phase_ts = phase_arrays.ts();
+                result.extend(self.phase_extractor.eval_or_fill(&mut phase_ts, fill_value));
+            } else {
+                result.extend(vec![fill_value; self.phase_extractor.size_hint()]);
+            }
+        }
+        result
+    }
 }
 
 #[derive(Serialize, Deserialize, JsonSchema)]
@@ -378,7 +495,9 @@ where
     F: FeatureEvaluator<T>,
 {
     freq_grid_strategy: FreqGridStrategy<T>,
-    features: Vec<F>,
+    spectrum_features: Vec<F>,
+    #[serde(default)]
+    phase_features: Vec<F>,
     peaks: usize,
     periodogram_algorithm: PeriodogramPower<T>,
     #[serde(default)]
@@ -394,21 +513,23 @@ where
     fn from(f: Periodogram<T, F>) -> Self {
         let Periodogram {
             freq_grid_strategy,
-            feature_extractor,
+            spectrum_extractor,
+            phase_extractor,
             periodogram_algorithm,
             normalization,
             properties: _,
             ..
         } = f;
 
-        let mut features = feature_extractor.into_vec();
+        let mut features = spectrum_extractor.into_vec();
         let rest_of_features = features.split_off(1);
         let periodogram_peaks: PeriodogramPeaks = features.pop().unwrap().try_into().unwrap();
         let peaks = periodogram_peaks.get_peaks();
 
         Self {
             freq_grid_strategy,
-            features: rest_of_features,
+            spectrum_features: rest_of_features,
+            phase_features: phase_extractor.into_vec(),
             peaks,
             periodogram_algorithm,
             normalization,
@@ -424,15 +545,19 @@ where
     fn from(p: PeriodogramParameters<T, F>) -> Self {
         let PeriodogramParameters {
             freq_grid_strategy,
-            features,
+            spectrum_features,
+            phase_features,
             peaks,
             periodogram_algorithm,
             normalization,
         } = p;
 
         let mut periodogram = Periodogram::with_freq_frid_strategy(peaks, freq_grid_strategy);
-        for feature in features {
-            periodogram.add_feature(feature);
+        for feature in spectrum_features {
+            periodogram.add_spectrum_feature(feature);
+        }
+        for feature in phase_features {
+            periodogram.add_phase_feature(feature);
         }
         periodogram.set_periodogram_algorithm(periodogram_algorithm);
         periodogram.set_normalization(normalization);
@@ -454,6 +579,7 @@ where
 mod tests {
     use super::*;
     use crate::features::amplitude::Amplitude;
+    use crate::features::lafler_kinman::LaflerKinman;
     use crate::periodogram::{PeriodogramPowerDirect, QuantileNyquistFreq};
     use crate::tests::*;
     use rand_distr::StandardNormal;
@@ -465,7 +591,7 @@ mod tests {
         Periodogram<f64, Feature<f64>>,
         {
             let mut periodogram = Periodogram::default();
-            periodogram.add_feature(Amplitude::default().into());
+            periodogram.add_spectrum_feature(Amplitude::default().into());
             periodogram.set_periodogram_algorithm(PeriodogramPowerDirect.into());
             periodogram
         },
@@ -477,6 +603,17 @@ mod tests {
         {
             let freq_grid = FreqGrid::linear(0.5, 50.0, 200);
             let mut periodogram = Periodogram::with_freq_frid_strategy(4, freq_grid);
+            periodogram.set_periodogram_algorithm(PeriodogramPowerDirect.into());
+            periodogram
+        },
+    );
+
+    serde_json_test!(
+        periodogram_ser_json_de_with_phase_features,
+        Periodogram<f64, Feature<f64>>,
+        {
+            let mut periodogram = Periodogram::default();
+            periodogram.add_phase_feature(LaflerKinman::new().into());
             periodogram.set_periodogram_algorithm(PeriodogramPowerDirect.into());
             periodogram
         },
@@ -496,7 +633,7 @@ mod tests {
 
     eval_info_test!(periodogram_info_3, {
         let mut periodogram = Periodogram::default();
-        periodogram.add_feature(Amplitude::default().into());
+        periodogram.add_spectrum_feature(Amplitude::default().into());
         periodogram.set_periodogram_algorithm(PeriodogramPowerDirect.into());
         periodogram
     });
@@ -694,5 +831,48 @@ mod tests {
 
         // The results should be very close since we used the same frequency points
         all_close(&features_linear[..], &features_arbitrary[..], 1e-10);
+    }
+
+    #[test]
+    fn periodogram_phase_feature_names() {
+        let mut periodogram: Periodogram<f64, Feature<f64>> = Periodogram::new(1);
+        periodogram.add_phase_feature(LaflerKinman::new().into());
+        let names = periodogram.get_names();
+        // spectrum: period_0, period_s_to_n_0; phase: period_folded_lafler_kinman
+        assert_eq!(names[0], "periodogram_period_0");
+        assert_eq!(names[1], "periodogram_period_s_to_n_0");
+        assert_eq!(names[2], "period_folded_lafler_kinman");
+        assert_eq!(periodogram.size_hint(), 3);
+    }
+
+    #[test]
+    fn periodogram_phase_feature_recovery() {
+        use crate::features::lafler_kinman::LaflerKinman;
+        let period = 0.17_f64;
+        let mut rng = StdRng::seed_from_u64(0);
+        let mut x: Vec<f64> = (0..200).map(|_| rng.random()).collect();
+        x.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
+        let y: Vec<f64> = x
+            .iter()
+            .map(|&t| 3.0 * f64::sin(2.0 * std::f64::consts::PI / period * t + 0.5) + 4.0)
+            .collect();
+
+        let mut periodogram: Periodogram<f64, Feature<f64>> = Periodogram::new(1);
+        periodogram.add_phase_feature(LaflerKinman::new().into());
+        periodogram.set_periodogram_algorithm(PeriodogramPowerDirect.into());
+
+        let mut ts = TimeSeries::new_without_weight(&x, &y);
+        let result = periodogram.eval(&mut ts).unwrap();
+
+        // result = [period_0, snr_0, period_folded_lafler_kinman]
+        assert_eq!(result.len(), 3);
+        // recovered period close to true
+        assert!(
+            (result[0] - period).abs() / period < 0.05,
+            "period {}",
+            result[0]
+        );
+        // smooth phase curve: theta < 0.5
+        assert!(result[2] < 0.5, "lafler_kinman = {}", result[2]);
     }
 }
