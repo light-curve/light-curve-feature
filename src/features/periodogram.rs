@@ -38,11 +38,12 @@ Phase feature names are prefixed with `period_folded_`.
 
 /// Phase-fold a time series at a given period, with phase 0 at the magnitude minimum.
 ///
-/// Returns a new `TmArrays` where `t` is the phase in `[0, 1)` and `m` is the magnitude,
-/// sorted by phase.
-pub(crate) fn phase_fold_ts<T: Float>(ts: &mut TimeSeries<T>, period: T) -> TmArrays<T> {
+/// Returns a new `TmwArrays` where `t` is the phase in `[0, 1)`, `m` is the magnitude,
+/// and `w` are the original weights, all sorted by phase.
+pub(crate) fn phase_fold_ts<T: Float>(ts: &mut TimeSeries<T>, period: T) -> TmwArrays<T> {
     let t = ts.t.as_slice();
     let m = ts.m.as_slice();
+    let w = ts.w.as_slice();
 
     // phase in [0, 1)
     let mut phases: Vec<T> = t
@@ -68,13 +69,29 @@ pub(crate) fn phase_fold_ts<T: Float>(ts: &mut TimeSeries<T>, period: T) -> TmAr
     }
 
     // sort by phase
-    let mut pairs: Vec<(T, T)> = phases.into_iter().zip(m.iter().copied()).collect();
-    pairs.sort_unstable_by(|(a, _), (b, _)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+    let mut triples: Vec<(T, T, T)> = phases
+        .into_iter()
+        .zip(m.iter().copied())
+        .zip(w.iter().copied())
+        .map(|((ph, mi), wi)| (ph, mi, wi))
+        .collect();
+    triples.sort_unstable_by(|(a, _, _), (b, _, _)| {
+        a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)
+    });
 
-    let (sorted_phases, sorted_m): (Vec<T>, Vec<T>) = pairs.into_iter().unzip();
-    TmArrays {
+    let (sorted_phases, sorted_m, sorted_w) = triples.into_iter().fold(
+        (Vec::new(), Vec::new(), Vec::new()),
+        |(mut ps, mut ms, mut ws), (p, m, w)| {
+            ps.push(p);
+            ms.push(m);
+            ws.push(w);
+            (ps, ms, ws)
+        },
+    );
+    TmwArrays {
         t: ndarray::Array1::from_vec(sorted_phases),
         m: ndarray::Array1::from_vec(sorted_m),
+        w: ndarray::Array1::from_vec(sorted_w),
     }
 }
 
