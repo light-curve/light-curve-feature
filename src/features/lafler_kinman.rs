@@ -128,35 +128,63 @@ mod tests {
         [0.0_f32, 1.0],
     );
 
-    // Alternating [0,1,0,1,...] → θ well above 1 (noisy, not smooth)
+    // Linear ascending m=[0,1,...,N-1]:
+    // sum_sq = (N-1)*1 + (N-1)^2 = N(N-1)  [last wrap: (0-(N-1))^2=(N-1)^2]
+    // s^2 = N(N+1)/12,  2*(N-1)*s^2 = N(N^2-1)/6
+    // θ = N(N-1) / (N(N^2-1)/6) = 6/(N+1)
     #[test]
-    fn alternating_is_noisy() {
-        let n = 20_usize;
-        let phase: Vec<f64> = (0..n).map(|i| i as f64).collect();
-        let magn: Vec<f64> = (0..n).map(|i| (i % 2) as f64).collect();
-        let mut ts = TimeSeries::new_without_weight(&phase, &magn);
-        let theta = LaflerKinman::new().eval(&mut ts).unwrap()[0];
-        assert!(
-            theta > 1.0,
-            "expected theta > 1 for alternating signal, got {theta}"
-        );
+    fn linear_ascending_exact() {
+        for n in [4_usize, 8, 16, 32] {
+            let phase: Vec<f64> = (0..n).map(|i| i as f64).collect();
+            let magn: Vec<f64> = (0..n).map(|i| i as f64).collect();
+            let mut ts = TimeSeries::new_without_weight(&phase, &magn);
+            let theta = LaflerKinman::new().eval(&mut ts).unwrap()[0];
+            let expected = 6.0 / (n as f64 + 1.0);
+            assert!(
+                (theta - expected).abs() < 1e-12,
+                "N={n}: expected θ=6/(N+1)={expected:.6}, got {theta:.6}"
+            );
+        }
     }
 
-    // Smooth sine wave → θ well below 1
+    // Alternating [0,1,0,1,...] with even N=2k:
+    // sum_sq = N (each consecutive diff is ±1, wrap also ±1)
+    // s^2 = 0.5k/(2k-1),  2*(N-1)*s^2 = k = N/2
+    // θ = N / (N/2) = 2
     #[test]
-    fn smooth_phase_folded_curve() {
-        let n = 64_usize;
-        let phase: Vec<f64> = (0..n).map(|i| i as f64 / n as f64).collect();
-        let magn: Vec<f64> = phase
-            .iter()
-            .map(|&p| (2.0 * std::f64::consts::PI * p).sin())
-            .collect();
-        let mut ts = TimeSeries::new_without_weight(&phase, &magn);
-        let theta = LaflerKinman::new().eval(&mut ts).unwrap()[0];
-        assert!(
-            theta < 0.5,
-            "expected theta < 0.5 for smooth sine, got {theta}"
-        );
+    fn alternating_exact() {
+        for n in [2_usize, 4, 10, 20] {
+            let phase: Vec<f64> = (0..n).map(|i| i as f64).collect();
+            let magn: Vec<f64> = (0..n).map(|i| (i % 2) as f64).collect();
+            let mut ts = TimeSeries::new_without_weight(&phase, &magn);
+            let theta = LaflerKinman::new().eval(&mut ts).unwrap()[0];
+            assert!(
+                (theta - 2.0).abs() < 1e-12,
+                "N={n}: expected θ=2.0, got {theta:.6}"
+            );
+        }
+    }
+
+    // Sine wave m_i = sin(2π i/N), phases equally spaced in [0,1):
+    // sum_sq = Σ(m_{i+1}-m_i)^2 = 2N sin^2(π/N)
+    // s^2 = N/(2(N-1)),  2*(N-1)*s^2 = N
+    // θ = 2 sin^2(π/N)
+    #[test]
+    fn sine_wave_exact() {
+        for n in [8_usize, 16, 32, 64] {
+            let phase: Vec<f64> = (0..n).map(|i| i as f64 / n as f64).collect();
+            let magn: Vec<f64> = phase
+                .iter()
+                .map(|&p| (2.0 * std::f64::consts::PI * p).sin())
+                .collect();
+            let mut ts = TimeSeries::new_without_weight(&phase, &magn);
+            let theta = LaflerKinman::new().eval(&mut ts).unwrap()[0];
+            let expected = 2.0 * (std::f64::consts::PI / n as f64).sin().powi(2);
+            assert!(
+                (theta - expected).abs() < 1e-12,
+                "N={n}: expected θ=2sin²(π/N)={expected:.8}, got {theta:.8}"
+            );
+        }
     }
 
     // Smooth is smaller than noisy for the same magnitude distribution
