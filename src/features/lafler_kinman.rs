@@ -12,14 +12,14 @@ $$
 \theta = \frac{\sum_{i=0}^{N-1} \bigl(m_{\pi(i+1 \bmod N)} - m_{\pi(i)}\bigr)^2}{2 (N-1) s^2},
 $$
 
-where the observations are assumed to be sorted by phase (time), $s^2 = (N-1)^{-1}\sum_i(m_i-\bar m)^2$
-is the sample variance, and the sum wraps around (observation $N$ is followed by observation $0$).
+where the observations must arrive sorted by phase (time), $s^2 = (N-1)^{-1}\sum_i(m_i-\bar m)^2$
+is the sample variance, and the sum wraps around (last observation is followed by the first).
 
 With this normalisation $\langle\theta\rangle \approx 1$ for observations in random
 magnitude order; a smooth phase-folded curve yields $\theta \ll 1$.
 
-The input time series must be sorted by phase before evaluation (e.g. apply phase-folding
-via [Bins](crate::Bins) or a similar wrapper first).
+The input time series must be sorted by phase before evaluation. Intended to be applied to a
+phase-folded series (time = phase).
 
 - Depends on: **magnitude**
 - Minimum number of observations: **2**
