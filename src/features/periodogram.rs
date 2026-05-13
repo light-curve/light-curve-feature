@@ -1009,6 +1009,112 @@ mod tests {
         assert!(result[2] < 0.01, "lafler_kinman = {}", result[2]);
     }
 
+    // ── Phase dispatch case tests ─────────────────────────────────────────────
+
+    // Case 1: !t_required && !sorting_required — raw ts, no phase fold
+    // Amplitude depends only on magnitude; its value must equal (max-min)/2 of the
+    // original magnitude array regardless of period.
+    #[test]
+    fn phase_feature_case1_no_t_no_sort_amplitude() {
+        use crate::features::amplitude::Amplitude;
+        let period = 0.17_f64;
+        let mut rng = StdRng::seed_from_u64(1);
+        let mut t: Vec<f64> = (0..50).map(|_| rng.random()).collect();
+        t.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
+        let m: Vec<f64> = t
+            .iter()
+            .map(|&ti| (2.0 * std::f64::consts::PI / period * ti).sin())
+            .collect();
+
+        let mut periodogram: Periodogram<f64, Feature<f64>> = Periodogram::new(1);
+        periodogram.add_phase_feature(Amplitude::default().into());
+        periodogram.set_periodogram_algorithm(PeriodogramPowerDirect.into());
+
+        let mut ts = TimeSeries::new_without_weight(&t, &m);
+        let result = periodogram.eval(&mut ts).unwrap();
+
+        // result = [period_0, snr_0, period_folded_amplitude]
+        assert_eq!(result.len(), 3);
+        // Amplitude = (max - min) / 2; must equal the full-ts value
+        let expected = (m.iter().cloned().fold(f64::NEG_INFINITY, f64::max)
+            - m.iter().cloned().fold(f64::INFINITY, f64::min))
+            / 2.0;
+        assert!(
+            (result[2] - expected).abs() < 1e-12,
+            "amplitude {}, expected {}",
+            result[2],
+            expected
+        );
+    }
+
+    // Case 2: t_required && !sorting_required — phases as time, no sort
+    // TimeMean computes mean(t); when used as a phase feature the "time" values
+    // are phases in [0, 1), so the result must lie in that interval.
+    #[test]
+    fn phase_feature_case2_t_required_no_sort_time_mean() {
+        use crate::features::time_mean::TimeMean;
+        let period = 0.17_f64;
+        let mut rng = StdRng::seed_from_u64(2);
+        let mut t: Vec<f64> = (0..80).map(|_| rng.random()).collect();
+        t.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
+        let m: Vec<f64> = t
+            .iter()
+            .map(|&ti| (2.0 * std::f64::consts::PI / period * ti).sin())
+            .collect();
+
+        let mut periodogram: Periodogram<f64, Feature<f64>> = Periodogram::new(1);
+        periodogram.add_phase_feature(TimeMean::default().into());
+        periodogram.set_periodogram_algorithm(PeriodogramPowerDirect.into());
+
+        let mut ts = TimeSeries::new_without_weight(&t, &m);
+        let result = periodogram.eval(&mut ts).unwrap();
+
+        // result = [period_0, snr_0, period_folded_time_mean]
+        assert_eq!(result.len(), 3);
+        // Mean phase must be in (0, 1)
+        assert!(
+            result[2] > 0.0 && result[2] < 1.0,
+            "mean phase {} not in (0, 1)",
+            result[2]
+        );
+        // Must differ from the mean of the original timestamps (which is ~0.5 here
+        // but for a different reason than phases)
+        let mean_t: f64 = t.iter().sum::<f64>() / t.len() as f64;
+        assert!(
+            (result[2] - mean_t).abs() > 1e-6,
+            "mean phase {} suspiciously equal to mean t {}",
+            result[2],
+            mean_t
+        );
+    }
+
+    // Case 4: sorting_required && t_required with near-duplicate phases
+    // When all observations share the same phase (t = k*period), Bins(1e-6) merges
+    // them into a single point.  MaximumSlope requires ≥2 points, so eval_or_fill
+    // must return the fill value rather than panicking.
+    #[test]
+    fn phase_feature_case4_duplicate_phases_fill_not_panic() {
+        use crate::features::maximum_slope::MaximumSlope;
+        // t=[0.0,1.0,2.0,3.0], period=1.0 → all phases collapse to 0.0
+        let t = vec![0.0_f64, 1.0, 2.0, 3.0, 4.0];
+        let m = vec![1.0_f64, 1.5, 0.5, 1.2, 0.8];
+        let mut ts = TimeSeries::new_without_weight(&t, &m);
+
+        let mut periodogram: Periodogram<f64, Feature<f64>> = Periodogram::new(1);
+        periodogram.add_phase_feature(MaximumSlope::default().into());
+        // Fix the frequency grid so we always pick period≈1
+        let freq_grid = crate::periodogram::FreqGrid::linear(0.9, 0.1, 3);
+        periodogram.set_freq_grid(freq_grid);
+        periodogram.set_periodogram_algorithm(PeriodogramPowerDirect.into());
+
+        let fill = f64::NAN;
+        let result = periodogram.eval_or_fill(&mut ts, fill);
+        // result = [period_0, snr_0, period_folded_maximum_slope]
+        assert_eq!(result.len(), 3);
+        // The phase feature slot must be fill (merged to 1 bin, too short for MaximumSlope)
+        assert!(result[2].is_nan(), "expected fill NaN, got {}", result[2]);
+    }
+
     mod phase_fold_ts_tests {
         use super::*;
 
