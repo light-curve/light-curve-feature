@@ -41,12 +41,15 @@ Phase feature names are prefixed with `period_folded_`.
 /// Returns a new `TmwArrays` where `t` is the phase in `[0, 1)`, `m` is the magnitude,
 /// and `w` are the original weights, all sorted by phase.
 pub(crate) fn phase_fold_ts<T: Float>(ts: &mut TimeSeries<T>, period: T) -> TmwArrays<T> {
+    use unzip3::Unzip3;
+
+    let n = ts.lenu();
     let t = ts.t.as_slice();
     let m = ts.m.as_slice();
     let w = ts.w.as_slice();
 
-    // phase in [0, 1)
-    let mut phases: Vec<T> = t
+    // phase in [0, 1) for each observation
+    let phases: Vec<T> = t
         .iter()
         .map(|&ti| {
             let p = (ti / period) % T::one();
@@ -54,44 +57,34 @@ pub(crate) fn phase_fold_ts<T: Float>(ts: &mut TimeSeries<T>, period: T) -> TmwA
         })
         .collect();
 
-    // index of minimum m (zero phase is defined here)
-    let min_idx = m
+    // phase 0 is aligned to the minimum-m observation
+    let phase_offset = m
         .iter()
         .enumerate()
         .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
-        .map(|(i, _)| i)
-        .unwrap_or(0);
-    let phase_offset = phases[min_idx];
+        .map(|(i, _)| phases[i])
+        .unwrap_or(T::zero());
 
-    // shift so minimum-m observation is at phase 0
-    for p in &mut phases {
-        *p = (*p - phase_offset + T::one()) % T::one();
-    }
-
-    // sort by phase
-    let mut triples: Vec<(T, T, T)> = phases
-        .into_iter()
-        .zip(m.iter().copied())
-        .zip(w.iter().copied())
-        .map(|((ph, mi), wi)| (ph, mi, wi))
-        .collect();
-    triples.sort_unstable_by(|(a, _, _), (b, _, _)| {
-        a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)
+    // sort indices by shifted phase
+    let mut indices: Vec<usize> = (0..n).collect();
+    indices.sort_unstable_by(|&i, &j| {
+        let pi = (phases[i] - phase_offset + T::one()) % T::one();
+        let pj = (phases[j] - phase_offset + T::one()) % T::one();
+        pi.partial_cmp(&pj).unwrap_or(std::cmp::Ordering::Equal)
     });
 
-    let (sorted_phases, sorted_m, sorted_w) = triples.into_iter().fold(
-        (Vec::new(), Vec::new(), Vec::new()),
-        |(mut ps, mut ms, mut ws), (p, m, w)| {
-            ps.push(p);
-            ms.push(m);
-            ws.push(w);
-            (ps, ms, ws)
-        },
-    );
+    let (sorted_phases, sorted_m, sorted_w): (Vec<T>, Vec<T>, Vec<T>) = indices
+        .iter()
+        .map(|&i| {
+            let p = (phases[i] - phase_offset + T::one()) % T::one();
+            (p, m[i], w[i])
+        })
+        .unzip3();
+
     TmwArrays {
-        t: ndarray::Array1::from_vec(sorted_phases),
-        m: ndarray::Array1::from_vec(sorted_m),
-        w: ndarray::Array1::from_vec(sorted_w),
+        t: sorted_phases.into(),
+        m: sorted_m.into(),
+        w: sorted_w.into(),
     }
 }
 
@@ -884,5 +877,78 @@ mod tests {
         );
         // smooth phase curve: theta << 1 (sine wave gives ~0.003)
         assert!(result[2] < 0.01, "lafler_kinman = {}", result[2]);
+    }
+
+    mod phase_fold_ts_tests {
+        use super::*;
+
+        // Helper: collect phases from TmwArrays into a Vec
+        fn phases(arr: &TmwArrays<f64>) -> Vec<f64> {
+            arr.t.to_vec()
+        }
+
+        #[test]
+        fn phases_sorted_in_range_min_at_zero() {
+            // t=[0.0,0.25,0.5,0.75], period=1.0 → phases=[0.0,0.25,0.5,0.75]
+            // min m at index 1 (m=0.5), phase_offset=0.25
+            // shifted: [0.75, 0.0, 0.25, 0.5] → sorted: [0.0,0.25,0.5,0.75]
+            let t = vec![0.0_f64, 0.25, 0.5, 0.75];
+            let m = vec![1.0_f64, 0.5, 0.8, 1.2];
+            let mut ts = TimeSeries::new_without_weight(&t, &m);
+            let result = phase_fold_ts(&mut ts, 1.0);
+
+            let ps = phases(&result);
+            assert_eq!(ps[0], 0.0, "min-m observation must be at phase 0");
+            for &p in &ps {
+                assert!(p >= 0.0 && p < 1.0, "phase {p} out of [0, 1)");
+            }
+            let mut sorted = ps.clone();
+            sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            assert_eq!(ps, sorted, "phases must be sorted");
+        }
+
+        #[test]
+        fn unit_weights_when_no_weight_given() {
+            let t = vec![0.1_f64, 0.4, 0.7];
+            let m = vec![1.0_f64, 0.5, 0.8];
+            let mut ts = TimeSeries::new_without_weight(&t, &m);
+            let result = phase_fold_ts(&mut ts, 1.0);
+            for &w in result.w.iter() {
+                assert_eq!(w, 1.0_f64, "expected unity weight, got {w}");
+            }
+        }
+
+        #[test]
+        fn weights_stay_paired_with_observations() {
+            // min m at index 1 (m=0.5, w=3.0); it must be first in output
+            let t = vec![0.1_f64, 0.4, 0.7];
+            let m = vec![1.0_f64, 0.5, 0.8];
+            let w = vec![2.0_f64, 3.0, 4.0];
+            let mut ts = TimeSeries::new(&t, &m, &w);
+            let result = phase_fold_ts(&mut ts, 1.0);
+            assert_eq!(
+                result.w[0], 3.0_f64,
+                "weight of min-m obs must lead; got {}",
+                result.w[0]
+            );
+        }
+
+        #[test]
+        fn duplicate_phases_all_present_and_sorted() {
+            // t=[0.0,1.0,2.0], period=1.0 → all fold to phase 0.0
+            let t = vec![0.0_f64, 1.0, 2.0];
+            let m = vec![0.5_f64, 0.5, 1.0];
+            let mut ts = TimeSeries::new_without_weight(&t, &m);
+            let result = phase_fold_ts(&mut ts, 1.0);
+
+            assert_eq!(result.t.len(), 3, "all observations must be present");
+            for &p in result.t.iter() {
+                assert!(p >= 0.0 && p < 1.0, "phase {p} out of [0, 1)");
+            }
+            let ps = phases(&result);
+            for i in 1..ps.len() {
+                assert!(ps[i] >= ps[i - 1], "phases not non-decreasing at index {i}");
+            }
+        }
     }
 }
