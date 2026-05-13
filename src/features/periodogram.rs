@@ -152,8 +152,27 @@ fn min_phase_step<T: Float>(phase_ts: &mut TimeSeries<T>) -> T {
         .unwrap_or(T::infinity())
 }
 
-/// Evaluate phase features on a phase-sorted time series, binning near-duplicate phases when
-/// the extractor requires time values (sorting_required && t_required).
+/// If the extractor requires time and the minimum phase step is below 1e-6, bin the phase time
+/// series with window=1e-6 to merge duplicate phases. Returns the binned arrays, or `Ok(None)`
+/// when no binning is needed.
+fn maybe_bin_phase_ts<T, F>(
+    extractor: &FeatureExtractor<T, F>,
+    phase_ts: &mut TimeSeries<T>,
+) -> Result<Option<TmwArrays<T>>, EvaluatorError>
+where
+    T: Float,
+    F: FeatureEvaluator<T>,
+{
+    if extractor.is_t_required() {
+        let window: T = 1e-6_f64.approx_as().unwrap();
+        if min_phase_step(phase_ts) < window {
+            return Ok(Some(Bins::<T, F>::new(1e-6, 0.0).transform_ts(phase_ts)?));
+        }
+    }
+    Ok(None)
+}
+
+/// Evaluate phase features on a phase-sorted time series, binning duplicate phases when needed.
 pub(crate) fn eval_phase_ts<T, F>(
     extractor: &FeatureExtractor<T, F>,
     phase_ts: &mut TimeSeries<T>,
@@ -162,14 +181,10 @@ where
     T: Float,
     F: FeatureEvaluator<T>,
 {
-    if extractor.is_t_required() {
-        let window: T = 1e-6_f64.approx_as().unwrap();
-        if min_phase_step(phase_ts) < window {
-            let binned = Bins::<T, F>::new(1e-6, 0.0).transform_ts(phase_ts)?;
-            return extractor.eval(&mut binned.ts());
-        }
+    match maybe_bin_phase_ts(extractor, phase_ts)? {
+        Some(binned) => extractor.eval(&mut binned.ts()),
+        None => extractor.eval(phase_ts),
     }
-    extractor.eval(phase_ts)
 }
 
 /// `eval_or_fill` variant of [`eval_phase_ts`].
@@ -182,16 +197,11 @@ where
     T: Float,
     F: FeatureEvaluator<T>,
 {
-    if extractor.is_t_required() {
-        let window: T = 1e-6_f64.approx_as().unwrap();
-        if min_phase_step(phase_ts) < window {
-            match Bins::<T, F>::new(1e-6, 0.0).transform_ts(phase_ts) {
-                Ok(binned) => return extractor.eval_or_fill(&mut binned.ts(), fill_value),
-                Err(_) => return vec![fill_value; extractor.size_hint()],
-            }
-        }
+    match maybe_bin_phase_ts(extractor, phase_ts) {
+        Ok(Some(binned)) => extractor.eval_or_fill(&mut binned.ts(), fill_value),
+        Ok(None) => extractor.eval_or_fill(phase_ts, fill_value),
+        Err(_) => vec![fill_value; extractor.size_hint()],
     }
-    extractor.eval_or_fill(phase_ts, fill_value)
 }
 
 #[doc = DOC!()]
@@ -1186,5 +1196,65 @@ mod tests {
                 assert!(ps[i] >= ps[i - 1], "phases not non-decreasing at index {i}");
             }
         }
+    }
+
+    mod phase_compute_ts_tests {
+        use super::*;
+
+        #[test]
+        fn phases_in_range_min_at_zero_order_preserved() {
+            // Same setup as phase_fold_ts basic test; min m at index 1, phase_offset=0.25
+            // phase_compute_ts must NOT sort — original observation order is kept.
+            let t = vec![0.0_f64, 0.25, 0.5, 0.75];
+            let m = vec![1.0_f64, 0.5, 0.8, 1.2];
+            let mut ts = TimeSeries::new_without_weight(&t, &m);
+            let result = phase_compute_ts(&mut ts, 1.0);
+
+            assert_eq!(result.t.len(), 4);
+            // min-m is at original index 1 → its phase must be 0.0
+            assert_eq!(result.t[1], 0.0_f64, "min-m obs must have phase 0");
+            // all phases in [0, 1)
+            for &p in result.t.iter() {
+                assert!((0.0..1.0).contains(&p), "phase {p} out of [0, 1)");
+            }
+            // magnitudes and weights stay in original order
+            assert_eq!(result.m.to_vec(), m);
+        }
+
+        #[test]
+        fn unit_weights_preserved() {
+            let t = vec![0.1_f64, 0.4, 0.7];
+            let m = vec![1.0_f64, 0.5, 0.8];
+            let mut ts = TimeSeries::new_without_weight(&t, &m);
+            let result = phase_compute_ts(&mut ts, 1.0);
+            for &w in result.w.iter() {
+                assert_eq!(w, 1.0_f64);
+            }
+        }
+    }
+
+    // eval_phase_ts binning path via eval() (not eval_or_fill) ──────────────
+    // With exact phase aliases the binned ts has 1 point; MaximumSlope (min 2)
+    // must propagate the ShortTimeSeries error rather than panic.
+    #[test]
+    fn phase_feature_case4_eval_errors_on_short_binned_ts() {
+        use crate::features::maximum_slope::MaximumSlope;
+        let t = vec![0.0_f64, 1.0, 2.0, 3.0, 4.0];
+        let m = vec![1.0_f64, 1.5, 0.5, 1.2, 0.8];
+        let mut ts = TimeSeries::new_without_weight(&t, &m);
+
+        let mut periodogram: Periodogram<f64, Feature<f64>> = Periodogram::new(1);
+        periodogram.add_phase_feature(MaximumSlope::default().into());
+        let freq_grid = crate::periodogram::FreqGrid::linear(0.9, 0.1, 3);
+        periodogram.set_freq_grid(freq_grid);
+        periodogram.set_periodogram_algorithm(PeriodogramPowerDirect.into());
+
+        // eval() propagates the error from MaximumSlope (too few points after binning)
+        let err = periodogram.eval(&mut ts);
+        assert!(
+            err.is_err(),
+            "expected error for short binned ts, got {:?}",
+            err
+        );
     }
 }
