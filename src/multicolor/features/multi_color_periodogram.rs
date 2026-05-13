@@ -5,8 +5,9 @@ use crate::evaluator::{
     FeatureNamesDescriptionsTrait, OwnedArrays, TmArrays,
 };
 use crate::extractor::FeatureExtractor;
-use crate::features::phase_fold_ts;
+use crate::features::phase_fold_or_compute;
 use crate::features::{Periodogram, PeriodogramPeaks};
+use crate::features::{eval_phase_ts, eval_phase_ts_or_fill};
 use crate::float_trait::Float;
 use crate::multicolor::multicolor_evaluator::*;
 use crate::multicolor::{PassbandSet, PassbandTrait};
@@ -623,14 +624,33 @@ where
                         actual: actual_passbands.clone(),
                         desired: desired_passbands.clone(),
                     })?;
-                let phase_arrays = phase_fold_ts(band_ts, best_period);
-                let mut phase_ts = phase_arrays.ts();
-                result.extend(self.phase_extractor.eval(&mut phase_ts).map_err(|e| {
-                    MultiColorEvaluatorError::MonochromeEvaluatorError {
-                        error: e,
-                        passband: band.name().to_string(),
+                let phase_arrays = phase_fold_or_compute(
+                    band_ts,
+                    best_period,
+                    self.phase_extractor.is_t_required(),
+                    self.phase_extractor.is_sorting_required(),
+                );
+                match phase_arrays {
+                    Some(arrays) => {
+                        let mut phase_ts = arrays.ts();
+                        result.extend(
+                            eval_phase_ts(&self.phase_extractor, &mut phase_ts).map_err(|e| {
+                                MultiColorEvaluatorError::MonochromeEvaluatorError {
+                                    error: e,
+                                    passband: band.name().to_string(),
+                                }
+                            })?,
+                        );
                     }
-                })?);
+                    None => {
+                        result.extend(self.phase_extractor.eval(band_ts).map_err(|e| {
+                            MultiColorEvaluatorError::MonochromeEvaluatorError {
+                                error: e,
+                                passband: band.name().to_string(),
+                            }
+                        })?);
+                    }
+                }
             }
         }
         Ok(result)
@@ -669,9 +689,24 @@ where
                     .iter_matched_passbands_mut(self.phase_bands.iter())
                 {
                     if let Some(band_ts) = maybe_ts {
-                        let phase_arrays = phase_fold_ts(band_ts, best_period);
-                        let mut phase_ts = phase_arrays.ts();
-                        result.extend(self.phase_extractor.eval_or_fill(&mut phase_ts, fill_value));
+                        let phase_arrays = phase_fold_or_compute(
+                            band_ts,
+                            best_period,
+                            self.phase_extractor.is_t_required(),
+                            self.phase_extractor.is_sorting_required(),
+                        );
+                        match phase_arrays {
+                            Some(arrays) => {
+                                let mut phase_ts = arrays.ts();
+                                result.extend(eval_phase_ts_or_fill(
+                                    &self.phase_extractor,
+                                    &mut phase_ts,
+                                    fill_value,
+                                ));
+                            }
+                            None => result
+                                .extend(self.phase_extractor.eval_or_fill(band_ts, fill_value)),
+                        }
                     } else {
                         result.extend(vec![fill_value; phase_feature_size]);
                     }

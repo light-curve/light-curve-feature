@@ -1,12 +1,14 @@
 use crate::evaluator::*;
 use crate::extractor::FeatureExtractor;
 use crate::features::_periodogram_peaks::PeriodogramPeaks;
+use crate::features::bins::Bins;
 use crate::periodogram;
 use crate::periodogram::{
     AverageNyquistFreq, DefaultPeriodogramPowerFft, FreqGrid, FreqGridStrategy, NyquistFreq,
     PeriodogramNormalization, PeriodogramPower, PeriodogramPowerError,
 };
 
+use conv::ConvUtil;
 use std::convert::TryInto;
 use std::fmt::Debug;
 
@@ -86,6 +88,110 @@ pub(crate) fn phase_fold_ts<T: Float>(ts: &mut TimeSeries<T>, period: T) -> TmwA
         m: sorted_m.into(),
         w: sorted_w.into(),
     }
+}
+
+/// Phase-fold without sorting: computes phases in [0, 1) with phase 0 at the minimum-m
+/// observation, but preserves the original observation order.
+pub(crate) fn phase_compute_ts<T: Float>(ts: &mut TimeSeries<T>, period: T) -> TmwArrays<T> {
+    let t = ts.t.as_slice();
+    let m = ts.m.as_slice();
+    let w = ts.w.as_slice();
+
+    let phases: Vec<T> = t
+        .iter()
+        .map(|&ti| {
+            let p = (ti / period) % T::one();
+            if p < T::zero() { p + T::one() } else { p }
+        })
+        .collect();
+
+    let phase_offset = m
+        .iter()
+        .enumerate()
+        .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+        .map(|(i, _)| phases[i])
+        .unwrap_or(T::zero());
+
+    TmwArrays {
+        t: phases
+            .iter()
+            .map(|&p| (p - phase_offset + T::one()) % T::one())
+            .collect::<Vec<_>>()
+            .into(),
+        m: m.to_vec().into(),
+        w: w.to_vec().into(),
+    }
+}
+
+/// Dispatch helper: decides which phase representation to build based on what the extractor needs.
+///
+/// - `!t_required && !sorting_required` → `None` (caller uses the original ts)
+/// - `t_required && !sorting_required`  → `Some(phase_compute_ts)` (phases as time, no sort)
+/// - `sorting_required`                 → `Some(phase_fold_ts)` (sorted by phase)
+pub(crate) fn phase_fold_or_compute<T: Float>(
+    ts: &mut TimeSeries<T>,
+    period: T,
+    t_required: bool,
+    sorting_required: bool,
+) -> Option<TmwArrays<T>> {
+    if sorting_required {
+        Some(phase_fold_ts(ts, period))
+    } else if t_required {
+        Some(phase_compute_ts(ts, period))
+    } else {
+        None
+    }
+}
+
+/// Minimum consecutive time step in a sorted time series (infinity if fewer than 2 points).
+fn min_phase_step<T: Float>(phase_ts: &mut TimeSeries<T>) -> T {
+    let t = phase_ts.t.as_slice();
+    t.windows(2)
+        .map(|w| w[1] - w[0])
+        .min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+        .unwrap_or(T::infinity())
+}
+
+/// Evaluate phase features on a phase-sorted time series, binning near-duplicate phases when
+/// the extractor requires time values (sorting_required && t_required).
+pub(crate) fn eval_phase_ts<T, F>(
+    extractor: &FeatureExtractor<T, F>,
+    phase_ts: &mut TimeSeries<T>,
+) -> Result<Vec<T>, EvaluatorError>
+where
+    T: Float,
+    F: FeatureEvaluator<T>,
+{
+    if extractor.is_t_required() {
+        let window: T = 1e-6_f64.approx_as().unwrap();
+        if min_phase_step(phase_ts) < window {
+            let binned = Bins::<T, F>::new(1e-6, 0.0).transform_ts(phase_ts)?;
+            return extractor.eval(&mut binned.ts());
+        }
+    }
+    extractor.eval(phase_ts)
+}
+
+/// `eval_or_fill` variant of [`eval_phase_ts`].
+pub(crate) fn eval_phase_ts_or_fill<T, F>(
+    extractor: &FeatureExtractor<T, F>,
+    phase_ts: &mut TimeSeries<T>,
+    fill_value: T,
+) -> Vec<T>
+where
+    T: Float,
+    F: FeatureEvaluator<T>,
+{
+    if extractor.is_t_required() {
+        let window: T = 1e-6_f64.approx_as().unwrap();
+        if min_phase_step(phase_ts) < window {
+            match Bins::<T, F>::new(1e-6, 0.0).transform_ts(phase_ts) {
+                Ok(binned) => return extractor.eval_or_fill(&mut binned.ts(), fill_value),
+                Err(_) => return vec![fill_value; extractor.size_hint()],
+            }
+        }
+    }
+    extractor.eval_or_fill(phase_ts, fill_value)
 }
 
 #[doc = DOC!()]
@@ -456,9 +562,19 @@ where
                     "best period from periodogram is not positive, cannot phase-fold",
                 ));
             }
-            let phase_arrays = phase_fold_ts(ts, best_period);
-            let mut phase_ts = phase_arrays.ts();
-            result.extend(self.phase_extractor.eval(&mut phase_ts)?);
+            let phase_arrays = phase_fold_or_compute(
+                ts,
+                best_period,
+                self.phase_extractor.is_t_required(),
+                self.phase_extractor.is_sorting_required(),
+            );
+            match phase_arrays {
+                Some(arrays) => {
+                    let mut phase_ts = arrays.ts();
+                    result.extend(eval_phase_ts(&self.phase_extractor, &mut phase_ts)?);
+                }
+                None => result.extend(self.phase_extractor.eval(ts)?),
+            }
         }
         Ok(result)
     }
@@ -479,9 +595,23 @@ where
         if !self.phase_extractor.get_features().is_empty() {
             let best_period = result[0];
             if best_period.is_finite() && best_period > T::zero() {
-                let phase_arrays = phase_fold_ts(ts, best_period);
-                let mut phase_ts = phase_arrays.ts();
-                result.extend(self.phase_extractor.eval_or_fill(&mut phase_ts, fill_value));
+                let phase_arrays = phase_fold_or_compute(
+                    ts,
+                    best_period,
+                    self.phase_extractor.is_t_required(),
+                    self.phase_extractor.is_sorting_required(),
+                );
+                match phase_arrays {
+                    Some(arrays) => {
+                        let mut phase_ts = arrays.ts();
+                        result.extend(eval_phase_ts_or_fill(
+                            &self.phase_extractor,
+                            &mut phase_ts,
+                            fill_value,
+                        ));
+                    }
+                    None => result.extend(self.phase_extractor.eval_or_fill(ts, fill_value)),
+                }
             } else {
                 result.extend(vec![fill_value; self.phase_extractor.size_hint()]);
             }

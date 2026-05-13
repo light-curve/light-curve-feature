@@ -157,7 +157,10 @@ where
         DOC
     }
 
-    fn transform_ts(&self, ts: &mut TimeSeries<T>) -> Result<TmwArrays<T>, EvaluatorError> {
+    pub(crate) fn transform_ts(
+        &self,
+        ts: &mut TimeSeries<T>,
+    ) -> Result<TmwArrays<T>, EvaluatorError> {
         // These conversions should never fail because we validated the range in new() and set methods
         let window = self.window.into_inner().approx_as::<T>().unwrap();
         let offset = self.offset.into_inner().approx_as::<T>().unwrap();
