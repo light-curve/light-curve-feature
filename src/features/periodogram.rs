@@ -1136,7 +1136,7 @@ mod tests {
             let ps = phases(&result);
             assert_eq!(ps[0], 0.0, "min-m observation must be at phase 0");
             for &p in &ps {
-                assert!(p >= 0.0 && p < 1.0, "phase {p} out of [0, 1)");
+                assert!((0.0..1.0).contains(&p), "phase {p} out of [0, 1)");
             }
             let mut sorted = ps.clone();
             sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
@@ -1179,7 +1179,7 @@ mod tests {
 
             assert_eq!(result.t.len(), 3, "all observations must be present");
             for &p in result.t.iter() {
-                assert!(p >= 0.0 && p < 1.0, "phase {p} out of [0, 1)");
+                assert!((0.0..1.0).contains(&p), "phase {p} out of [0, 1)");
             }
             let ps = phases(&result);
             for i in 1..ps.len() {
