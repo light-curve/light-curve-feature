@@ -35,7 +35,7 @@ Lafler, J. & Kinman, T. D. 1965, *ApJS* **11**, 216
 /// ```
 /// use light_curve_feature::*;
 ///
-/// let lk = LaflerKinman::default();
+/// let lk = LaflerKinmanStringLength::default();
 /// // Phase-folded sine wave: phase in [0, 1), magnitude = sin(2π·phase)
 /// let n = 32_usize;
 /// let phase: Vec<f64> = (0..n).map(|i| i as f64 / n as f64).collect();
@@ -46,9 +46,9 @@ Lafler, J. & Kinman, T. D. 1965, *ApJS* **11**, 216
 /// assert!(theta < 0.5, "theta = {theta}");
 /// ```
 #[derive(Clone, Default, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash)]
-pub struct LaflerKinman {}
+pub struct LaflerKinmanStringLength {}
 
-impl LaflerKinman {
+impl LaflerKinmanStringLength {
     pub fn new() -> Self {
         Self {}
     }
@@ -59,8 +59,8 @@ impl LaflerKinman {
 }
 
 lazy_info!(
-    LAFLER_KINMAN_INFO,
-    LaflerKinman,
+    LAFLER_KINMAN_STRING_LENGTH_INFO,
+    LaflerKinmanStringLength,
     size: 1,
     min_ts_length: 2,
     t_required: false,
@@ -70,9 +70,9 @@ lazy_info!(
     variability_required: true,
 );
 
-impl FeatureNamesDescriptionsTrait for LaflerKinman {
+impl FeatureNamesDescriptionsTrait for LaflerKinmanStringLength {
     fn get_names(&self) -> Vec<&str> {
-        vec!["lafler_kinman"]
+        vec!["lafler_kinman_string_length"]
     }
 
     fn get_descriptions(&self) -> Vec<&str> {
@@ -80,7 +80,7 @@ impl FeatureNamesDescriptionsTrait for LaflerKinman {
     }
 }
 
-impl<T> FeatureEvaluator<T> for LaflerKinman
+impl<T> FeatureEvaluator<T> for LaflerKinmanStringLength
 where
     T: Float,
 {
@@ -107,13 +107,13 @@ mod tests {
     use super::*;
     use crate::tests::*;
 
-    check_feature!(LaflerKinman);
+    check_feature!(LaflerKinmanStringLength);
 
     // θ = Σ(m[i+1]-m[i])² / (2*(N-1)*s²)
     // m=[0,1,0]: sum_sq=2, s²=1/3, denom=4/3 → θ=1.5
     feature_test!(
         zigzag_exact,
-        [LaflerKinman::new()],
+        [LaflerKinmanStringLength::new()],
         [1.5_f32],
         [0.0_f32, 1.0, 2.0],
         [0.0_f32, 1.0, 0.0],
@@ -122,7 +122,7 @@ mod tests {
     // N=2: sum_sq=2*(m[1]-m[0])²=2, s²=0.5, denom=2*(N-1)*s²=1 → θ=2
     feature_test!(
         two_points,
-        [LaflerKinman::new()],
+        [LaflerKinmanStringLength::new()],
         [2.0_f32],
         [0.0_f32, 1.0],
         [0.0_f32, 1.0],
@@ -138,7 +138,7 @@ mod tests {
             let phase: Vec<f64> = (0..n).map(|i| i as f64).collect();
             let magn: Vec<f64> = (0..n).map(|i| i as f64).collect();
             let mut ts = TimeSeries::new_without_weight(&phase, &magn);
-            let theta = LaflerKinman::new().eval(&mut ts).unwrap()[0];
+            let theta = LaflerKinmanStringLength::new().eval(&mut ts).unwrap()[0];
             let expected = 6.0 / (n as f64 + 1.0);
             assert!(
                 (theta - expected).abs() < 1e-12,
@@ -157,7 +157,7 @@ mod tests {
             let phase: Vec<f64> = (0..n).map(|i| i as f64).collect();
             let magn: Vec<f64> = (0..n).map(|i| (i % 2) as f64).collect();
             let mut ts = TimeSeries::new_without_weight(&phase, &magn);
-            let theta = LaflerKinman::new().eval(&mut ts).unwrap()[0];
+            let theta = LaflerKinmanStringLength::new().eval(&mut ts).unwrap()[0];
             assert!(
                 (theta - 2.0).abs() < 1e-12,
                 "N={n}: expected θ=2.0, got {theta:.6}"
@@ -178,7 +178,7 @@ mod tests {
                 .map(|&p| (2.0 * std::f64::consts::PI * p).sin())
                 .collect();
             let mut ts = TimeSeries::new_without_weight(&phase, &magn);
-            let theta = LaflerKinman::new().eval(&mut ts).unwrap()[0];
+            let theta = LaflerKinmanStringLength::new().eval(&mut ts).unwrap()[0];
             let expected = 2.0 * (std::f64::consts::PI / n as f64).sin().powi(2);
             assert!(
                 (theta - expected).abs() < 1e-12,
@@ -200,7 +200,7 @@ mod tests {
 
         let theta_smooth = {
             let mut ts = TimeSeries::new_without_weight(&phase, &magn);
-            LaflerKinman::new().eval(&mut ts).unwrap()[0]
+            LaflerKinmanStringLength::new().eval(&mut ts).unwrap()[0]
         };
 
         // Shuffle magnitudes keeping phase order (breaks the smooth structure)
@@ -210,7 +210,7 @@ mod tests {
         // Sort phase to keep sorting_required satisfied
         let theta_shuffled = {
             let mut ts = TimeSeries::new_without_weight(&phase, &shuffled);
-            LaflerKinman::new().eval(&mut ts).unwrap()[0]
+            LaflerKinmanStringLength::new().eval(&mut ts).unwrap()[0]
         };
 
         assert!(
