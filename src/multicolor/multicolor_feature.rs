@@ -32,7 +32,7 @@ where
     ColorOfMedian(ColorOfMedian<P>),
     ColorOfMinimum(ColorOfMinimum<P>),
     ColorSpread(ColorSpread),
-    MultiColorPeriodogram(MultiColorPeriodogram<T, Feature<T>>),
+    MultiColorPeriodogram(MultiColorPeriodogram<P, T, Feature<T>>),
 }
 
 impl<P, T> MultiColorFeature<P, T>
