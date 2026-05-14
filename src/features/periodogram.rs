@@ -741,7 +741,7 @@ where
 mod tests {
     use super::*;
     use crate::features::amplitude::Amplitude;
-    use crate::features::lafler_kinman::LaflerKinman;
+    use crate::features::lafler_kinman_string_length::LaflerKinmanStringLength;
     use crate::periodogram::{PeriodogramPowerDirect, QuantileNyquistFreq};
     use crate::tests::*;
     use rand_distr::StandardNormal;
@@ -775,7 +775,7 @@ mod tests {
         Periodogram<f64, Feature<f64>>,
         {
             let mut periodogram = Periodogram::default();
-            periodogram.add_phase_feature(LaflerKinman::new().into());
+            periodogram.add_phase_feature(LaflerKinmanStringLength::new().into());
             periodogram.set_periodogram_algorithm(PeriodogramPowerDirect.into());
             periodogram
         },
@@ -998,18 +998,17 @@ mod tests {
     #[test]
     fn periodogram_phase_feature_names() {
         let mut periodogram: Periodogram<f64, Feature<f64>> = Periodogram::new(1);
-        periodogram.add_phase_feature(LaflerKinman::new().into());
+        periodogram.add_phase_feature(LaflerKinmanStringLength::new().into());
         let names = periodogram.get_names();
-        // spectrum: period_0, period_s_to_n_0; phase: period_folded_lafler_kinman
+        // spectrum: period_0, period_s_to_n_0; phase: period_folded_lafler_kinman_string_length
         assert_eq!(names[0], "periodogram_period_0");
         assert_eq!(names[1], "periodogram_period_s_to_n_0");
-        assert_eq!(names[2], "period_folded_lafler_kinman");
+        assert_eq!(names[2], "period_folded_lafler_kinman_string_length");
         assert_eq!(periodogram.size_hint(), 3);
     }
 
     #[test]
     fn periodogram_phase_feature_recovery() {
-        use crate::features::lafler_kinman::LaflerKinman;
         let period = 0.17_f64;
         let mut rng = StdRng::seed_from_u64(0);
         let mut x: Vec<f64> = (0..200).map(|_| rng.random()).collect();
@@ -1020,13 +1019,13 @@ mod tests {
             .collect();
 
         let mut periodogram: Periodogram<f64, Feature<f64>> = Periodogram::new(1);
-        periodogram.add_phase_feature(LaflerKinman::new().into());
+        periodogram.add_phase_feature(LaflerKinmanStringLength::new().into());
         periodogram.set_periodogram_algorithm(PeriodogramPowerDirect.into());
 
         let mut ts = TimeSeries::new_without_weight(&x, &y);
         let result = periodogram.eval(&mut ts).unwrap();
 
-        // result = [period_0, snr_0, period_folded_lafler_kinman]
+        // result = [period_0, snr_0, period_folded_lafler_kinman_string_length]
         assert_eq!(result.len(), 3);
         // recovered period close to true
         assert!(
@@ -1035,7 +1034,11 @@ mod tests {
             result[0]
         );
         // smooth phase curve: theta << 1 (sine wave gives ~0.003)
-        assert!(result[2] < 0.01, "lafler_kinman = {}", result[2]);
+        assert!(
+            result[2] < 0.01,
+            "lafler_kinman_string_length = {}",
+            result[2]
+        );
     }
 
     // ── Phase dispatch case tests ─────────────────────────────────────────────

@@ -849,10 +849,10 @@ mod tests {
 
     #[test]
     fn serde_json_with_phase_features() {
-        use crate::features::LaflerKinman;
+        use crate::features::LaflerKinmanStringLength;
         let mut eval = McPeriodogram::new(1, MultiColorPeriodogramNormalisation::Count);
         eval.set_phase_bands(vec![StringPassband::from("g"), StringPassband::from("r")]);
-        eval.add_phase_feature(LaflerKinman::new().into());
+        eval.add_phase_feature(LaflerKinmanStringLength::new().into());
         let json = serde_json::to_string(&eval).unwrap();
         let eval2: McPeriodogram = serde_json::from_str(&json).unwrap();
         assert_eq!(json, serde_json::to_string(&eval2).unwrap());
@@ -863,22 +863,22 @@ mod tests {
 
     #[test]
     fn phase_feature_names_and_size() {
-        use crate::features::LaflerKinman;
+        use crate::features::LaflerKinmanStringLength;
 
         let mut eval = McPeriodogram::new(1, MultiColorPeriodogramNormalisation::Count);
         eval.set_phase_bands(vec![StringPassband::from("g"), StringPassband::from("r")]);
-        eval.add_phase_feature(LaflerKinman::new().into());
+        eval.add_phase_feature(LaflerKinmanStringLength::new().into());
 
         let names = eval.get_names();
         // spectrum: multicolor_periodogram_period_0, multicolor_periodogram_period_s_to_n_0
         assert_eq!(names[0], "multicolor_periodogram_period_0");
         // phase per band
         assert!(
-            names.contains(&"period_folded_g_lafler_kinman"),
+            names.contains(&"period_folded_g_lafler_kinman_string_length"),
             "names = {names:?}"
         );
         assert!(
-            names.contains(&"period_folded_r_lafler_kinman"),
+            names.contains(&"period_folded_r_lafler_kinman_string_length"),
             "names = {names:?}"
         );
         // total size = 2 spectrum + 2 phase (1 per band)
@@ -1095,7 +1095,7 @@ mod tests {
     fn single_band_phase_feature_sine_recovery() {
         use crate::PeriodogramPowerDirect;
         use crate::data::TimeSeries;
-        use crate::features::LaflerKinman;
+        use crate::features::LaflerKinmanStringLength;
         use rand::prelude::*;
 
         let period = 0.17_f64;
@@ -1118,10 +1118,10 @@ mod tests {
         let mut eval = McPeriodogram::new(1, MultiColorPeriodogramNormalisation::Count);
         eval.set_periodogram_algorithm(PeriodogramPowerDirect.into());
         eval.set_phase_bands(vec![StringPassband::from("g")]);
-        eval.add_phase_feature(LaflerKinman::new().into());
+        eval.add_phase_feature(LaflerKinmanStringLength::new().into());
 
         let result = eval.eval_multicolor(&mut mcts).unwrap();
-        // result = [period_0, snr_0, period_folded_g_lafler_kinman]
+        // result = [period_0, snr_0, period_folded_g_lafler_kinman_string_length]
         assert_eq!(result.len(), 3);
         let recovered_period = result[0];
         assert!(
@@ -1131,7 +1131,7 @@ mod tests {
         let theta = result[2];
         assert!(
             theta < 0.01,
-            "phase-folded LaflerKinman = {theta}, expected < 0.01 for smooth curve"
+            "phase-folded LaflerKinmanStringLength = {theta}, expected < 0.01 for smooth curve"
         );
     }
 }
