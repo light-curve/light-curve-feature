@@ -4,22 +4,21 @@ macro_const! {
     const DOC: &str = r"
 Lafler–Kinman string-length statistic
 
-A smoothness measure for a phase-folded light curve. Observations are sorted
-by time (i.e. by phase when applied to a phase-folded series) and the
-normalised sum of squared successive differences is computed:
+A smoothness measure for a light curve. The normalised sum of squared successive
+magnitude differences is computed:
 
 $$
 \theta = \frac{\sum_{i=0}^{N-1} \bigl(m_{\pi(i+1 \bmod N)} - m_{\pi(i)}\bigr)^2}{2 (N-1) s^2},
 $$
 
-where the observations must arrive sorted by phase (time), $s^2 = (N-1)^{-1}\sum_i(m_i-\bar m)^2$
-is the sample variance, and the sum wraps around (last observation is followed by the first).
+where $s^2 = (N-1)^{-1}\sum_i(m_i-\bar m)^2$ is the sample variance,
+and the sum wraps around (last observation is followed by the first).
 
 With this normalisation $\langle\theta\rangle \approx 1$ for observations in random
-magnitude order; a smooth phase-folded curve yields $\theta \ll 1$.
+magnitude order; a smooth curve yields $\theta \ll 1$.
 
-The input time series must be sorted by phase before evaluation. Intended to be applied to a
-phase-folded series (time = phase).
+One natural use case is applying it to a phase-folded light curve;
+see [Periodogram] for details.
 
 - Depends on: **magnitude**
 - Minimum number of observations: **2**
@@ -76,7 +75,7 @@ impl FeatureNamesDescriptionsTrait for LaflerKinmanStringLength {
     }
 
     fn get_descriptions(&self) -> Vec<&str> {
-        vec!["Lafler-Kinman string-length statistic: smoothness of the phase-sorted light curve"]
+        vec!["Lafler-Kinman string-length statistic: smoothness of the light curve"]
     }
 }
 
