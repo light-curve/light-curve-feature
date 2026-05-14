@@ -951,6 +951,132 @@ mod tests {
         );
     }
 
+    // Case 1: !t_required && !sorting_required — raw band_ts evaluated, no phase folding.
+    // Amplitude only needs magnitudes; phase_fold_or_compute returns None and the extractor
+    // is called directly on the original (unfolded) band time series.
+    #[test]
+    fn phase_feature_case1_no_t_no_sort_amplitude() {
+        use crate::PeriodogramPowerDirect;
+        use crate::data::TimeSeries;
+        use crate::features::Amplitude;
+
+        let period = 0.3_f64;
+        let n = 50usize;
+        let t: Vec<f64> = (0..n).map(|i| i as f64 * 0.05).collect();
+        let m: Vec<f64> = t
+            .iter()
+            .map(|&ti| (2.0 * std::f64::consts::PI * ti / period).sin())
+            .collect();
+
+        let mut map = std::collections::BTreeMap::new();
+        map.insert(
+            StringPassband::from("g"),
+            TimeSeries::new_without_weight(t.as_slice(), m.as_slice()),
+        );
+        let mut mcts = MultiColorTimeSeries::from_map(map);
+
+        let mut eval = McPeriodogram::new(1, MultiColorPeriodogramNormalisation::Count);
+        eval.set_periodogram_algorithm(PeriodogramPowerDirect.into());
+        eval.set_phase_bands(vec![StringPassband::from("g")]);
+        eval.add_phase_feature(Amplitude::default().into());
+
+        let result = eval.eval_multicolor(&mut mcts).unwrap();
+        assert_eq!(result.len(), eval.size_hint());
+        // Amplitude = (max - min) / 2; must equal the full-band value since no folding
+        let expected_amp = (m.iter().cloned().fold(f64::NEG_INFINITY, f64::max)
+            - m.iter().cloned().fold(f64::INFINITY, f64::min))
+            / 2.0;
+        assert!(
+            (result[2] - expected_amp).abs() < 1e-12,
+            "amplitude {}, expected {}",
+            result[2],
+            expected_amp,
+        );
+    }
+
+    // Case 2: t_required && !sorting_required — phase_compute_ts path (phases as time, no sort).
+    // TimeMean returns the mean of its "time" array; when phases are used as time the result
+    // must lie in (0, 1) and differ from the mean of the original timestamps.
+    #[test]
+    fn phase_feature_case2_t_required_no_sort_time_mean() {
+        use crate::PeriodogramPowerDirect;
+        use crate::data::TimeSeries;
+        use crate::features::TimeMean;
+
+        let period = 0.3_f64;
+        let n = 50usize;
+        let t: Vec<f64> = (0..n).map(|i| i as f64 * 0.05).collect();
+        let m: Vec<f64> = t
+            .iter()
+            .map(|&ti| (2.0 * std::f64::consts::PI * ti / period).sin())
+            .collect();
+
+        let mut map = std::collections::BTreeMap::new();
+        map.insert(
+            StringPassband::from("g"),
+            TimeSeries::new_without_weight(t.as_slice(), m.as_slice()),
+        );
+        let mut mcts = MultiColorTimeSeries::from_map(map);
+
+        let mut eval = McPeriodogram::new(1, MultiColorPeriodogramNormalisation::Count);
+        eval.set_periodogram_algorithm(PeriodogramPowerDirect.into());
+        eval.set_phase_bands(vec![StringPassband::from("g")]);
+        eval.add_phase_feature(TimeMean::default().into());
+
+        let result = eval.eval_multicolor(&mut mcts).unwrap();
+        assert_eq!(result.len(), eval.size_hint());
+        // Mean of phases must lie in (0, 1)
+        let phase_mean = result[2];
+        assert!(
+            phase_mean > 0.0 && phase_mean < 1.0,
+            "mean phase {phase_mean} not in (0, 1)",
+        );
+        // Must differ from mean of the original timestamps
+        let mean_t = t.iter().sum::<f64>() / t.len() as f64;
+        assert!(
+            (phase_mean - mean_t).abs() > 1e-6,
+            "mean phase {phase_mean} suspiciously equal to mean t {mean_t}",
+        );
+    }
+
+    // Case 4: sorting_required && t_required, near-duplicate phases → Bins(1e-6) applied.
+    // t=[0,1,2,3,4] with period=1 → all phases collapse to 0.0; binning merges them into
+    // one point.  MaximumSlope requires ≥2 points, so eval_or_fill returns the fill value.
+    #[test]
+    fn phase_feature_case4_near_duplicate_phases_fill_not_panic() {
+        use crate::PeriodogramPowerDirect;
+        use crate::data::TimeSeries;
+        use crate::features::MaximumSlope;
+
+        let t = vec![0.0_f64, 1.0, 2.0, 3.0, 4.0];
+        let m = vec![1.0_f64, 1.5, 0.5, 1.2, 0.8];
+
+        let mut map = std::collections::BTreeMap::new();
+        map.insert(
+            StringPassband::from("g"),
+            TimeSeries::new_without_weight(t.as_slice(), m.as_slice()),
+        );
+        let mut mcts = MultiColorTimeSeries::from_map(map);
+
+        let mut eval = McPeriodogram::new(1, MultiColorPeriodogramNormalisation::Count);
+        eval.set_periodogram_algorithm(PeriodogramPowerDirect.into());
+        // Fixed grid: single frequency whose period equals 1.0 → all phases collapse to 0.0
+        eval.set_freq_grid(crate::periodogram::FreqGrid::linear(
+            std::f64::consts::TAU,
+            0.1,
+            1,
+        ));
+        eval.set_phase_bands(vec![StringPassband::from("g")]);
+        eval.add_phase_feature(MaximumSlope::default().into());
+
+        let fill = f64::NAN;
+        let result = eval.eval_or_fill_multicolor(&mut mcts, fill).unwrap();
+        // result = [period_0, snr_0, period_folded_g_maximum_slope]
+        assert_eq!(result.len(), eval.size_hint());
+        // Phase feature must be fill (only 1 bin after merge, too few for MaximumSlope)
+        assert!(result[2].is_nan(), "expected fill NaN, got {}", result[2]);
+    }
+
     #[test]
     fn single_band_phase_feature_sine_recovery() {
         use crate::PeriodogramPowerDirect;
