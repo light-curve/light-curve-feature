@@ -38,6 +38,27 @@ Phase feature names are prefixed with `period_folded_`.
 "#;
 }
 
+/// Compute phases in `[0, 1)` for each observation, with phase 0 at the minimum-m observation.
+fn compute_adjusted_phases<T: Float>(t: &[T], m: &[T], period: T) -> Vec<T> {
+    let raw_phases: Vec<T> = t
+        .iter()
+        .map(|&ti| {
+            let p = (ti / period) % T::one();
+            if p < T::zero() { p + T::one() } else { p }
+        })
+        .collect();
+    let phase_offset = m
+        .iter()
+        .enumerate()
+        .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+        .map(|(i, _)| raw_phases[i])
+        .unwrap_or(T::zero());
+    raw_phases
+        .iter()
+        .map(|&p| (p - phase_offset + T::one()) % T::one())
+        .collect()
+}
+
 /// Phase-fold a time series at a given period, with phase 0 at the magnitude minimum.
 ///
 /// Returns a new `TmwArrays` where `t` is the phase in `[0, 1)`, `m` is the magnitude,
@@ -46,42 +67,19 @@ pub(crate) fn phase_fold_ts<T: Float>(ts: &mut TimeSeries<T>, period: T) -> TmwA
     use unzip3::Unzip3;
 
     let n = ts.lenu();
-    let t = ts.t.as_slice();
     let m = ts.m.as_slice();
     let w = ts.w.as_slice();
+    let phases = compute_adjusted_phases(ts.t.as_slice(), m, period);
 
-    // phase in [0, 1) for each observation
-    let phases: Vec<T> = t
-        .iter()
-        .map(|&ti| {
-            let p = (ti / period) % T::one();
-            if p < T::zero() { p + T::one() } else { p }
-        })
-        .collect();
-
-    // phase 0 is aligned to the minimum-m observation
-    let phase_offset = m
-        .iter()
-        .enumerate()
-        .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
-        .map(|(i, _)| phases[i])
-        .unwrap_or(T::zero());
-
-    // sort indices by shifted phase
     let mut indices: Vec<usize> = (0..n).collect();
     indices.sort_unstable_by(|&i, &j| {
-        let pi = (phases[i] - phase_offset + T::one()) % T::one();
-        let pj = (phases[j] - phase_offset + T::one()) % T::one();
-        pi.partial_cmp(&pj).unwrap_or(std::cmp::Ordering::Equal)
+        phases[i]
+            .partial_cmp(&phases[j])
+            .unwrap_or(std::cmp::Ordering::Equal)
     });
 
-    let (sorted_phases, sorted_m, sorted_w): (Vec<T>, Vec<T>, Vec<T>) = indices
-        .iter()
-        .map(|&i| {
-            let p = (phases[i] - phase_offset + T::one()) % T::one();
-            (p, m[i], w[i])
-        })
-        .unzip3();
+    let (sorted_phases, sorted_m, sorted_w): (Vec<T>, Vec<T>, Vec<T>) =
+        indices.iter().map(|&i| (phases[i], m[i], w[i])).unzip3();
 
     TmwArrays {
         t: sorted_phases.into(),
@@ -93,31 +91,11 @@ pub(crate) fn phase_fold_ts<T: Float>(ts: &mut TimeSeries<T>, period: T) -> TmwA
 /// Phase-fold without sorting: computes phases in [0, 1) with phase 0 at the minimum-m
 /// observation, but preserves the original observation order.
 pub(crate) fn phase_compute_ts<T: Float>(ts: &mut TimeSeries<T>, period: T) -> TmwArrays<T> {
-    let t = ts.t.as_slice();
     let m = ts.m.as_slice();
     let w = ts.w.as_slice();
-
-    let phases: Vec<T> = t
-        .iter()
-        .map(|&ti| {
-            let p = (ti / period) % T::one();
-            if p < T::zero() { p + T::one() } else { p }
-        })
-        .collect();
-
-    let phase_offset = m
-        .iter()
-        .enumerate()
-        .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
-        .map(|(i, _)| phases[i])
-        .unwrap_or(T::zero());
-
+    let phases = compute_adjusted_phases(ts.t.as_slice(), m, period);
     TmwArrays {
-        t: phases
-            .iter()
-            .map(|&p| (p - phase_offset + T::one()) % T::one())
-            .collect::<Vec<_>>()
-            .into(),
+        t: phases.into(),
         m: m.to_vec().into(),
         w: w.to_vec().into(),
     }
@@ -143,6 +121,9 @@ pub(crate) fn phase_fold_or_compute<T: Float>(
     }
 }
 
+/// Bin window for merging near-duplicate phases: phase steps smaller than this are merged.
+const PHASE_DEDUP_WINDOW: f64 = 1e-6;
+
 /// Minimum consecutive time step in a sorted time series (infinity if fewer than 2 points).
 fn min_phase_step<T: Float>(phase_ts: &mut TimeSeries<T>) -> T {
     let t = phase_ts.t.as_slice();
@@ -152,8 +133,8 @@ fn min_phase_step<T: Float>(phase_ts: &mut TimeSeries<T>) -> T {
         .unwrap_or(T::infinity())
 }
 
-/// If the extractor requires time and the minimum phase step is below 1e-6, bin the phase time
-/// series with window=1e-6 to merge duplicate phases. Returns the binned arrays, or `Ok(None)`
+/// If the extractor requires time and the minimum phase step is below [`PHASE_DEDUP_WINDOW`], bin
+/// the phase time series to merge duplicate phases. Returns the binned arrays, or `Ok(None)`
 /// when no binning is needed.
 fn maybe_bin_phase_ts<T, F>(
     extractor: &FeatureExtractor<T, F>,
@@ -164,9 +145,11 @@ where
     F: FeatureEvaluator<T>,
 {
     if extractor.is_t_required() {
-        let window: T = 1e-6_f64.approx_as().unwrap();
+        let window: T = PHASE_DEDUP_WINDOW.approx_as().unwrap();
         if min_phase_step(phase_ts) < window {
-            return Ok(Some(Bins::<T, F>::new(1e-6, 0.0).transform_ts(phase_ts)?));
+            return Ok(Some(
+                Bins::<T, F>::new(PHASE_DEDUP_WINDOW, 0.0).transform_ts(phase_ts)?,
+            ));
         }
     }
     Ok(None)
