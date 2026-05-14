@@ -24,27 +24,21 @@ where
     fn get_passband_set(&self) -> &PassbandSet<P>;
 }
 
-/// Enum for passband set.
-/// This is used for [MultiColorEvaluator]s to declare which passbands they require.
+/// Set of passbands required by a [MultiColorEvaluator].
 /// Input [MultiColorTimeSeries](crate::data::MultiColorTimeSeries) data is subsampled to
 /// contain only the passbands in this set when the evaluator is applied.
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(bound(deserialize = "P: PassbandTrait + Deserialize<'de>"))]
-#[non_exhaustive]
-pub enum PassbandSet<P>
+pub struct PassbandSet<P>(pub BTreeSet<P>)
 where
-    P: Ord,
-{
-    /// Fixed set of passbands
-    FixedSet(BTreeSet<P>),
-}
+    P: Ord;
 
 impl<P> From<BTreeSet<P>> for PassbandSet<P>
 where
     P: Ord,
 {
     fn from(value: BTreeSet<P>) -> Self {
-        Self::FixedSet(value)
+        Self(value)
     }
 }
 
@@ -69,12 +63,7 @@ impl InternalMctsError {
         match self {
             InternalMctsError::MultiColorEvaluatorError(e) => e,
             InternalMctsError::InternalWrongPassbandSet => {
-                MultiColorEvaluatorError::wrong_passbands_error(
-                    mcts.passbands(),
-                    match ps {
-                        PassbandSet::FixedSet(ps) => ps.iter(),
-                    },
-                )
+                MultiColorEvaluatorError::wrong_passbands_error(mcts.passbands(), ps.0.iter())
             }
         }
     }
@@ -245,24 +234,24 @@ mod tests {
         };
 
         let feature = TestTimeMultiColorFeature {
-            passband_set: PassbandSet::FixedSet(
+            passband_set: PassbandSet(
                 [passband_b_capital.clone(), passband_v_capital.clone()].into(),
             ),
         };
         assert!(feature.eval_multicolor(&mut mcts).is_ok());
 
         let feature = TestTimeMultiColorFeature {
-            passband_set: PassbandSet::FixedSet([passband_b_capital.clone()].into()),
+            passband_set: PassbandSet([passband_b_capital.clone()].into()),
         };
         assert!(feature.eval_multicolor(&mut mcts).is_ok());
 
         let feature = TestTimeMultiColorFeature {
-            passband_set: PassbandSet::FixedSet([passband_r_capital.clone()].into()),
+            passband_set: PassbandSet([passband_r_capital.clone()].into()),
         };
         assert!(feature.eval_multicolor(&mut mcts).is_err());
 
         let feature = TestTimeMultiColorFeature {
-            passband_set: PassbandSet::FixedSet(
+            passband_set: PassbandSet(
                 [
                     passband_b_capital.clone(),
                     passband_r_capital.clone(),
@@ -289,7 +278,7 @@ mod tests {
         };
 
         let feature = TestTimeMultiColorFeature {
-            passband_set: PassbandSet::FixedSet([passband_r.clone()].into()),
+            passband_set: PassbandSet([passband_r.clone()].into()),
         };
 
         // eval_multicolor should fail (missing passband R)

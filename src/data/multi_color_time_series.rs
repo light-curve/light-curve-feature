@@ -273,7 +273,7 @@ where
         'a: 'slf,
         'ps: 'slf,
     {
-        let PassbandSet::FixedSet(set) = passband_set;
+        let PassbandSet(set) = passband_set;
         self.iter_matched_passbands(set.iter())
     }
 
@@ -285,7 +285,7 @@ where
         'a: 'slf,
         'ps: 'slf,
     {
-        let PassbandSet::FixedSet(set) = passband_set;
+        let PassbandSet(set) = passband_set;
         self.iter_matched_passbands_mut(set.iter())
     }
 

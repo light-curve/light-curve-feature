@@ -48,7 +48,7 @@ where
     /// to the specified passbands when this feature is evaluated.
     pub fn new(passbands: impl IntoIterator<Item = P>) -> Self {
         Self {
-            passband_set: PassbandSet::FixedSet(passbands.into_iter().collect()),
+            passband_set: PassbandSet(passbands.into_iter().collect()),
         }
     }
 }
@@ -108,7 +108,7 @@ where
         'slf: 'a,
         'a: 'mcts,
     {
-        let PassbandSet::FixedSet(set) = &self.passband_set;
+        let PassbandSet(set) = &self.passband_set;
         let mapping = mcts.mapping_mut();
 
         // Compute weighted mean magnitude for each specified passband (in sorted order)

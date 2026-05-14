@@ -118,7 +118,7 @@ where
         'slf: 'a,
         'a: 'mcts,
     {
-        let PassbandSet::FixedSet(set) = &self.passband_set;
+        let PassbandSet(set) = &self.passband_set;
         mcts.mapping_mut()
             .iter_matched_passbands_mut(set.iter())
             .map(|(passband, ts)| {

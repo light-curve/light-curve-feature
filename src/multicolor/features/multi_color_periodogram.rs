@@ -226,7 +226,7 @@ where
             "multicolor_periodogram",
             "of multi-color periodogram (interpreting frequency as time, power as magnitude)",
         );
-        let passband_set = PassbandSet::FixedSet(passbands.into_iter().collect());
+        let passband_set = PassbandSet(passbands.into_iter().collect());
         Self::new_with_monochrome(monochrome, normalization, passband_set)
     }
 
@@ -337,9 +337,7 @@ where
 
     /// Register the passbands on which phase features will be evaluated.
     ///
-    /// Must be called before [Self::add_phase_feature]. The passband set
-    /// switches from `AllAvailable` to `FixedSet` for phase evaluation;
-    /// spectrum evaluation still uses all available bands.
+    /// Must be called before [Self::add_phase_feature].
     ///
     /// # Panics
     /// Panics if phase features have already been added.
@@ -478,7 +476,7 @@ where
         &'slf self,
         mcts: &mut MultiColorTimeSeries<'_, P, T>,
     ) -> Result<periodogram::Periodogram<'slf, T>, MultiColorEvaluatorError> {
-        let PassbandSet::FixedSet(passband_set) = &self.passband_set;
+        let PassbandSet(passband_set) = &self.passband_set;
         let t_filtered: Vec<T> = {
             let mapping = mcts.mapping_mut();
             mapping
@@ -501,7 +499,7 @@ where
         'slf: 'a,
         'a: 'mcts,
     {
-        let PassbandSet::FixedSet(passband_set) = &self.passband_set;
+        let PassbandSet(passband_set) = &self.passband_set;
         let mapping = mcts.mapping_mut();
         let ts_weights = {
             let mut a: Array1<_> = match self.normalization {

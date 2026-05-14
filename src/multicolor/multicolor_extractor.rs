@@ -48,12 +48,12 @@ where
             let set: BTreeSet<_> = features
                 .iter()
                 .flat_map(|f| {
-                    let PassbandSet::FixedSet(set) = f.get_passband_set();
+                    let PassbandSet(set) = f.get_passband_set();
                     set
                 })
                 .cloned()
                 .collect();
-            PassbandSet::FixedSet(set)
+            PassbandSet(set)
         };
 
         let info = EvaluatorInfo {
@@ -292,7 +292,7 @@ mod tests {
         ]);
 
         // passband_set on the extractor is the union {g, i, r}
-        let PassbandSet::FixedSet(union) = extractor.get_passband_set();
+        let PassbandSet(union) = extractor.get_passband_set();
         assert_eq!(union.len(), 3);
 
         let t = vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0];
@@ -329,7 +329,7 @@ mod tests {
             ColorOfMinimum::new(ri).into(),
         ]);
 
-        let PassbandSet::FixedSet(union) = extractor.get_passband_set();
+        let PassbandSet(union) = extractor.get_passband_set();
         let names: Vec<_> = union.iter().map(|p| p.name()).collect();
         assert_eq!(names, vec!["g", "i", "r"]);
     }
