@@ -848,6 +848,20 @@ mod tests {
     }
 
     #[test]
+    fn serde_json_with_phase_features() {
+        use crate::features::LaflerKinman;
+        let mut eval = McPeriodogram::new(1, MultiColorPeriodogramNormalisation::Count);
+        eval.set_phase_bands(vec![StringPassband::from("g"), StringPassband::from("r")]);
+        eval.add_phase_feature(LaflerKinman::new().into());
+        let json = serde_json::to_string(&eval).unwrap();
+        let eval2: McPeriodogram = serde_json::from_str(&json).unwrap();
+        assert_eq!(json, serde_json::to_string(&eval2).unwrap());
+        // Names and size survive the round-trip
+        assert_eq!(eval.get_names(), eval2.get_names());
+        assert_eq!(eval.size_hint(), eval2.size_hint());
+    }
+
+    #[test]
     fn phase_feature_names_and_size() {
         use crate::features::LaflerKinman;
 

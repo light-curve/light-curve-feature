@@ -613,6 +613,22 @@ where
     }
 }
 
+fn default_periodogram_name_prefix() -> String {
+    "periodogram".to_string()
+}
+
+fn is_default_periodogram_name_prefix(s: &str) -> bool {
+    s == "periodogram"
+}
+
+fn default_periodogram_description_suffix() -> String {
+    "of periodogram (interpreting frequency as time, power as magnitude)".to_string()
+}
+
+fn is_default_periodogram_description_suffix(s: &str) -> bool {
+    s == "of periodogram (interpreting frequency as time, power as magnitude)"
+}
+
 #[derive(Serialize, Deserialize, JsonSchema)]
 #[serde(rename = "Periodogram", bound = "T: Float, F: FeatureEvaluator<T>")]
 struct PeriodogramParameters<T, F>
@@ -628,6 +644,16 @@ where
     periodogram_algorithm: PeriodogramPower<T>,
     #[serde(default)]
     normalization: PeriodogramNormalization,
+    #[serde(
+        default = "default_periodogram_name_prefix",
+        skip_serializing_if = "is_default_periodogram_name_prefix"
+    )]
+    name_prefix: String,
+    #[serde(
+        default = "default_periodogram_description_suffix",
+        skip_serializing_if = "is_default_periodogram_description_suffix"
+    )]
+    description_suffix: String,
 }
 
 impl<T, F> From<Periodogram<T, F>> for PeriodogramParameters<T, F>
@@ -643,8 +669,9 @@ where
             phase_extractor,
             periodogram_algorithm,
             normalization,
+            name_prefix,
+            description_suffix,
             properties: _,
-            ..
         } = f;
 
         let mut features = spectrum_extractor.into_vec();
@@ -659,6 +686,8 @@ where
             peaks,
             periodogram_algorithm,
             normalization,
+            name_prefix,
+            description_suffix,
         }
     }
 }
@@ -676,9 +705,16 @@ where
             peaks,
             periodogram_algorithm,
             normalization,
+            name_prefix,
+            description_suffix,
         } = p;
 
-        let mut periodogram = Periodogram::with_freq_frid_strategy(peaks, freq_grid_strategy);
+        let mut periodogram = Periodogram::with_freq_grid_strategy_name_description(
+            peaks,
+            freq_grid_strategy,
+            name_prefix,
+            description_suffix,
+        );
         for feature in spectrum_features {
             periodogram.add_spectrum_feature(feature);
         }
