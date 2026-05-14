@@ -924,7 +924,11 @@ mod tests {
     #[test]
     fn serde_json_with_phase_features() {
         use crate::features::LaflerKinmanStringLength;
-        let mut eval = McPeriodogram::new(1, MultiColorPeriodogramNormalisation::Count, make_gr_passbands());
+        let mut eval = McPeriodogram::new(
+            1,
+            MultiColorPeriodogramNormalisation::Count,
+            make_gr_passbands(),
+        );
         eval.set_phase_bands(vec![StringPassband::from("g"), StringPassband::from("r")]);
         eval.add_phase_feature(LaflerKinmanStringLength::new().into());
         let json = serde_json::to_string(&eval).unwrap();
@@ -939,7 +943,11 @@ mod tests {
     fn phase_feature_names_and_size() {
         use crate::features::LaflerKinmanStringLength;
 
-        let mut eval = McPeriodogram::new(1, MultiColorPeriodogramNormalisation::Count, make_gr_passbands());
+        let mut eval = McPeriodogram::new(
+            1,
+            MultiColorPeriodogramNormalisation::Count,
+            make_gr_passbands(),
+        );
         eval.set_phase_bands(vec![StringPassband::from("g"), StringPassband::from("r")]);
         eval.add_phase_feature(LaflerKinmanStringLength::new().into());
 
@@ -1067,7 +1075,11 @@ mod tests {
         );
         let mut mcts = MultiColorTimeSeries::from_map(map);
 
-        let mut eval = McPeriodogram::new(1, MultiColorPeriodogramNormalisation::Count, make_g_passband());
+        let mut eval = McPeriodogram::new(
+            1,
+            MultiColorPeriodogramNormalisation::Count,
+            make_g_passband(),
+        );
         eval.set_periodogram_algorithm(PeriodogramPowerDirect.into());
         eval.set_phase_bands(vec![StringPassband::from("g")]);
         eval.add_phase_feature(Amplitude::default().into());
@@ -1110,7 +1122,11 @@ mod tests {
         );
         let mut mcts = MultiColorTimeSeries::from_map(map);
 
-        let mut eval = McPeriodogram::new(1, MultiColorPeriodogramNormalisation::Count, make_g_passband());
+        let mut eval = McPeriodogram::new(
+            1,
+            MultiColorPeriodogramNormalisation::Count,
+            make_g_passband(),
+        );
         eval.set_periodogram_algorithm(PeriodogramPowerDirect.into());
         eval.set_phase_bands(vec![StringPassband::from("g")]);
         eval.add_phase_feature(TimeMean::default().into());
@@ -1150,7 +1166,11 @@ mod tests {
         );
         let mut mcts = MultiColorTimeSeries::from_map(map);
 
-        let mut eval = McPeriodogram::new(1, MultiColorPeriodogramNormalisation::Count, make_g_passband());
+        let mut eval = McPeriodogram::new(
+            1,
+            MultiColorPeriodogramNormalisation::Count,
+            make_g_passband(),
+        );
         eval.set_periodogram_algorithm(PeriodogramPowerDirect.into());
         // Fixed grid: single frequency whose period equals 1.0 → all phases collapse to 0.0
         eval.set_freq_grid(crate::periodogram::FreqGrid::linear(
@@ -1193,7 +1213,11 @@ mod tests {
         );
         let mut mcts = MultiColorTimeSeries::from_map(map);
 
-        let mut eval = McPeriodogram::new(1, MultiColorPeriodogramNormalisation::Count, make_g_passband());
+        let mut eval = McPeriodogram::new(
+            1,
+            MultiColorPeriodogramNormalisation::Count,
+            make_g_passband(),
+        );
         eval.set_periodogram_algorithm(PeriodogramPowerDirect.into());
         eval.set_phase_bands(vec![StringPassband::from("g")]);
         eval.add_phase_feature(LaflerKinmanStringLength::new().into());
