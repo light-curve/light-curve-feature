@@ -35,7 +35,7 @@ where
     ExcessVariance,
     InterPercentileRange,
     Kurtosis,
-    LaflerKinman,
+    LaflerKinmanStringLength,
     LinearFit,
     LinearTrend,
     LinexpFit,

@@ -41,8 +41,8 @@ pub use inter_percentile_range::InterPercentileRange;
 mod kurtosis;
 pub use kurtosis::Kurtosis;
 
-mod lafler_kinman;
-pub use lafler_kinman::LaflerKinman;
+mod lafler_kinman_string_length;
+pub use lafler_kinman_string_length::LaflerKinmanStringLength;
 
 mod linear_fit;
 pub use linear_fit::LinearFit;
