@@ -9,8 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `MultiColorBins<P, T>` — multi-color meta-feature that bins each passband's time series independently (same weighted-mean binning as `Bins`) then evaluates inner multi-color features on the collection of binned per-band series; mirrors the `Bins` API with `new(window, offset)` + `add_feature(MultiColorFeature<P, T>)`
-- `MultiColorExtractor::add_feature` and `MultiColorExtractor::get_features` for incremental extractor construction
+--
 
 ### Changed
 
@@ -31,6 +30,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 --
+
+# [0.15.1] 2026 May 16
+
+### Added
+
+- `MultiColorBins<P, T>` — multi-color meta-feature that bins each passband's time series independently (same weighted-mean binning as `Bins`) then evaluates inner multi-color features on the collection of binned per-band series; mirrors the `Bins` API with `new(window, offset)` + `add_feature(MultiColorFeature<P, T>)`
+- `MultiColorExtractor::add_feature` and `MultiColorExtractor::get_features` for incremental extractor construction
 
 # [0.15.0] 2026 May 14
 
