@@ -161,35 +161,43 @@ where
         &self,
         ts: &mut TimeSeries<T>,
     ) -> Result<TmwArrays<T>, EvaluatorError> {
-        // These conversions should never fail because we validated the range in new() and set methods
         let window = self.window.into_inner().approx_as::<T>().unwrap();
         let offset = self.offset.into_inner().approx_as::<T>().unwrap();
-        let (t, m, w): (Vec<_>, Vec<_>, Vec<_>) =
-            ts.t.as_slice()
-                .iter()
-                .copied()
-                .zip(ts.m.as_slice().iter().copied())
-                .zip(ts.w.as_slice().iter().copied())
-                .map(|((t, m), w)| (t, m, w))
-                .chunk_by(|(t, _, _)| ((*t - offset) / window).floor())
-                .into_iter()
-                .map(|(x, chunk)| {
-                    let bin_t = (x + T::half()) * window;
-                    let (n, bin_m, norm) = chunk
-                        .fold((T::zero(), T::zero(), T::zero()), |acc, (_, m, w)| {
-                            (acc.0 + T::one(), acc.1 + m * w, acc.2 + w)
-                        });
-                    let bin_m = bin_m / norm;
-                    let bin_w = norm / n;
-                    (bin_t, bin_m, bin_w)
-                })
-                .unzip3();
-        Ok(TmwArrays {
-            t: t.into(),
-            m: m.into(),
-            w: w.into(),
-        })
+        bin_time_series(ts, window, offset)
     }
+}
+
+/// Bins a single-band time series into weighted means.
+pub(crate) fn bin_time_series<T: Float>(
+    ts: &mut TimeSeries<T>,
+    window: T,
+    offset: T,
+) -> Result<TmwArrays<T>, EvaluatorError> {
+    let (t, m, w): (Vec<_>, Vec<_>, Vec<_>) =
+        ts.t.as_slice()
+            .iter()
+            .copied()
+            .zip(ts.m.as_slice().iter().copied())
+            .zip(ts.w.as_slice().iter().copied())
+            .map(|((t, m), w)| (t, m, w))
+            .chunk_by(|(t, _, _)| ((*t - offset) / window).floor())
+            .into_iter()
+            .map(|(x, chunk)| {
+                let bin_t = (x + T::half()) * window;
+                let (n, bin_m, norm) = chunk
+                    .fold((T::zero(), T::zero(), T::zero()), |acc, (_, m, w)| {
+                        (acc.0 + T::one(), acc.1 + m * w, acc.2 + w)
+                    });
+                let bin_m = bin_m / norm;
+                let bin_w = norm / n;
+                (bin_t, bin_m, bin_w)
+            })
+            .unzip3();
+    Ok(TmwArrays {
+        t: t.into(),
+        m: m.into(),
+        w: w.into(),
+    })
 }
 
 impl<T, F> Default for Bins<T, F>

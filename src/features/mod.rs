@@ -15,7 +15,7 @@ pub use bazin_fit::{BazinFit, BazinInitsBounds, BazinLnPrior};
 mod beyond_n_std;
 pub use beyond_n_std::BeyondNStd;
 
-mod bins;
+pub(crate) mod bins;
 pub use bins::Bins;
 mod chi2_pvar;
 pub use chi2_pvar::Chi2Pvar;

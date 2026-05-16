@@ -6,7 +6,7 @@ use crate::multicolor::features::{
     ColorOfMaximum, ColorOfMedian, ColorOfMinimum, ColorSpread, MultiColorPeriodogram,
 };
 use crate::multicolor::multicolor_evaluator::*;
-use crate::multicolor::{MultiColorExtractor, PerBandFeature};
+use crate::multicolor::{MultiColorBins, MultiColorExtractor, PerBandFeature};
 
 use enum_dispatch::enum_dispatch;
 use schemars::JsonSchema;
@@ -33,6 +33,7 @@ where
     ColorOfMinimum(ColorOfMinimum<P>),
     ColorSpread(ColorSpread<P>),
     MultiColorPeriodogram(MultiColorPeriodogram<P, T, Feature<T>>),
+    MultiColorBins(MultiColorBins<P, T>),
 }
 
 impl<P, T> MultiColorFeature<P, T>

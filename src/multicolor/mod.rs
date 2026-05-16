@@ -1,5 +1,8 @@
 pub mod features;
 
+mod multicolor_bins;
+pub use multicolor_bins::MultiColorBins;
+
 mod per_band_feature;
 pub use per_band_feature::PerBandFeature;
 
