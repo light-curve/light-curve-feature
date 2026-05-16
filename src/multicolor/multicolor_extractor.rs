@@ -77,6 +77,23 @@ where
             info,
         }
     }
+
+    pub fn add_feature(&mut self, feature: MultiColorFeature<P, T>) {
+        let PassbandSet(new_pbs) = feature.get_passband_set();
+        self.passband_set.0.extend(new_pbs.iter().cloned());
+        self.info.size += feature.size_hint();
+        self.info.min_ts_length = self.info.min_ts_length.max(feature.min_ts_length());
+        self.info.t_required |= feature.is_t_required();
+        self.info.m_required |= feature.is_m_required();
+        self.info.w_required |= feature.is_w_required();
+        self.info.sorting_required |= feature.is_sorting_required();
+        self.info.variability_required |= feature.is_variability_required();
+        self.features.push(feature);
+    }
+
+    pub fn get_features(&self) -> &[MultiColorFeature<P, T>] {
+        &self.features
+    }
 }
 
 impl<P, T> FeatureNamesDescriptionsTrait for MultiColorExtractor<P, T>
