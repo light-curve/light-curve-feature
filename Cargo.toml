@@ -55,6 +55,7 @@ num-traits = "^0.2"
 nuts-rs = { version = "^0.18" }
 nuts-storable = { version = "^0.3" }
 ordered-float = { version = "5", features = ["serde", "schemars"] }
+ouroboros = "0.18"
 paste = "1"
 rand = { version = "0.10" }
 schemars = "^0.8"

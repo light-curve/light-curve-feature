@@ -108,19 +108,22 @@ where
         'a: 'mcts,
     {
         let mut medians = [T::zero(); 2];
-        for ((passband, mcts), median) in mcts
-            .mapping_mut()
-            .iter_matched_passbands_mut(self.passbands.iter())
-            .zip(medians.iter_mut())
-        {
-            let mcts = mcts.expect("MultiColorTimeSeries must have all required passbands");
-            *median = self.median.eval(mcts).map_err(|error| {
-                MultiColorEvaluatorError::MonochromeEvaluatorError {
-                    passband: passband.name().into(),
-                    error,
-                }
-            })?[0]
-        }
+        mcts.with_mapping_mut(|mapping| -> Result<(), MultiColorEvaluatorError> {
+            for ((passband, band_ts), median) in mapping
+                .iter_matched_passbands_mut(self.passbands.iter())
+                .zip(medians.iter_mut())
+            {
+                let band_ts =
+                    band_ts.expect("MultiColorTimeSeries must have all required passbands");
+                *median = self.median.eval(band_ts).map_err(|error| {
+                    MultiColorEvaluatorError::MonochromeEvaluatorError {
+                        passband: passband.name().into(),
+                        error,
+                    }
+                })?[0];
+            }
+            Ok(())
+        })?;
         Ok(vec![medians[0] - medians[1]])
     }
 }

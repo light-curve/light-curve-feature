@@ -119,20 +119,22 @@ where
         'a: 'mcts,
     {
         let PassbandSet(set) = &self.passband_set;
-        mcts.mapping_mut()
-            .iter_matched_passbands_mut(set.iter())
-            .map(|(passband, ts)| {
-                self.feature
-                    .eval_no_ts_check(ts.expect(
-                        "we checked all needed passbands are in mcts, but we still cannot find one",
-                    ))
-                    .map_err(|error| MultiColorEvaluatorError::MonochromeEvaluatorError {
-                        passband: passband.name().into(),
-                        error,
-                    })
-            })
-            .flatten_ok()
-            .collect()
+        mcts.with_mapping_mut(|mapping| {
+            mapping
+                .iter_matched_passbands_mut(set.iter())
+                .map(|(passband, ts)| {
+                    self.feature
+                        .eval_no_ts_check(ts.expect(
+                            "we checked all needed passbands are in mcts, but we still cannot find one",
+                        ))
+                        .map_err(|error| MultiColorEvaluatorError::MonochromeEvaluatorError {
+                            passband: passband.name().into(),
+                            error,
+                        })
+                })
+                .flatten_ok()
+                .collect()
+        })
     }
 }
 
@@ -178,19 +180,19 @@ mod tests {
         let m_g = vec![1.0_f64, 2.0, 3.0]; // mean = 2.0
         let m_r = vec![4.0_f64, 5.0, 6.0]; // mean = 5.0
 
-        let mut mcts = {
-            let mut map = BTreeMap::new();
-            map.insert(passband_g.clone(), TimeSeries::new_without_weight(&t, &m_g));
-            map.insert(passband_r.clone(), TimeSeries::new_without_weight(&t, &m_r));
-            MultiColorTimeSeries::from_map(map)
-        };
-
         let feature: PerBandFeature<MonochromePassband<_>, f64, Feature<_>> = PerBandFeature::new(
             Mean::default().into(),
             [passband_g.clone(), passband_r.clone()]
                 .into_iter()
                 .collect(),
         );
+
+        let mut mcts = {
+            let mut map = BTreeMap::new();
+            map.insert(passband_g.clone(), TimeSeries::new_without_weight(&t, &m_g));
+            map.insert(passband_r.clone(), TimeSeries::new_without_weight(&t, &m_r));
+            MultiColorTimeSeries::from_map(map)
+        };
 
         let result = feature.eval_multicolor(&mut mcts).unwrap();
         // Passbands are ordered by wavelength (g before r), so mean_g=2.0 comes first
@@ -207,7 +209,6 @@ mod tests {
             .iter()
             .map(|&s| StringPassband::from(s))
             .collect();
-        let mut mcts = MultiColorTimeSeries::from_flat(t, m, w, bands);
 
         let feature: PerBandFeature<StringPassband, f64, Feature<f64>> = PerBandFeature::new(
             Mean::default().into(),
@@ -216,6 +217,8 @@ mod tests {
                 .map(|&s| StringPassband::from(s))
                 .collect(),
         );
+        let mut mcts = MultiColorTimeSeries::from_flat(t, m, w, bands);
+
         let result = feature.eval_multicolor(&mut mcts).unwrap();
         // mean_g = 1.5, mean_r = 4.5; i band ignored
         assert!((result[0] - 1.5).abs() < 1e-10);
