@@ -477,14 +477,13 @@ where
         mcts: &mut MultiColorTimeSeries<'_, P, T>,
     ) -> Result<periodogram::Periodogram<'slf, T>, MultiColorEvaluatorError> {
         let PassbandSet(passband_set) = &self.passband_set;
-        let t_filtered: Vec<T> = {
-            let mapping = mcts.mapping_mut();
+        let t_filtered: Vec<T> = mcts.with_mapping_mut(|mapping| {
             mapping
                 .iter_matched_passbands_mut(passband_set.iter())
                 .filter_map(|(_, ts)| ts)
                 .flat_map(|ts| ts.t.as_slice().to_vec())
                 .collect()
-        };
+        });
         self.monochrome
             .periodogram_from_t(&t_filtered)
             .map_err(|e| MultiColorEvaluatorError::UnderlyingEvaluatorError(e.into()))
@@ -500,57 +499,58 @@ where
         'a: 'mcts,
     {
         let PassbandSet(passband_set) = &self.passband_set;
-        let mapping = mcts.mapping_mut();
-        let ts_weights = {
-            let mut a: Array1<_> = match self.normalization {
-                MultiColorPeriodogramNormalisation::Count => mapping
-                    .iter_matched_passbands_mut(passband_set.iter())
-                    .map(|(_, ts)| {
-                        ts.expect("passband must be present after check_mcts")
-                            .lenf()
-                    })
-                    .collect(),
-                MultiColorPeriodogramNormalisation::Chi2 => mapping
-                    .iter_matched_passbands_mut(passband_set.iter())
-                    .map(|(_, ts)| {
-                        ts.expect("passband must be present after check_mcts")
-                            .get_m_chi2()
-                    })
-                    .collect(),
+        mcts.with_mapping_mut(|mapping| -> Result<Array1<T>, MultiColorEvaluatorError> {
+            let ts_weights = {
+                let mut a: Array1<_> = match self.normalization {
+                    MultiColorPeriodogramNormalisation::Count => mapping
+                        .iter_matched_passbands_mut(passband_set.iter())
+                        .map(|(_, ts)| {
+                            ts.expect("passband must be present after check_mcts")
+                                .lenf()
+                        })
+                        .collect(),
+                    MultiColorPeriodogramNormalisation::Chi2 => mapping
+                        .iter_matched_passbands_mut(passband_set.iter())
+                        .map(|(_, ts)| {
+                            ts.expect("passband must be present after check_mcts")
+                                .get_m_chi2()
+                        })
+                        .collect(),
+                };
+                let norm = a.sum();
+                if norm.is_zero() {
+                    return Err(match self.normalization {
+                        MultiColorPeriodogramNormalisation::Count => {
+                            MultiColorEvaluatorError::all_time_series_short(
+                                mapping,
+                                self.min_ts_length(),
+                            )
+                        }
+                        MultiColorPeriodogramNormalisation::Chi2 => {
+                            MultiColorEvaluatorError::AllTimeSeriesAreFlat
+                        }
+                    });
+                }
+                a /= norm;
+                a
             };
-            let norm = a.sum();
-            if norm.is_zero() {
-                return Err(match self.normalization {
-                    MultiColorPeriodogramNormalisation::Count => {
-                        MultiColorEvaluatorError::all_time_series_short(
-                            mapping,
-                            self.min_ts_length(),
-                        )
-                    }
-                    MultiColorPeriodogramNormalisation::Chi2 => {
-                        MultiColorEvaluatorError::AllTimeSeriesAreFlat
-                    }
+            let combined = mapping
+                .iter_matched_passbands_mut(passband_set.iter())
+                .filter_map(|(_, ts)| ts)
+                .zip(ts_weights.iter())
+                .filter(|(ts, _ts_weight)| self.monochrome.check_ts_length(ts).is_ok())
+                .map(|(ts, &ts_weight)| {
+                    let mut power = Array1::from_vec(p.power(ts));
+                    power *= ts_weight;
+                    power
+                })
+                .reduce(|mut acc, power| {
+                    acc += &power;
+                    acc
                 });
-            }
-            a /= norm;
-            a
-        };
-        let combined = mapping
-            .iter_matched_passbands_mut(passband_set.iter())
-            .filter_map(|(_, ts)| ts)
-            .zip(ts_weights.iter())
-            .filter(|(ts, _ts_weight)| self.monochrome.check_ts_length(ts).is_ok())
-            .map(|(ts, &ts_weight)| {
-                let mut power = Array1::from_vec(p.power(ts));
-                power *= ts_weight;
-                power
+            combined.ok_or_else(|| {
+                MultiColorEvaluatorError::all_time_series_short(mapping, self.min_ts_length())
             })
-            .reduce(|mut acc, power| {
-                acc += &power;
-                acc
-            });
-        combined.ok_or_else(|| {
-            MultiColorEvaluatorError::all_time_series_short(mapping, self.min_ts_length())
         })
     }
 
@@ -653,43 +653,44 @@ where
                 mcts.passbands().map(|p| p.name().into()).collect();
             let desired_passbands: std::collections::BTreeSet<String> =
                 self.phase_bands.iter().map(|p| p.name().into()).collect();
-            for (band, maybe_ts) in mcts
-                .mapping_mut()
-                .iter_matched_passbands_mut(self.phase_bands.iter())
-            {
-                let band_ts =
-                    maybe_ts.ok_or_else(|| MultiColorEvaluatorError::WrongPassbandsError {
-                        actual: actual_passbands.clone(),
-                        desired: desired_passbands.clone(),
-                    })?;
-                let phase_arrays = phase_fold_or_compute(
-                    band_ts,
-                    best_period,
-                    self.phase_extractor.is_t_required(),
-                    self.phase_extractor.is_sorting_required(),
-                );
-                match phase_arrays {
-                    Some(arrays) => {
-                        let mut phase_ts = arrays.ts();
-                        result.extend(
-                            eval_phase_ts(&self.phase_extractor, &mut phase_ts).map_err(|e| {
+            mcts.with_mapping_mut(|mapping| -> Result<(), MultiColorEvaluatorError> {
+                for (band, maybe_ts) in mapping.iter_matched_passbands_mut(self.phase_bands.iter())
+                {
+                    let band_ts =
+                        maybe_ts.ok_or_else(|| MultiColorEvaluatorError::WrongPassbandsError {
+                            actual: actual_passbands.clone(),
+                            desired: desired_passbands.clone(),
+                        })?;
+                    let phase_arrays = phase_fold_or_compute(
+                        band_ts,
+                        best_period,
+                        self.phase_extractor.is_t_required(),
+                        self.phase_extractor.is_sorting_required(),
+                    );
+                    match phase_arrays {
+                        Some(arrays) => {
+                            let mut phase_ts = arrays.ts();
+                            result.extend(
+                                eval_phase_ts(&self.phase_extractor, &mut phase_ts).map_err(
+                                    |e| MultiColorEvaluatorError::MonochromeEvaluatorError {
+                                        error: e,
+                                        passband: band.name().to_string(),
+                                    },
+                                )?,
+                            );
+                        }
+                        None => {
+                            result.extend(self.phase_extractor.eval(band_ts).map_err(|e| {
                                 MultiColorEvaluatorError::MonochromeEvaluatorError {
                                     error: e,
                                     passband: band.name().to_string(),
                                 }
-                            })?,
-                        );
-                    }
-                    None => {
-                        result.extend(self.phase_extractor.eval(band_ts).map_err(|e| {
-                            MultiColorEvaluatorError::MonochromeEvaluatorError {
-                                error: e,
-                                passband: band.name().to_string(),
-                            }
-                        })?);
+                            })?);
+                        }
                     }
                 }
-            }
+                Ok(())
+            })?;
         }
         Ok(result)
     }
@@ -722,33 +723,34 @@ where
                 .map(|f| f.size_hint())
                 .sum();
             if best_period.is_finite() && best_period > T::zero() {
-                for (_band, maybe_ts) in mcts
-                    .mapping_mut()
-                    .iter_matched_passbands_mut(self.phase_bands.iter())
-                {
-                    if let Some(band_ts) = maybe_ts {
-                        let phase_arrays = phase_fold_or_compute(
-                            band_ts,
-                            best_period,
-                            self.phase_extractor.is_t_required(),
-                            self.phase_extractor.is_sorting_required(),
-                        );
-                        match phase_arrays {
-                            Some(arrays) => {
-                                let mut phase_ts = arrays.ts();
-                                result.extend(eval_phase_ts_or_fill(
-                                    &self.phase_extractor,
-                                    &mut phase_ts,
-                                    fill_value,
-                                ));
+                mcts.with_mapping_mut(|mapping| {
+                    for (_band, maybe_ts) in
+                        mapping.iter_matched_passbands_mut(self.phase_bands.iter())
+                    {
+                        if let Some(band_ts) = maybe_ts {
+                            let phase_arrays = phase_fold_or_compute(
+                                band_ts,
+                                best_period,
+                                self.phase_extractor.is_t_required(),
+                                self.phase_extractor.is_sorting_required(),
+                            );
+                            match phase_arrays {
+                                Some(arrays) => {
+                                    let mut phase_ts = arrays.ts();
+                                    result.extend(eval_phase_ts_or_fill(
+                                        &self.phase_extractor,
+                                        &mut phase_ts,
+                                        fill_value,
+                                    ));
+                                }
+                                None => result
+                                    .extend(self.phase_extractor.eval_or_fill(band_ts, fill_value)),
                             }
-                            None => result
-                                .extend(self.phase_extractor.eval_or_fill(band_ts, fill_value)),
+                        } else {
+                            result.extend(vec![fill_value; phase_feature_size]);
                         }
-                    } else {
-                        result.extend(vec![fill_value; phase_feature_size]);
                     }
-                }
+                });
             } else {
                 let phase_total = self.phase_bands.len() * phase_feature_size;
                 result.extend(vec![fill_value; phase_total]);
@@ -999,11 +1001,11 @@ mod tests {
             eval
         };
 
-        let mut mcts_count = make_mcts();
-        let mut mcts_chi2 = make_mcts();
-
         let eval_count = make_eval(MultiColorPeriodogramNormalisation::Count);
         let eval_chi2 = make_eval(MultiColorPeriodogramNormalisation::Chi2);
+
+        let mut mcts_count = make_mcts();
+        let mut mcts_chi2 = make_mcts();
 
         let power_count = eval_count.power(&mut mcts_count).unwrap();
         let power_chi2 = eval_chi2.power(&mut mcts_chi2).unwrap();
@@ -1026,6 +1028,7 @@ mod tests {
         }
 
         let m_flat: Vec<f64> = vec![1.0; n];
+        let eval_chi2_flat = make_eval(MultiColorPeriodogramNormalisation::Chi2);
         let mut mcts_flat = {
             let mut map = std::collections::BTreeMap::new();
             map.insert(
@@ -1038,7 +1041,6 @@ mod tests {
             );
             MultiColorTimeSeries::from_map(map)
         };
-        let eval_chi2_flat = make_eval(MultiColorPeriodogramNormalisation::Chi2);
         assert!(
             eval_chi2_flat.eval_multicolor(&mut mcts_flat).is_err(),
             "Chi2 with all-flat bands should return an error"
@@ -1066,13 +1068,6 @@ mod tests {
             .map(|&ti| (2.0 * std::f64::consts::PI * ti / period).sin())
             .collect();
 
-        let mut map = std::collections::BTreeMap::new();
-        map.insert(
-            StringPassband::from("g"),
-            TimeSeries::new_without_weight(t.as_slice(), m.as_slice()),
-        );
-        let mut mcts = MultiColorTimeSeries::from_map(map);
-
         let mut eval = McPeriodogram::new(
             1,
             MultiColorPeriodogramNormalisation::Count,
@@ -1081,6 +1076,13 @@ mod tests {
         eval.set_periodogram_algorithm(PeriodogramPowerDirect.into());
         eval.set_phase_bands(vec![StringPassband::from("g")]);
         eval.add_phase_feature(Amplitude::default().into());
+
+        let mut map = std::collections::BTreeMap::new();
+        map.insert(
+            StringPassband::from("g"),
+            TimeSeries::new_without_weight(t.as_slice(), m.as_slice()),
+        );
+        let mut mcts = MultiColorTimeSeries::from_map(map);
 
         let result = eval.eval_multicolor(&mut mcts).unwrap();
         assert_eq!(result.len(), eval.size_hint());
@@ -1113,13 +1115,6 @@ mod tests {
             .map(|&ti| (2.0 * std::f64::consts::PI * ti / period).sin())
             .collect();
 
-        let mut map = std::collections::BTreeMap::new();
-        map.insert(
-            StringPassband::from("g"),
-            TimeSeries::new_without_weight(t.as_slice(), m.as_slice()),
-        );
-        let mut mcts = MultiColorTimeSeries::from_map(map);
-
         let mut eval = McPeriodogram::new(
             1,
             MultiColorPeriodogramNormalisation::Count,
@@ -1128,6 +1123,13 @@ mod tests {
         eval.set_periodogram_algorithm(PeriodogramPowerDirect.into());
         eval.set_phase_bands(vec![StringPassband::from("g")]);
         eval.add_phase_feature(TimeMean::default().into());
+
+        let mut map = std::collections::BTreeMap::new();
+        map.insert(
+            StringPassband::from("g"),
+            TimeSeries::new_without_weight(t.as_slice(), m.as_slice()),
+        );
+        let mut mcts = MultiColorTimeSeries::from_map(map);
 
         let result = eval.eval_multicolor(&mut mcts).unwrap();
         assert_eq!(result.len(), eval.size_hint());
@@ -1157,13 +1159,6 @@ mod tests {
         let t = vec![0.0_f64, 1.0, 2.0, 3.0, 4.0];
         let m = vec![1.0_f64, 1.5, 0.5, 1.2, 0.8];
 
-        let mut map = std::collections::BTreeMap::new();
-        map.insert(
-            StringPassband::from("g"),
-            TimeSeries::new_without_weight(t.as_slice(), m.as_slice()),
-        );
-        let mut mcts = MultiColorTimeSeries::from_map(map);
-
         let mut eval = McPeriodogram::new(
             1,
             MultiColorPeriodogramNormalisation::Count,
@@ -1178,6 +1173,13 @@ mod tests {
         ));
         eval.set_phase_bands(vec![StringPassband::from("g")]);
         eval.add_phase_feature(MaximumSlope::default().into());
+
+        let mut map = std::collections::BTreeMap::new();
+        map.insert(
+            StringPassband::from("g"),
+            TimeSeries::new_without_weight(t.as_slice(), m.as_slice()),
+        );
+        let mut mcts = MultiColorTimeSeries::from_map(map);
 
         let fill = f64::NAN;
         let result = eval.eval_or_fill_multicolor(&mut mcts, fill).unwrap();
@@ -1204,13 +1206,6 @@ mod tests {
             .map(|&ti| 3.0 * (2.0 * std::f64::consts::PI * ti / period).sin() + 4.0)
             .collect();
 
-        let mut map = std::collections::BTreeMap::new();
-        map.insert(
-            StringPassband::from("g"),
-            TimeSeries::new_without_weight(t.as_slice(), m.as_slice()),
-        );
-        let mut mcts = MultiColorTimeSeries::from_map(map);
-
         let mut eval = McPeriodogram::new(
             1,
             MultiColorPeriodogramNormalisation::Count,
@@ -1219,6 +1214,13 @@ mod tests {
         eval.set_periodogram_algorithm(PeriodogramPowerDirect.into());
         eval.set_phase_bands(vec![StringPassband::from("g")]);
         eval.add_phase_feature(LaflerKinmanStringLength::new().into());
+
+        let mut map = std::collections::BTreeMap::new();
+        map.insert(
+            StringPassband::from("g"),
+            TimeSeries::new_without_weight(t.as_slice(), m.as_slice()),
+        );
+        let mut mcts = MultiColorTimeSeries::from_map(map);
 
         let result = eval.eval_multicolor(&mut mcts).unwrap();
         // result = [period_0, snr_0, period_folded_g_lafler_kinman_string_length]
@@ -1267,6 +1269,9 @@ mod tests {
             eval
         };
 
+        let eval_gr = make_eval();
+        let eval_gri = make_eval();
+
         // mcts with only g and r
         let mut mcts_gr = {
             let mut map = std::collections::BTreeMap::new();
@@ -1299,8 +1304,8 @@ mod tests {
             MultiColorTimeSeries::from_map(map)
         };
 
-        let result_gr = make_eval().eval_multicolor(&mut mcts_gr).unwrap();
-        let result_gri = make_eval().eval_multicolor(&mut mcts_gri).unwrap();
+        let result_gr = eval_gr.eval_multicolor(&mut mcts_gr).unwrap();
+        let result_gri = eval_gri.eval_multicolor(&mut mcts_gri).unwrap();
         assert_eq!(
             result_gr, result_gri,
             "Extra i band must not affect the result"

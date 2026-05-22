@@ -106,14 +106,16 @@ where
         'a: 'mcts,
     {
         let mut maxima = [T::zero(); 2];
-        for ((_passband, mcts), maximum) in mcts
-            .mapping_mut()
-            .iter_matched_passbands_mut(self.passbands.iter())
-            .zip(maxima.iter_mut())
-        {
-            let mcts = mcts.expect("MultiColorTimeSeries must have all required passbands");
-            *maximum = mcts.m.get_max()
-        }
+        mcts.with_mapping_mut(|mapping| {
+            for ((_passband, band_ts), maximum) in mapping
+                .iter_matched_passbands_mut(self.passbands.iter())
+                .zip(maxima.iter_mut())
+            {
+                let band_ts =
+                    band_ts.expect("MultiColorTimeSeries must have all required passbands");
+                *maximum = band_ts.m.get_max();
+            }
+        });
         Ok(vec![maxima[0] - maxima[1]])
     }
 }

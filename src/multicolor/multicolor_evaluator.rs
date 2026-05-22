@@ -131,25 +131,27 @@ where
         'a: 'mcts,
         P: 'a,
     {
-        mcts.mapping_mut()
-            .iter_passband_set_mut(self.get_passband_set())
-            .map(|(p, maybe_ts)| {
-                maybe_ts
-                    .ok_or(InternalMctsError::InternalWrongPassbandSet)
-                    .and_then(|ts| {
-                        self.check_ts(ts).map_err(|error| {
-                            InternalMctsError::MultiColorEvaluatorError(
-                                MultiColorEvaluatorError::MonochromeEvaluatorError {
-                                    error,
-                                    passband: p.name().into(),
-                                },
-                            )
+        let result: Result<(), InternalMctsError> = mcts.with_mapping_mut(|mapping| {
+            mapping
+                .iter_passband_set_mut(self.get_passband_set())
+                .map(|(p, maybe_ts)| {
+                    maybe_ts
+                        .ok_or(InternalMctsError::InternalWrongPassbandSet)
+                        .and_then(|ts| {
+                            self.check_ts(ts).map_err(|error| {
+                                InternalMctsError::MultiColorEvaluatorError(
+                                    MultiColorEvaluatorError::MonochromeEvaluatorError {
+                                        error,
+                                        passband: p.name().into(),
+                                    },
+                                )
+                            })
                         })
-                    })
-                    .map(|_| ())
-            })
-            .try_collect()
-            .map_err(|err| err.into_multi_color_evaluator_error(mcts, self.get_passband_set()))
+                        .map(|_| ())
+                })
+                .try_collect()
+        });
+        result.map_err(|err| err.into_multi_color_evaluator_error(mcts, self.get_passband_set()))
     }
 }
 
@@ -220,6 +222,28 @@ mod tests {
         let passband_b_capital = MonochromePassband::new(4400e-8, "B");
         let passband_v_capital = MonochromePassband::new(5500e-8, "V");
         let passband_r_capital = MonochromePassband::new(6400e-8, "R");
+
+        let feature_bv = TestTimeMultiColorFeature {
+            passband_set: PassbandSet(
+                [passband_b_capital.clone(), passband_v_capital.clone()].into(),
+            ),
+        };
+        let feature_b = TestTimeMultiColorFeature {
+            passband_set: PassbandSet([passband_b_capital.clone()].into()),
+        };
+        let feature_r = TestTimeMultiColorFeature {
+            passband_set: PassbandSet([passband_r_capital.clone()].into()),
+        };
+        let feature_brrr = TestTimeMultiColorFeature {
+            passband_set: PassbandSet(
+                [
+                    passband_b_capital.clone(),
+                    passband_r_capital.clone(),
+                    passband_r_capital.clone(),
+                ]
+                .into(),
+            ),
+        };
         let mut mcts = {
             let mut mapping = BTreeMap::new();
             mapping.insert(
@@ -233,34 +257,10 @@ mod tests {
             MultiColorTimeSeries::from_map(mapping)
         };
 
-        let feature = TestTimeMultiColorFeature {
-            passband_set: PassbandSet(
-                [passband_b_capital.clone(), passband_v_capital.clone()].into(),
-            ),
-        };
-        assert!(feature.eval_multicolor(&mut mcts).is_ok());
-
-        let feature = TestTimeMultiColorFeature {
-            passband_set: PassbandSet([passband_b_capital.clone()].into()),
-        };
-        assert!(feature.eval_multicolor(&mut mcts).is_ok());
-
-        let feature = TestTimeMultiColorFeature {
-            passband_set: PassbandSet([passband_r_capital.clone()].into()),
-        };
-        assert!(feature.eval_multicolor(&mut mcts).is_err());
-
-        let feature = TestTimeMultiColorFeature {
-            passband_set: PassbandSet(
-                [
-                    passband_b_capital.clone(),
-                    passband_r_capital.clone(),
-                    passband_r_capital.clone(),
-                ]
-                .into(),
-            ),
-        };
-        assert!(feature.eval_multicolor(&mut mcts).is_err());
+        assert!(feature_bv.eval_multicolor(&mut mcts).is_ok());
+        assert!(feature_b.eval_multicolor(&mut mcts).is_ok());
+        assert!(feature_r.eval_multicolor(&mut mcts).is_err());
+        assert!(feature_brrr.eval_multicolor(&mut mcts).is_err());
     }
 
     #[test]
@@ -270,15 +270,15 @@ mod tests {
         let passband_b = MonochromePassband::new(4400e-8, "B");
         let passband_r = MonochromePassband::new(6400e-8, "R");
 
+        let feature = TestTimeMultiColorFeature {
+            passband_set: PassbandSet([passband_r.clone()].into()),
+        };
+
         // mcts only has passband B, but feature requires R
         let mut mcts = {
             let mut mapping = BTreeMap::new();
             mapping.insert(passband_b.clone(), TimeSeries::new_without_weight(&t, &m));
             MultiColorTimeSeries::from_map(mapping)
-        };
-
-        let feature = TestTimeMultiColorFeature {
-            passband_set: PassbandSet([passband_r.clone()].into()),
         };
 
         // eval_multicolor should fail (missing passband R)

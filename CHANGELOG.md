@@ -9,11 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
---
+- Add `MultiColorTimeSeries::from_flat_with_passband_vec` constructor accepting a pre-built sorted unique passband slice for zero-clone construction of the N-length passband array
 
 ### Changed
 
---
+- **Breaking** `MultiColorTimeSeries` now owns unique passbands once in a `Vec<P>`; all internal representations hold `&P` references into it, reducing passband clone cost from O(N) to O(K)
+- **Breaking** `MappedMultiColorTimeSeries` key type changed from `P` to `&P` (`Deref` target is now `BTreeMap<&P, TimeSeries<'_, T>>`)
+- **Breaking** `MultiColorTimeSeries::mapping_mut()` removed; replaced by `with_mapping_mut(f: FnOnce(&mut MappedMultiColorTimeSeries) -> R) -> R` closure API
+- **Breaking** `MultiColorTimeSeries::passbands()` now returns `impl Iterator<Item = &P>` instead of `Either<btree_map::Keys<P, _>, btree_set::Iter<P>>`
 
 ### Deprecated
 

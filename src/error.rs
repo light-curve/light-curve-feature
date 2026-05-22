@@ -64,8 +64,8 @@ impl MultiColorEvaluatorError {
         }
     }
 
-    pub fn all_time_series_short<P, T>(
-        mapped: &MappedMultiColorTimeSeries<P, T>,
+    pub fn all_time_series_short<'pb, 'a, P, T>(
+        mapped: &MappedMultiColorTimeSeries<'pb, 'a, P, T>,
         minimum_required: usize,
     ) -> Self
     where

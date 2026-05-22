@@ -109,25 +109,25 @@ where
         'a: 'mcts,
     {
         let PassbandSet(set) = &self.passband_set;
-        let mapping = mcts.mapping_mut();
 
         // Compute weighted mean magnitude for each specified passband (in sorted order)
-        let band_means: Vec<T> = set
-            .iter()
-            .map(|p| {
-                let ts = mapping
-                    .get_mut(p)
-                    .expect("passband must be present after check_mcts");
-                let m = ts.m.as_slice();
-                let w = ts.w.as_slice();
-                let sum_wm = m
-                    .iter()
-                    .zip(w.iter())
-                    .fold(T::zero(), |acc, (&mi, &wi)| acc + wi * mi);
-                let sum_w = w.iter().fold(T::zero(), |acc, &wi| acc + wi);
-                sum_wm / sum_w
-            })
-            .collect();
+        let band_means: Vec<T> = mcts.with_mapping_mut(|mapping| {
+            set.iter()
+                .map(|p| {
+                    let ts = mapping
+                        .get_mut(p)
+                        .expect("passband must be present after check_mcts");
+                    let m = ts.m.as_slice();
+                    let w = ts.w.as_slice();
+                    let sum_wm = m
+                        .iter()
+                        .zip(w.iter())
+                        .fold(T::zero(), |acc, (&mi, &wi)| acc + wi * mi);
+                    let sum_w = w.iter().fold(T::zero(), |acc, &wi| acc + wi);
+                    sum_wm / sum_w
+                })
+                .collect()
+        });
 
         let n = T::from_usize(band_means.len()).expect("number of bands fits in float");
         let mean_of_means = band_means.iter().fold(T::zero(), |acc, &mu| acc + mu) / n;

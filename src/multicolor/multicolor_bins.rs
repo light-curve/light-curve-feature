@@ -167,29 +167,30 @@ where
 
         let PassbandSet(set) = self.feature_extractor.get_passband_set();
 
-        let binned_arrays: BTreeMap<P, TmwArrays<T>> = mcts
-            .mapping_mut()
-            .iter_matched_passbands_mut(set.iter())
-            .map(|(passband, maybe_ts)| {
-                let ts = maybe_ts.expect("passband checked before eval_multicolor_no_mcts_check");
-                let tmw = bin_time_series(ts, window, offset).map_err(|error| {
-                    MultiColorEvaluatorError::MonochromeEvaluatorError {
-                        passband: passband.name().into(),
-                        error,
-                    }
-                })?;
-                Ok((passband.clone(), tmw))
-            })
-            .collect::<Result<_, MultiColorEvaluatorError>>()?;
+        let binned_arrays: BTreeMap<P, TmwArrays<T>> = mcts.with_mapping_mut(
+            |mapping| -> Result<BTreeMap<P, TmwArrays<T>>, MultiColorEvaluatorError> {
+                mapping
+                    .iter_matched_passbands_mut(set.iter())
+                    .map(|(passband, maybe_ts)| {
+                        let ts = maybe_ts
+                            .expect("passband checked before eval_multicolor_no_mcts_check");
+                        let tmw = bin_time_series(ts, window, offset).map_err(|error| {
+                            MultiColorEvaluatorError::MonochromeEvaluatorError {
+                                passband: passband.name().into(),
+                                error,
+                            }
+                        })?;
+                        Ok((passband.clone(), tmw))
+                    })
+                    .collect()
+            },
+        )?;
 
+        // Consume binned_arrays with into_iter() so passbands are moved (not cloned again)
+        // and TmwArrays are consumed directly into TimeSeries with owned Array1 data.
         let binned_map: BTreeMap<P, TimeSeries<'_, T>> = binned_arrays
-            .iter()
-            .map(|(p, tmw)| {
-                (
-                    p.clone(),
-                    TimeSeries::new(tmw.t.view(), tmw.m.view(), tmw.w.view()),
-                )
-            })
+            .into_iter()
+            .map(|(p, tmw)| (p, TimeSeries::new(tmw.t, tmw.m, tmw.w)))
             .collect();
 
         let mut binned_mcts = MultiColorTimeSeries::from_map(binned_map);
