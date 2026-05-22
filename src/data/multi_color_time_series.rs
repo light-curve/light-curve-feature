@@ -954,7 +954,7 @@ mod tests {
         let mut mcts = make_mapping_mcts();
         let g = MonochromePassband::new(4700.0_f64, "g");
         let i_band = MonochromePassband::new(7500.0_f64, "i");
-        let query = vec![g.clone(), i_band.clone()];
+        let query = [g.clone(), i_band.clone()];
         mcts.with_mapping_mut(|mapping| {
             let results: Vec<_> = mapping.iter_matched_passbands(query.iter()).collect();
             assert_eq!(results.len(), 2);

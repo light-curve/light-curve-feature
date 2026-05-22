@@ -353,7 +353,7 @@ mod tests {
     // is_all_same is true for single-element array
     #[test]
     fn is_all_same_true_for_single_element() {
-        let x = [3.14_f64];
+        let x = [std::f64::consts::PI];
         let ds: DataSample<f64> = DataSample::from(&x);
         assert!(ds.is_all_same());
     }
