@@ -190,6 +190,7 @@ mod tests {
     use crate::Feature;
     use crate::tests::*;
 
+    use approx::assert_relative_eq;
     use serde_test::{Token, assert_ser_tokens};
 
     serialization_name_test!(FeatureExtractor<f64, Feature<f64>>);
@@ -221,5 +222,265 @@ mod tests {
                 Token::StructEnd,
             ],
         )
+    }
+
+    // Integration test: multiple features evaluated together produce correct concatenated values
+    #[test]
+    fn multi_feature_eval_values() {
+        let t = [0.0_f64, 1.0, 2.0, 3.0, 4.0];
+        let m = [1.0_f64, 2.0, 3.0, 4.0, 5.0];
+        let w = [1.0_f64; 5];
+        let mut ts = TimeSeries::new(&t[..], &m[..], &w[..]);
+
+        let fe: FeatureExtractor<f64, Feature<f64>> = FeatureExtractor::new(vec![
+            crate::Amplitude::new().into(),
+            crate::Mean::new().into(),
+        ]);
+
+        let values = fe.eval(&mut ts).unwrap();
+        assert_eq!(values.len(), 2, "should produce one value per feature");
+        // Amplitude = (max - min) / 2 = (5 - 1) / 2 = 2.0
+        assert_relative_eq!(values[0], 2.0, epsilon = 1e-10);
+        // Mean = (1+2+3+4+5)/5 = 3.0
+        assert_relative_eq!(values[1], 3.0, epsilon = 1e-10);
+    }
+
+    // Integration test: names and descriptions are correctly aggregated from all sub-features
+    #[test]
+    fn multi_feature_names_and_descriptions_aggregated() {
+        let fe: FeatureExtractor<f64, Feature<f64>> = FeatureExtractor::new(vec![
+            crate::Amplitude::new().into(),
+            crate::Mean::new().into(),
+            crate::StandardDeviation::new().into(),
+        ]);
+
+        let names = fe.get_names();
+        let descs = fe.get_descriptions();
+
+        assert_eq!(names.len(), 3);
+        assert_eq!(descs.len(), 3);
+        assert_eq!(fe.size_hint(), 3);
+        // Names should be in the same order as features
+        assert_eq!(names[0], "amplitude");
+        assert_eq!(names[1], "mean");
+        assert_eq!(names[2], "standard_deviation");
+        // Descriptions must be non-empty strings
+        assert!(descs.iter().all(|d| !d.is_empty()));
+    }
+
+    // Integration test: info flags are OR'd / max'd correctly when features are combined
+    #[test]
+    fn info_aggregated_correctly() {
+        // Amplitude: t_required=false, sorting_required=false, min_ts_length=1, size=1
+        // LinearTrend: t_required=true, sorting_required=true, min_ts_length=3, size=3
+        let fe: FeatureExtractor<f64, Feature<f64>> = FeatureExtractor::new(vec![
+            crate::Amplitude::new().into(),
+            crate::LinearTrend::new().into(),
+        ]);
+
+        assert!(
+            fe.is_t_required(),
+            "t_required should be true when any feature requires it"
+        );
+        assert!(
+            fe.is_sorting_required(),
+            "sorting_required should be true when any feature requires it"
+        );
+        assert_eq!(
+            fe.min_ts_length(),
+            3,
+            "min_ts_length should be the maximum across features"
+        );
+        assert_eq!(
+            fe.size_hint(),
+            1 + 3,
+            "size should be the sum across features"
+        );
+    }
+
+    // Integration test: add_feature correctly updates all info fields
+    #[test]
+    fn add_feature_updates_info_correctly() {
+        let mut fe: FeatureExtractor<f64, Feature<f64>> =
+            FeatureExtractor::new(vec![crate::Amplitude::new().into()]);
+
+        assert_eq!(fe.size_hint(), 1);
+        assert!(!fe.is_t_required());
+        assert!(!fe.is_sorting_required());
+        assert_eq!(fe.min_ts_length(), 1);
+
+        fe.add_feature(crate::LinearTrend::new().into());
+
+        assert_eq!(fe.size_hint(), 4);
+        assert!(fe.is_t_required());
+        assert!(fe.is_sorting_required());
+        assert_eq!(fe.min_ts_length(), 3);
+    }
+
+    // Integration test: eval returns ShortTimeSeries when time series is too short
+    #[test]
+    fn eval_returns_error_on_short_ts() {
+        // LinearTrend requires at least 3 points
+        let fe: FeatureExtractor<f64, Feature<f64>> = FeatureExtractor::new(vec![
+            crate::Amplitude::new().into(),
+            crate::LinearTrend::new().into(),
+        ]);
+
+        let t = [0.0_f64, 1.0];
+        let m = [1.0_f64, 2.0];
+        let w = [1.0_f64, 1.0];
+        let mut ts = TimeSeries::new(&t[..], &m[..], &w[..]);
+
+        let result = fe.eval(&mut ts);
+        assert!(
+            matches!(
+                result,
+                Err(EvaluatorError::ShortTimeSeries {
+                    actual: 2,
+                    minimum: 3
+                })
+            ),
+            "expected ShortTimeSeries error, got: {:?}",
+            result
+        );
+    }
+
+    // Integration test: eval_or_fill fills only the failing feature's outputs independently.
+    // Each sub-feature in the extractor fails/fills independently, so features that succeed
+    // return their values while those that fail return fill values.
+    #[test]
+    fn eval_or_fill_fills_only_failing_feature() {
+        // Amplitude needs 1 point (succeeds), LinearTrend needs 3 points (fails on ts of len 2)
+        let fe: FeatureExtractor<f64, Feature<f64>> = FeatureExtractor::new(vec![
+            crate::Amplitude::new().into(),   // size 1, succeeds
+            crate::LinearTrend::new().into(), // size 3, fails on short ts
+        ]);
+
+        let t = [0.0_f64, 1.0];
+        let m = [1.0_f64, 3.0];
+        let w = [1.0_f64, 1.0];
+        let mut ts = TimeSeries::new(&t[..], &m[..], &w[..]);
+
+        let values = fe.eval_or_fill(&mut ts, f64::NAN);
+        assert_eq!(values.len(), 4, "should always return size_hint() values");
+        // Amplitude succeeds: (3-1)/2 = 1.0
+        assert_relative_eq!(values[0], 1.0, epsilon = 1e-10);
+        // LinearTrend fails (short ts): all 3 outputs are fill value
+        assert!(
+            values[1..].iter().all(|v| v.is_nan()),
+            "failed feature outputs should be fill value"
+        );
+    }
+
+    // Integration test: eval_or_fill fills all values for a single feature that fails
+    #[test]
+    fn eval_or_fill_fills_all_on_single_failing_feature() {
+        // OtsuSplit requires variability (variability_required=true)
+        let fe: FeatureExtractor<f64, Feature<f64>> =
+            FeatureExtractor::new(vec![crate::OtsuSplit::new().into()]);
+
+        let t = [0.0_f64, 1.0, 2.0, 3.0];
+        let m = [3.0_f64; 4];
+        let w = [1.0_f64; 4];
+        let mut ts = TimeSeries::new(&t[..], &m[..], &w[..]);
+
+        let values = fe.eval_or_fill(&mut ts, -999.0);
+        assert_eq!(values.len(), fe.size_hint());
+        assert!(
+            values.iter().all(|&v| v == -999.0),
+            "all outputs should be fill value"
+        );
+    }
+
+    // Integration test: eval_or_fill returns actual values on valid input (not fill)
+    #[test]
+    fn eval_or_fill_returns_values_on_valid_ts() {
+        let fe: FeatureExtractor<f64, Feature<f64>> = FeatureExtractor::new(vec![
+            crate::Amplitude::new().into(),
+            crate::Mean::new().into(),
+        ]);
+
+        let t = [0.0_f64, 1.0, 2.0, 3.0, 4.0];
+        let m = [1.0_f64, 2.0, 3.0, 4.0, 5.0];
+        let w = [1.0_f64; 5];
+        let mut ts = TimeSeries::new(&t[..], &m[..], &w[..]);
+
+        let values = fe.eval_or_fill(&mut ts, f64::NAN);
+        assert_eq!(values.len(), 2);
+        assert!(
+            values.iter().all(|v| v.is_finite()),
+            "values should be finite"
+        );
+    }
+
+    // Integration test: eval result length always matches size_hint and names/descriptions length
+    #[test]
+    fn eval_result_length_consistent_with_size_hint() {
+        let fe: FeatureExtractor<f64, Feature<f64>> = FeatureExtractor::new(vec![
+            crate::Amplitude::new().into(),
+            crate::LinearTrend::new().into(),
+            crate::Mean::new().into(),
+        ]);
+
+        let t = [0.0_f64, 1.0, 2.0, 3.0, 4.0];
+        let m = [1.0_f64, 3.0, 2.0, 5.0, 4.0];
+        let w = [1.0_f64; 5];
+        let mut ts = TimeSeries::new(&t[..], &m[..], &w[..]);
+
+        let values = fe.eval(&mut ts).unwrap();
+        assert_eq!(values.len(), fe.size_hint());
+        assert_eq!(values.len(), fe.get_names().len());
+        assert_eq!(values.len(), fe.get_descriptions().len());
+    }
+
+    // Integration test: variability_required feature returns FlatTimeSeries error
+    #[test]
+    fn eval_returns_flat_ts_error_for_constant_magnitude() {
+        // OtsuSplit requires variability (variability_required=true)
+        let fe: FeatureExtractor<f64, Feature<f64>> =
+            FeatureExtractor::new(vec![crate::OtsuSplit::new().into()]);
+
+        let t = [0.0_f64, 1.0, 2.0, 3.0];
+        let m = [3.0_f64; 4];
+        let w = [1.0_f64; 4];
+        let mut ts = TimeSeries::new(&t[..], &m[..], &w[..]);
+
+        assert!(
+            matches!(fe.eval(&mut ts), Err(EvaluatorError::FlatTimeSeries)),
+            "expected FlatTimeSeries error for constant magnitude input"
+        );
+    }
+
+    // Integration test: full pipeline evaluation on real-world-like data
+    #[test]
+    fn full_pipeline_on_realistic_data() {
+        let mut rng = StdRng::seed_from_u64(42);
+        let n = 50;
+        let t: Vec<f64> = sorted(&randvec::<f64>(&mut rng, n))
+            .into_iter()
+            .enumerate()
+            .map(|(i, _)| i as f64)
+            .collect();
+        let m = randvec::<f64>(&mut rng, n);
+        let w = positive_randvec::<f64>(&mut rng, n);
+
+        let fe: FeatureExtractor<f64, Feature<f64>> = FeatureExtractor::new(vec![
+            crate::Amplitude::new().into(),
+            crate::Mean::new().into(),
+            crate::StandardDeviation::new().into(),
+            crate::LinearTrend::new().into(),
+            crate::MedianAbsoluteDeviation::new().into(),
+        ]);
+
+        let expected_size = fe.size_hint();
+        let mut ts = TimeSeries::new(&t, &m, &w);
+        let values = fe.eval(&mut ts).unwrap();
+
+        assert_eq!(values.len(), expected_size);
+        assert_eq!(values.len(), fe.get_names().len());
+        assert!(
+            values.iter().all(|v| v.is_finite()),
+            "all pipeline values should be finite"
+        );
     }
 }

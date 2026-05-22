@@ -186,14 +186,11 @@ where
             },
         )?;
 
+        // Consume binned_arrays with into_iter() so passbands are moved (not cloned again)
+        // and TmwArrays are consumed directly into TimeSeries with owned Array1 data.
         let binned_map: BTreeMap<P, TimeSeries<'_, T>> = binned_arrays
-            .iter()
-            .map(|(p, tmw)| {
-                (
-                    p.clone(),
-                    TimeSeries::new(tmw.t.view(), tmw.m.view(), tmw.w.view()),
-                )
-            })
+            .into_iter()
+            .map(|(p, tmw)| (p, TimeSeries::new(tmw.t, tmw.m, tmw.w)))
             .collect();
 
         let mut binned_mcts = MultiColorTimeSeries::from_map(binned_map);

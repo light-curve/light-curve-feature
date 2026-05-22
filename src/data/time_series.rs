@@ -264,4 +264,126 @@ mod tests {
         let desired = 1.3752251301435465;
         assert_relative_eq!(ts.get_m_reduced_chi2(), desired, epsilon = 1e-6);
     }
+
+    // Cached values must be identical on repeated calls (caching consistency)
+    #[test]
+    fn cached_m_weighted_mean_is_consistent() {
+        let t = Array1::from(vec![0.0_f64, 1.0, 2.0]);
+        let m = Array1::from(vec![1.0_f64, 2.0, 3.0]);
+        let w = Array1::from(vec![1.0_f64, 2.0, 1.0]);
+        let mut ts = TimeSeries::new(t, m, w);
+        let first = ts.get_m_weighted_mean();
+        let second = ts.get_m_weighted_mean();
+        assert_eq!(
+            first, second,
+            "cached value must equal freshly computed value"
+        );
+    }
+
+    // new_without_weight should create unit weights
+    #[test]
+    fn new_without_weight_has_unit_weights() {
+        let t = Array1::from(vec![0.0_f64, 1.0, 2.0]);
+        let m = Array1::from(vec![5.0_f64, 10.0, 15.0]);
+        let ts = TimeSeries::new_without_weight(t, m);
+        assert!(
+            ts.w.sample.iter().all(|&w| w == 1.0),
+            "weights should all be 1.0"
+        );
+    }
+
+    // new_without_weight: weighted mean should equal unweighted mean when weights are unity
+    #[test]
+    fn new_without_weight_weighted_mean_equals_mean() {
+        let t = Array1::from(vec![0.0_f64, 1.0, 2.0, 3.0]);
+        let m = Array1::from(vec![1.0_f64, 3.0, 5.0, 7.0]);
+        let mut ts = TimeSeries::new_without_weight(t, m);
+        // With unit weights, weighted mean == arithmetic mean
+        assert_relative_eq!(ts.get_m_weighted_mean(), 4.0, epsilon = 1e-10);
+    }
+
+    // get_t_min_m returns time of observation with minimum magnitude
+    #[test]
+    fn get_t_min_m_returns_time_of_magnitude_minimum() {
+        let t = [0.0_f64, 1.0, 2.0, 3.0, 4.0];
+        let m = [3.0_f64, 1.0, 5.0, 2.0, 4.0]; // minimum at index 1 (m=1, t=1)
+        let w = [1.0_f64; 5];
+        let mut ts = TimeSeries::new(&t[..], &m[..], &w[..]);
+        assert_relative_eq!(ts.get_t_min_m(), 1.0, epsilon = 1e-10);
+    }
+
+    // get_t_max_m returns time of observation with maximum magnitude
+    #[test]
+    fn get_t_max_m_returns_time_of_magnitude_maximum() {
+        let t = [0.0_f64, 1.0, 2.0, 3.0, 4.0];
+        let m = [3.0_f64, 1.0, 5.0, 2.0, 4.0]; // maximum at index 2 (m=5, t=2)
+        let w = [1.0_f64; 5];
+        let mut ts = TimeSeries::new(&t[..], &m[..], &w[..]);
+        assert_relative_eq!(ts.get_t_max_m(), 2.0, epsilon = 1e-10);
+    }
+
+    // get_t_min_m and get_t_max_m are computed together and consistent
+    #[test]
+    fn get_t_min_max_m_computed_together() {
+        let t = [10.0_f64, 20.0, 30.0];
+        let m = [5.0_f64, 1.0, 3.0]; // min at t=20, max at t=10
+        let w = [1.0_f64; 3];
+        let mut ts = TimeSeries::new(&t[..], &m[..], &w[..]);
+        // Calling min first should also cache max
+        let t_min = ts.get_t_min_m();
+        let t_max = ts.get_t_max_m();
+        assert_relative_eq!(t_min, 20.0, epsilon = 1e-10);
+        assert_relative_eq!(t_max, 10.0, epsilon = 1e-10);
+    }
+
+    // is_plateau correctly identifies a flat time series
+    #[test]
+    fn is_plateau_true_for_constant_magnitude() {
+        let t = [0.0_f64, 1.0, 2.0];
+        let m = [7.5_f64; 3];
+        let w = [1.0_f64; 3];
+        let mut ts = TimeSeries::new(&t[..], &m[..], &w[..]);
+        assert!(
+            ts.is_plateau(),
+            "constant magnitude should be identified as plateau"
+        );
+    }
+
+    // is_plateau correctly identifies a non-flat time series
+    #[test]
+    fn is_plateau_false_for_varying_magnitude() {
+        let t = [0.0_f64, 1.0, 2.0];
+        let m = [1.0_f64, 2.0, 3.0];
+        let w = [1.0_f64; 3];
+        let mut ts = TimeSeries::new(&t[..], &m[..], &w[..]);
+        assert!(
+            !ts.is_plateau(),
+            "varying magnitude should not be identified as plateau"
+        );
+    }
+
+    // get_m_chi2 sets the plateau flag as a side effect when chi2 == 0
+    #[test]
+    fn get_m_chi2_sets_plateau_for_flat_ts() {
+        let t = [0.0_f64, 1.0, 2.0];
+        let m = [4.0_f64; 3];
+        let w = [1.0_f64; 3];
+        let mut ts = TimeSeries::new(&t[..], &m[..], &w[..]);
+        let chi2 = ts.get_m_chi2();
+        assert_relative_eq!(chi2, 0.0, epsilon = 1e-10);
+        // After computing chi2, plateau should already be cached as true
+        assert!(ts.is_plateau());
+    }
+
+    // lenu and lenf agree
+    #[test]
+    fn lenu_and_lenf_agree() {
+        let n = 7_usize;
+        let t: Vec<f64> = (0..n).map(|i| i as f64).collect();
+        let m = vec![1.0_f64; n];
+        let w = vec![1.0_f64; n];
+        let ts = TimeSeries::new(&t[..], &m[..], &w[..]);
+        assert_eq!(ts.lenu(), n);
+        assert_relative_eq!(ts.lenf(), n as f64, epsilon = 1e-10);
+    }
 }

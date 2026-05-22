@@ -51,16 +51,38 @@ where
     T: Float,
 {
     fn clone(&self) -> Self {
-        // Build owned BTreeMap from current state, then reconstruct.
-        let owned: BTreeMap<P, TimeSeries<'a, T>> = self.with_inner(|inner| match inner {
+        // For Mapping/MappingFlat: collect (index, TimeSeries) pairs using the
+        // iteration order (which matches passband_vec order), then rebuild with
+        // MultiColorTimeSeriesBuilder directly — one passband clone per band (K total)
+        // instead of two (once into BTreeMap<P,_>, once into passband_vec in from_map).
+        //
+        // For Flat: the data lives as raw arrays; reconstruct per-passband by grouping,
+        // then call from_map which handles passband_vec construction (K clones).
+        match self.borrow_inner() {
             MultiColorTimeSeriesInner::Mapping(m)
             | MultiColorTimeSeriesInner::MappingFlat { mapping: m, .. } => {
-                m.0.iter()
-                    .map(|(p, ts)| ((*p).clone(), ts.clone()))
-                    .collect()
+                let idx_ts: Vec<(usize, TimeSeries<'a, T>)> =
+                    m.0.values()
+                        .enumerate()
+                        .map(|(i, ts)| (i, ts.clone()))
+                        .collect();
+                let passband_vec = self.borrow_passband_vec().clone();
+                MultiColorTimeSeriesBuilder {
+                    passband_vec,
+                    inner_builder: |vec: &Vec<P>| {
+                        MultiColorTimeSeriesInner::Mapping(MappedMultiColorTimeSeries(
+                            idx_ts
+                                .into_iter()
+                                .map(|(idx, ts)| (&vec[idx], ts))
+                                .collect(),
+                        ))
+                    },
+                }
+                .build()
             }
             MultiColorTimeSeriesInner::Flat(flat) => {
-                let mut map = BTreeMap::new();
+                type Tmw<T> = (Vec<T>, Vec<T>, Vec<T>);
+                let mut map: BTreeMap<P, Tmw<T>> = BTreeMap::new();
                 for (&t, &m, &w, p) in itertools::multizip((
                     flat.t.sample.iter(),
                     flat.m.sample.iter(),
@@ -74,12 +96,13 @@ where
                     entry.1.push(m);
                     entry.2.push(w);
                 }
-                map.into_iter()
-                    .map(|(p, (t, m, w))| (p, TimeSeries::new(t, m, w)))
-                    .collect()
+                Self::from_map(
+                    map.into_iter()
+                        .map(|(p, (t, m, w))| (p, TimeSeries::new(t, m, w)))
+                        .collect::<BTreeMap<_, _>>(),
+                )
             }
-        });
-        Self::from_map(owned)
+        }
     }
 }
 
@@ -115,12 +138,13 @@ where
         MultiColorTimeSeriesBuilder {
             passband_vec,
             inner_builder: |vec: &Vec<P>| {
+                // BTreeMap::into_iter() yields keys in sorted order, which is the same
+                // order as passband_vec (also built from map.keys()), so the i-th entry
+                // always maps to vec[i] — no search needed.
                 let mapping = MappedMultiColorTimeSeries(
                     map.into_iter()
-                        .map(|(p, ts)| {
-                            let idx = vec.binary_search(&p).expect("key must be in passband_vec");
-                            (&vec[idx], ts)
-                        })
+                        .enumerate()
+                        .map(|(idx, (_, ts))| (&vec[idx], ts))
                         .collect(),
                 );
                 MultiColorTimeSeriesInner::Mapping(mapping)
@@ -613,6 +637,7 @@ mod tests {
     use super::*;
 
     use crate::MonochromePassband;
+    use approx::assert_relative_eq;
 
     use ndarray::Array1;
 
@@ -699,5 +724,264 @@ mod tests {
             MultiColorTimeSeries::from_flat_with_passband_vec(t, m, w, passbands, passband_vec);
         assert_eq!(mcts.passband_count(), 2);
         assert_eq!(mcts.total_lenu(), 4);
+    }
+
+    // Helper: build a simple 2-band Mapping MCTS
+    fn make_mapping_mcts() -> MultiColorTimeSeries<'static, MonochromePassband<'static, f64>, f64> {
+        let g = MonochromePassband::new(4700.0_f64, "g");
+        let r = MonochromePassband::new(6200.0_f64, "r");
+        let mut map = BTreeMap::new();
+        map.insert(
+            g,
+            TimeSeries::new_without_weight(
+                Array1::from(vec![0.0, 1.0, 2.0]),
+                Array1::from(vec![1.0, 2.0, 3.0]),
+            ),
+        );
+        map.insert(
+            r,
+            TimeSeries::new_without_weight(
+                Array1::from(vec![0.5, 1.5]),
+                Array1::from(vec![10.0, 20.0]),
+            ),
+        );
+        MultiColorTimeSeries::from_map(map)
+    }
+
+    // Helper: build the same data as Flat MCTS
+    fn make_flat_mcts() -> MultiColorTimeSeries<'static, MonochromePassband<'static, f64>, f64> {
+        let g = MonochromePassband::new(4700.0_f64, "g");
+        let r = MonochromePassband::new(6200.0_f64, "r");
+        // interleaved timestamps: g g r g r
+        let passbands = vec![g.clone(), g.clone(), r.clone(), g.clone(), r.clone()];
+        let t = vec![0.0_f64, 1.0, 0.5, 2.0, 1.5];
+        let m = vec![1.0_f64, 2.0, 10.0, 3.0, 20.0];
+        let w = vec![1.0_f64; 5];
+        MultiColorTimeSeries::from_flat(t, m, w, passbands)
+    }
+
+    // from_flat deduplicates passbands — only K unique passband objects in passband_vec
+    #[test]
+    fn from_flat_deduplicates_passbands() {
+        let mcts = make_flat_mcts();
+        assert_eq!(mcts.passband_count(), 2);
+        assert_eq!(mcts.total_lenu(), 5);
+    }
+
+    // passbands() returns sorted unique passbands (BTreeMap order)
+    #[test]
+    fn passbands_returns_sorted_order() {
+        let mcts = make_mapping_mcts();
+        let names: Vec<&str> = mcts.passbands().map(|p| p.name()).collect();
+        // MonochromePassband is ordered by wavelength: g(4700) < r(6200)
+        assert_eq!(names, vec!["g", "r"]);
+    }
+
+    // mapping() returns Some for Mapping variant, None for Flat
+    #[test]
+    fn mapping_returns_some_for_mapping_variant() {
+        let mcts = make_mapping_mcts();
+        assert!(mcts.mapping().is_some());
+        assert!(mcts.flat().is_none());
+    }
+
+    // flat() returns Some for Flat variant, None for Mapping
+    #[test]
+    fn flat_returns_some_for_flat_variant() {
+        let mcts = make_flat_mcts();
+        assert!(mcts.flat().is_some());
+        assert!(mcts.mapping().is_none());
+    }
+
+    // with_mapping_mut converts Flat → MappingFlat so both views exist afterwards
+    #[test]
+    fn with_mapping_mut_converts_flat_to_mapping_flat() {
+        let mut mcts = make_flat_mcts();
+        assert!(mcts.flat().is_some());
+        assert!(mcts.mapping().is_none());
+        mcts.with_mapping_mut(|_| {});
+        // After the call, both mapping and flat views must be available
+        assert!(
+            mcts.mapping().is_some(),
+            "mapping should be available after with_mapping_mut"
+        );
+        assert!(
+            mcts.flat().is_some(),
+            "flat should be preserved as MappingFlat"
+        );
+    }
+
+    // with_flat_mut converts Mapping → MappingFlat so both views exist afterwards
+    #[test]
+    fn with_flat_mut_converts_mapping_to_mapping_flat() {
+        let mut mcts = make_mapping_mcts();
+        assert!(mcts.mapping().is_some());
+        assert!(mcts.flat().is_none());
+        mcts.with_flat_mut(|_| {});
+        assert!(
+            mcts.flat().is_some(),
+            "flat should be available after with_flat_mut"
+        );
+        assert!(
+            mcts.mapping().is_some(),
+            "mapping should be preserved as MappingFlat"
+        );
+    }
+
+    // Flat→Mapping conversion produces per-band TimeSeries with correct observation counts
+    #[test]
+    fn with_mapping_mut_gives_correct_per_band_lengths() {
+        let mut mcts = make_flat_mcts();
+        mcts.with_mapping_mut(|mapping| {
+            let g = MonochromePassband::new(4700.0_f64, "g");
+            let r = MonochromePassband::new(6200.0_f64, "r");
+            let g_len = mapping
+                .get(&g as &MonochromePassband<f64>)
+                .map(|ts| ts.lenu());
+            let r_len = mapping
+                .get(&r as &MonochromePassband<f64>)
+                .map(|ts| ts.lenu());
+            assert_eq!(g_len, Some(3));
+            assert_eq!(r_len, Some(2));
+        });
+    }
+
+    // Mapping→Flat conversion merges timestamps in sorted order
+    #[test]
+    fn with_flat_mut_produces_sorted_timestamps() {
+        let mut mcts = make_mapping_mcts();
+        mcts.with_flat_mut(|flat| {
+            let t: Vec<f64> = flat.t.as_slice().to_vec();
+            for i in 1..t.len() {
+                assert!(t[i - 1] <= t[i], "flat timestamps not sorted at index {i}");
+            }
+        });
+    }
+
+    // clone() from Mapping preserves all data
+    #[test]
+    fn clone_from_mapping_preserves_data() {
+        let mcts = make_mapping_mcts();
+        let cloned = mcts.clone();
+        assert_eq!(cloned.passband_count(), mcts.passband_count());
+        assert_eq!(cloned.total_lenu(), mcts.total_lenu());
+        let names: Vec<&str> = cloned.passbands().map(|p| p.name()).collect();
+        assert_eq!(names, vec!["g", "r"]);
+    }
+
+    // clone() from Flat preserves passband count and observation count
+    #[test]
+    fn clone_from_flat_preserves_data() {
+        let mcts = make_flat_mcts();
+        assert!(mcts.flat().is_some());
+        let cloned = mcts.clone();
+        assert_eq!(cloned.passband_count(), 2);
+        assert_eq!(cloned.total_lenu(), 5);
+    }
+
+    // clone() from MappingFlat (after a lazy conversion) preserves data
+    #[test]
+    fn clone_from_mapping_flat_preserves_data() {
+        let mut mcts = make_flat_mcts();
+        mcts.with_mapping_mut(|_| {}); // converts to MappingFlat
+        assert!(mcts.mapping().is_some());
+        assert!(mcts.flat().is_some());
+        let cloned = mcts.clone();
+        assert_eq!(cloned.passband_count(), 2);
+        assert_eq!(cloned.total_lenu(), 5);
+    }
+
+    // insert() fast path: replacing an existing passband returns the old TimeSeries
+    #[test]
+    fn insert_existing_passband_returns_old_ts() {
+        let mut mcts = make_mapping_mcts();
+        let g = MonochromePassband::new(4700.0_f64, "g");
+        let new_ts = TimeSeries::new_without_weight(
+            Array1::from(vec![5.0_f64, 6.0]),
+            Array1::from(vec![99.0_f64, 100.0]),
+        );
+        let old = mcts.insert(g, new_ts);
+        assert!(
+            old.is_some(),
+            "fast-path insert should return the displaced TimeSeries"
+        );
+        assert_eq!(
+            old.unwrap().lenu(),
+            3,
+            "displaced ts should have the original 3 observations"
+        );
+        // passband_count unchanged after replacing
+        assert_eq!(mcts.passband_count(), 2);
+        assert_eq!(mcts.total_lenu(), 4); // was 5, now 2+2
+    }
+
+    // insert() slow path: adding a new passband increases passband_count
+    #[test]
+    fn insert_new_passband_increases_count() {
+        let mut mcts = make_mapping_mcts();
+        let i_band = MonochromePassband::new(7500.0_f64, "i");
+        let new_ts = TimeSeries::new_without_weight(
+            Array1::from(vec![0.0_f64, 1.0]),
+            Array1::from(vec![5.0_f64, 6.0]),
+        );
+        let old = mcts.insert(i_band, new_ts);
+        assert!(
+            old.is_none(),
+            "slow-path insert of a new passband returns None"
+        );
+        assert_eq!(mcts.passband_count(), 3);
+        assert_eq!(mcts.total_lenu(), 7);
+    }
+
+    // insert() on a Flat MCTS (slow path) also works correctly
+    #[test]
+    fn insert_on_flat_mcts() {
+        let mut mcts = make_flat_mcts();
+        assert!(mcts.flat().is_some());
+        let i_band = MonochromePassband::new(7500.0_f64, "i");
+        let new_ts = TimeSeries::new_without_weight(
+            Array1::from(vec![0.0_f64]),
+            Array1::from(vec![42.0_f64]),
+        );
+        mcts.insert(i_band, new_ts);
+        assert_eq!(mcts.passband_count(), 3);
+        assert_eq!(mcts.total_lenu(), 6);
+    }
+
+    // iter_matched_passbands returns None for a passband not present in the data
+    #[test]
+    fn iter_matched_passbands_returns_none_for_missing_band() {
+        let mut mcts = make_mapping_mcts();
+        let g = MonochromePassband::new(4700.0_f64, "g");
+        let i_band = MonochromePassband::new(7500.0_f64, "i");
+        let query = vec![g.clone(), i_band.clone()];
+        mcts.with_mapping_mut(|mapping| {
+            let results: Vec<_> = mapping.iter_matched_passbands(query.iter()).collect();
+            assert_eq!(results.len(), 2);
+            assert!(results[0].1.is_some(), "g-band should be present");
+            assert!(results[1].1.is_none(), "i-band should be missing");
+        });
+    }
+
+    // total_lenu / total_lenf agree for both Mapping and Flat variants
+    #[test]
+    fn total_lenu_and_total_lenf_agree() {
+        let mapping_mcts = make_mapping_mcts();
+        assert_eq!(mapping_mcts.total_lenu(), 5);
+        assert_relative_eq!(mapping_mcts.total_lenf(), 5.0_f64, epsilon = 1e-10);
+
+        let flat_mcts = make_flat_mcts();
+        assert_eq!(flat_mcts.total_lenu(), 5);
+        assert_relative_eq!(flat_mcts.total_lenf(), 5.0_f64, epsilon = 1e-10);
+    }
+
+    // default() produces empty MCTS
+    #[test]
+    fn default_is_empty() {
+        let mcts: MultiColorTimeSeries<MonochromePassband<f64>, f64> =
+            MultiColorTimeSeries::default();
+        assert_eq!(mcts.passband_count(), 0);
+        assert_eq!(mcts.total_lenu(), 0);
+        assert!(mcts.passbands().next().is_none());
     }
 }

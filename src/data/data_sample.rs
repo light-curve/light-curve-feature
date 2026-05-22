@@ -322,4 +322,93 @@ mod tests {
         // This should not panic
         let _std2 = ds.get_std2();
     }
+
+    // signal_to_noise measures how many std deviations a value is from the mean
+    #[test]
+    fn signal_to_noise_correct() {
+        // mean=3, std of [1,2,3,4,5] = sqrt(2.5) ≈ 1.5811
+        let x = [1.0_f64, 2.0, 3.0, 4.0, 5.0];
+        let mut ds: DataSample<f64> = DataSample::from(&x);
+        let snr = ds.signal_to_noise(5.0);
+        let expected = (5.0 - 3.0) / f64::sqrt(2.5);
+        assert_relative_eq!(snr, expected, epsilon = 1e-10);
+    }
+
+    // signal_to_noise returns 0 for flat data (zero std) regardless of input value
+    #[test]
+    fn signal_to_noise_zero_for_flat_data() {
+        let x = [7.0_f64; 5];
+        let mut ds: DataSample<f64> = DataSample::from(&x);
+        assert_eq!(ds.signal_to_noise(42.0), 0.0);
+    }
+
+    // is_all_same is true for empty array
+    #[test]
+    fn is_all_same_true_for_empty() {
+        let x: &[f64] = &[];
+        let ds: DataSample<f64> = DataSample::from(x);
+        assert!(ds.is_all_same());
+    }
+
+    // is_all_same is true for single-element array
+    #[test]
+    fn is_all_same_true_for_single_element() {
+        let x = [3.14_f64];
+        let ds: DataSample<f64> = DataSample::from(&x);
+        assert!(ds.is_all_same());
+    }
+
+    // is_all_same is true for constant array
+    #[test]
+    fn is_all_same_true_for_constant() {
+        let x = [5.0_f64; 10];
+        let ds: DataSample<f64> = DataSample::from(&x);
+        assert!(ds.is_all_same());
+    }
+
+    // is_all_same is false for array with at least two distinct values
+    #[test]
+    fn is_all_same_false_for_varying() {
+        let x = [1.0_f64, 1.0, 2.0, 1.0];
+        let ds: DataSample<f64> = DataSample::from(&x);
+        assert!(!ds.is_all_same());
+    }
+
+    // get_sorted produces sorted order regardless of input order
+    #[test]
+    fn get_sorted_is_monotonically_nondecreasing() {
+        let x = [5.0_f64, 1.0, 3.0, 2.0, 4.0];
+        let mut ds: DataSample<f64> = DataSample::from(&x);
+        let sorted = ds.get_sorted();
+        for i in 1..sorted.len() {
+            assert!(
+                sorted[i - 1] <= sorted[i],
+                "sorted array not monotone at index {i}"
+            );
+        }
+    }
+
+    // get_sorted is idempotent: min/max/median queried on sorted data give same results
+    #[test]
+    fn sorted_and_unsorted_statistics_agree() {
+        let x = [5.0_f64, 1.0, 3.0, 2.0, 4.0];
+
+        let mut ds_unsorted: DataSample<f64> = DataSample::from(&x);
+        let mut ds_sorted: DataSample<f64> = DataSample::from(&x);
+        ds_sorted.get_sorted(); // pre-populate sorted cache
+
+        assert_relative_eq!(ds_unsorted.get_min(), ds_sorted.get_min(), epsilon = 1e-10);
+        assert_relative_eq!(ds_unsorted.get_max(), ds_sorted.get_max(), epsilon = 1e-10);
+        assert_relative_eq!(
+            ds_unsorted.get_mean(),
+            ds_sorted.get_mean(),
+            epsilon = 1e-10
+        );
+        assert_relative_eq!(
+            ds_unsorted.get_median(),
+            ds_sorted.get_median(),
+            epsilon = 1e-10
+        );
+        assert_relative_eq!(ds_unsorted.get_std(), ds_sorted.get_std(), epsilon = 1e-10);
+    }
 }
