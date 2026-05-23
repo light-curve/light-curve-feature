@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `MultiColorTimeSeries::from_flat_with_passband_vec` constructor accepting a pre-built sorted unique passband slice for zero-clone construction of the N-length passband array
+- Add `LabeledPassband<N>` generic passband type for any label implementing [`Display`], storing the name as a pre-computed `String`
 
 ### Changed
 

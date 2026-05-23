@@ -26,3 +26,29 @@ impl From<String> for StringPassband {
         Self(s)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn from_str() {
+        let band = StringPassband::from("r");
+        assert_eq!(band.name(), "r");
+        assert_eq!(band.0, "r");
+    }
+
+    #[test]
+    fn from_string() {
+        let band = StringPassband::from(String::from("g"));
+        assert_eq!(band.name(), "g");
+    }
+
+    #[test]
+    fn serde_roundtrip() {
+        let band = StringPassband::from("i");
+        let json = serde_json::to_string(&band).unwrap();
+        let band2: StringPassband = serde_json::from_str(&json).unwrap();
+        assert_eq!(band, band2);
+    }
+}
