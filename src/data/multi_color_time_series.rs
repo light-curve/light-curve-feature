@@ -160,33 +160,33 @@ where
         t: impl Into<DataSample<'a, T>>,
         m: impl Into<DataSample<'a, T>>,
         w: impl Into<DataSample<'a, T>>,
-        passbands: impl AsRef<[P]>,
+        passband: impl AsRef<[P]>,
     ) -> Self {
-        let passbands = passbands.as_ref();
-        let uniq_passbands: Vec<P> = passbands
+        let passband = passband.as_ref();
+        let uniq_passbands: Vec<P> = passband
             .iter()
             .collect::<BTreeSet<_>>()
             .into_iter()
             .cloned()
             .collect();
-        Self::from_flat_with_passband_vec(t, m, w, passbands, uniq_passbands)
+        Self::from_flat_with_passband_vec(t, m, w, passband, uniq_passbands)
     }
 
     /// Build from flat arrays with a pre-built sorted unique passband vec.
-    /// Each item in `passbands` is matched into `uniq_passbands` by binary search
+    /// Each item in `passband` is matched into `uniq_passbands` by binary search
     /// with no extra clones for the N-length array.
     pub fn from_flat_with_passband_vec(
         t: impl Into<DataSample<'a, T>>,
         m: impl Into<DataSample<'a, T>>,
         w: impl Into<DataSample<'a, T>>,
-        passbands: impl AsRef<[P]>,
+        passband: impl AsRef<[P]>,
         uniq_passbands: Vec<P>,
     ) -> Self {
         let t = t.into();
         let m = m.into();
         let w = w.into();
-        let passbands = passbands.as_ref();
-        let indices: Vec<usize> = passbands
+        let passband = passband.as_ref();
+        let indices: Vec<usize> = passband
             .iter()
             .map(|p| {
                 uniq_passbands
@@ -208,7 +208,7 @@ where
         assert_eq!(
             t.sample.len(),
             indices.len(),
-            "t and passbands should have the same size"
+            "t and passband should have the same size"
         );
 
         MultiColorTimeSeriesBuilder {
@@ -228,31 +228,31 @@ where
 
     /// Build from flat arrays with a fully borrowed passband slice — zero passband clones.
     ///
-    /// * `passband_slice` — the K unique passbands, borrowed with `'a`.
-    /// * `passbands` — per-observation references into `passband_slice`, also `'a`.
+    /// * `uniq_passbands` — the K unique passbands, borrowed with `'a`.
+    /// * `passband` — per-observation references into `uniq_passbands`, also `'a`.
     ///
-    /// The caller must ensure `passband_slice` is sorted and every element of `passbands`
-    /// is present in `passband_slice` (verified by binary search at construction time).
+    /// The caller must ensure `uniq_passbands` is sorted and every element of `passband`
+    /// is present in `uniq_passbands` (verified by binary search at construction time).
     pub fn from_flat_borrowed(
         t: impl Into<DataSample<'a, T>>,
         m: impl Into<DataSample<'a, T>>,
         w: impl Into<DataSample<'a, T>>,
-        passbands: Vec<&'a P>,
-        passband_slice: &'a [P],
+        passband: Vec<&'a P>,
+        uniq_passbands: &'a [P],
     ) -> Self {
         let t = t.into();
         let m = m.into();
         let w = w.into();
-        let indices: Vec<usize> = passbands
+        let indices: Vec<usize> = passband
             .iter()
             .map(|p| {
-                passband_slice
+                uniq_passbands
                     .binary_search(p)
-                    .expect("passband must be present in passband_slice")
+                    .expect("passband must be present in uniq_passbands")
             })
             .collect();
         MultiColorTimeSeriesBuilder {
-            passband_vec: Cow::Borrowed(passband_slice),
+            passband_vec: Cow::Borrowed(uniq_passbands),
             inner_builder: |vec: &Cow<'_, [P]>| {
                 let passbands_refs: Vec<&P> = indices.iter().map(|&i| &vec[i]).collect();
                 MultiColorTimeSeriesInner::Flat(FlatMultiColorTimeSeries {
@@ -756,17 +756,17 @@ mod tests {
     fn from_flat_borrowed_zero_clones() {
         let passband_g = MonochromePassband::new(4700.0_f64, "g");
         let passband_r = MonochromePassband::new(6200.0_f64, "r");
-        let passband_slice = vec![passband_g.clone(), passband_r.clone()];
-        let passbands: Vec<&MonochromePassband<f64>> = vec![
-            &passband_slice[0],
-            &passband_slice[0],
-            &passband_slice[1],
-            &passband_slice[1],
+        let uniq_passbands = vec![passband_g.clone(), passband_r.clone()];
+        let passband: Vec<&MonochromePassband<f64>> = vec![
+            &uniq_passbands[0],
+            &uniq_passbands[0],
+            &uniq_passbands[1],
+            &uniq_passbands[1],
         ];
         let t = vec![0.0_f64, 1.0, 0.0, 1.0];
         let m = vec![1.0_f64, 2.0, 3.0, 4.0];
         let w = vec![1.0_f64; 4];
-        let mcts = MultiColorTimeSeries::from_flat_borrowed(t, m, w, passbands, &passband_slice);
+        let mcts = MultiColorTimeSeries::from_flat_borrowed(t, m, w, passband, &uniq_passbands);
         assert_eq!(mcts.passband_count(), 2);
         assert_eq!(mcts.total_lenu(), 4);
         assert!(mcts.flat().is_some());
@@ -777,14 +777,13 @@ mod tests {
     fn borrowed_flat_with_mapping_mut_converts() {
         let passband_g = MonochromePassband::new(4700.0_f64, "g");
         let passband_r = MonochromePassband::new(6200.0_f64, "r");
-        let passband_slice = vec![passband_g.clone(), passband_r.clone()];
-        let passbands: Vec<&MonochromePassband<f64>> =
-            vec![&passband_slice[0], &passband_slice[0], &passband_slice[1]];
+        let uniq_passbands = vec![passband_g.clone(), passband_r.clone()];
+        let passband: Vec<&MonochromePassband<f64>> =
+            vec![&uniq_passbands[0], &uniq_passbands[0], &uniq_passbands[1]];
         let t = vec![0.0_f64, 1.0, 2.0];
         let m = vec![1.0_f64, 2.0, 3.0];
         let w = vec![1.0_f64; 3];
-        let mut mcts =
-            MultiColorTimeSeries::from_flat_borrowed(t, m, w, passbands, &passband_slice);
+        let mut mcts = MultiColorTimeSeries::from_flat_borrowed(t, m, w, passband, &uniq_passbands);
         mcts.with_mapping_mut(|mapping| {
             let g_len = mapping
                 .get(&passband_g as &MonochromePassband<f64>)
