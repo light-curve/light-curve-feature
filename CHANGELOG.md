@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
---
+- **Breaking** `PerBandFeature::new` and `MultiColorFeature::from_per_band_feature` now accept `Vec<P>` instead of `BTreeSet<P>`, giving the user control over passband output order https://github.com/light-curve/light-curve-feature/pull/294
 
 ### Deprecated
 
@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
---
+- `ColorOfMedian`, `ColorOfMinimum`, `ColorOfMaximum` evaluation now correctly respects the user-specified `[P; 2]` passband order; previously results were silently wrong when passbands were provided in non-sorted order https://github.com/light-curve/light-curve-feature/pull/294
 
 ### Security
 

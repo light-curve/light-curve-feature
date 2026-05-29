@@ -9,23 +9,102 @@ use crate::multicolor::multicolor_evaluator::*;
 use itertools::Itertools;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeSet;
 use std::fmt::Debug;
 use std::marker::PhantomData;
 
 /// Multi-color feature which evaluates a monochrome feature independently for each passband.
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
-#[serde(bound(
-    deserialize = "P: PassbandTrait + Deserialize<'de>, T: Float, F: FeatureEvaluator<T>"
-))]
+#[derive(Clone, Debug)]
 pub struct PerBandFeature<P, T, F>
 where
-    P: Ord,
+    P: PassbandTrait,
 {
     feature: F,
+    passband_order: Vec<P>,
     passband_set: PassbandSet<P>,
     properties: Box<EvaluatorProperties>,
     phantom: PhantomData<T>,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema)]
+#[serde(
+    rename = "PerBandFeature",
+    bound(
+        serialize = "P: PassbandTrait + Serialize, T: Float, F: FeatureEvaluator<T> + Serialize",
+        deserialize = "P: PassbandTrait + Deserialize<'de>, T: Float, F: FeatureEvaluator<T>",
+    )
+)]
+struct PerBandFeatureData<P, T, F>
+where
+    P: PassbandTrait,
+    T: Float,
+    F: FeatureEvaluator<T>,
+{
+    feature: F,
+    passband_order: Vec<P>,
+    properties: Box<EvaluatorProperties>,
+    phantom: PhantomData<T>,
+}
+
+impl<P, T, F> Serialize for PerBandFeature<P, T, F>
+where
+    P: PassbandTrait + Serialize,
+    T: Float,
+    F: FeatureEvaluator<T> + Serialize,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        PerBandFeatureData {
+            feature: self.feature.clone(),
+            passband_order: self.passband_order.clone(),
+            properties: self.properties.clone(),
+            phantom: PhantomData,
+        }
+        .serialize(serializer)
+    }
+}
+
+impl<'de, P, T, F> Deserialize<'de> for PerBandFeature<P, T, F>
+where
+    P: PassbandTrait + Deserialize<'de>,
+    T: Float,
+    F: FeatureEvaluator<T>,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        PerBandFeatureData::<P, T, F>::deserialize(deserializer).map(|d| {
+            let passband_set = PassbandSet(d.passband_order.iter().cloned().collect());
+            Self {
+                feature: d.feature,
+                passband_order: d.passband_order,
+                passband_set,
+                properties: d.properties,
+                phantom: d.phantom,
+            }
+        })
+    }
+}
+
+impl<P, T, F> JsonSchema for PerBandFeature<P, T, F>
+where
+    P: PassbandTrait + JsonSchema,
+    T: Float,
+    F: FeatureEvaluator<T> + JsonSchema,
+{
+    fn is_referenceable() -> bool {
+        false
+    }
+
+    fn schema_name() -> String {
+        PerBandFeatureData::<P, T, F>::schema_name()
+    }
+
+    fn json_schema(g: &mut schemars::r#gen::SchemaGenerator) -> schemars::schema::Schema {
+        PerBandFeatureData::<P, T, F>::json_schema(g)
+    }
 }
 
 impl<P, T, F> PerBandFeature<P, T, F>
@@ -38,23 +117,24 @@ where
     ///
     /// # Arguments
     /// - `feature` - non-multi-color feature to evaluate for each passband.
-    /// - `passband_set` - set of passbands to evaluate the feature for.
-    pub fn new(feature: F, passband_set: BTreeSet<P>) -> Self {
-        let names = passband_set
+    /// - `passbands` - passbands to evaluate the feature for, in the desired output order.
+    pub fn new(feature: F, passbands: Vec<P>) -> Self {
+        let names = passbands
             .iter()
             .cartesian_product(feature.get_names())
             .map(|(passband, name)| format!("{}_{}", name, passband.name()))
             .collect();
-        let descriptions = passband_set
+        let descriptions = passbands
             .iter()
             .cartesian_product(feature.get_descriptions())
             .map(|(passband, description)| format!("{}, passband {}", description, passband.name()))
             .collect();
         let info = {
             let mut info = feature.get_info().clone();
-            info.size *= passband_set.len();
+            info.size *= passbands.len();
             info
         };
+        let passband_set = PassbandSet(passbands.iter().cloned().collect());
         Self {
             properties: EvaluatorProperties {
                 info,
@@ -63,7 +143,8 @@ where
             }
             .into(),
             feature,
-            passband_set: passband_set.into(),
+            passband_order: passbands,
+            passband_set,
             phantom: PhantomData,
         }
     }
@@ -71,7 +152,7 @@ where
 
 impl<P, T, F> FeatureNamesDescriptionsTrait for PerBandFeature<P, T, F>
 where
-    P: Ord,
+    P: PassbandTrait,
 {
     fn get_names(&self) -> Vec<&str> {
         self.properties.names.iter().map(String::as_str).collect()
@@ -88,7 +169,7 @@ where
 
 impl<P, T, F> EvaluatorInfoTrait for PerBandFeature<P, T, F>
 where
-    P: Ord,
+    P: PassbandTrait,
 {
     fn get_info(&self) -> &EvaluatorInfo {
         &self.properties.info
@@ -118,13 +199,12 @@ where
         'slf: 'a,
         'a: 'mcts,
     {
-        let PassbandSet(set) = &self.passband_set;
         mcts.with_mapping_mut(|mapping| {
-            mapping
-                .iter_matched_passbands_mut(set.iter())
-                .map(|(passband, ts)| {
+            self.passband_order
+                .iter()
+                .map(|passband| {
                     self.feature
-                        .eval_no_ts_check(ts.expect(
+                        .eval_no_ts_check(mapping.get_mut(passband).expect(
                             "we checked all needed passbands are in mcts, but we still cannot find one",
                         ))
                         .map_err(|error| MultiColorEvaluatorError::MonochromeEvaluatorError {
@@ -153,12 +233,10 @@ mod tests {
     fn test_per_band_feature() {
         let feature: PerBandFeature<MonochromePassband<_>, f64, Feature<_>> = PerBandFeature::new(
             Mean::default().into(),
-            [
+            vec![
                 MonochromePassband::new(4700e-8, "g"),
                 MonochromePassband::new(6200e-8, "r"),
-            ]
-            .into_iter()
-            .collect(),
+            ],
         );
         assert_eq!(feature.get_names(), vec!["mean_g", "mean_r"]);
         assert_eq!(
@@ -182,9 +260,7 @@ mod tests {
 
         let feature: PerBandFeature<MonochromePassband<_>, f64, Feature<_>> = PerBandFeature::new(
             Mean::default().into(),
-            [passband_g.clone(), passband_r.clone()]
-                .into_iter()
-                .collect(),
+            vec![passband_g.clone(), passband_r.clone()],
         );
 
         let mut mcts = {
@@ -195,8 +271,39 @@ mod tests {
         };
 
         let result = feature.eval_multicolor(&mut mcts).unwrap();
-        // Passbands are ordered by wavelength (g before r), so mean_g=2.0 comes first
+        // Passbands in user order [g, r], so mean_g=2.0 comes first
         assert_eq!(result, vec![2.0_f64, 5.0_f64]);
+    }
+
+    #[test]
+    fn test_per_band_feature_reversed_order() {
+        use crate::data::TimeSeries;
+        use std::collections::BTreeMap;
+
+        let passband_g = MonochromePassband::new(4700e-8, "g");
+        let passband_r = MonochromePassband::new(6200e-8, "r");
+
+        let t = vec![0.0_f64, 1.0, 2.0];
+        let m_g = vec![1.0_f64, 2.0, 3.0]; // mean = 2.0
+        let m_r = vec![4.0_f64, 5.0, 6.0]; // mean = 5.0
+
+        // r before g: output order must follow user-specified order
+        let feature: PerBandFeature<MonochromePassband<_>, f64, Feature<_>> = PerBandFeature::new(
+            Mean::default().into(),
+            vec![passband_r.clone(), passband_g.clone()],
+        );
+        assert_eq!(feature.get_names(), vec!["mean_r", "mean_g"]);
+
+        let mut mcts = {
+            let mut map = BTreeMap::new();
+            map.insert(passband_g.clone(), TimeSeries::new_without_weight(&t, &m_g));
+            map.insert(passband_r.clone(), TimeSeries::new_without_weight(&t, &m_r));
+            MultiColorTimeSeries::from_map(map)
+        };
+
+        let result = feature.eval_multicolor(&mut mcts).unwrap();
+        // r is first in passband_order, so mean_r=5.0 comes first
+        assert_eq!(result, vec![5.0_f64, 2.0_f64]);
     }
 
     #[test]
@@ -212,10 +319,7 @@ mod tests {
 
         let feature: PerBandFeature<StringPassband, f64, Feature<f64>> = PerBandFeature::new(
             Mean::default().into(),
-            ["g", "r"]
-                .iter()
-                .map(|&s| StringPassband::from(s))
-                .collect(),
+            vec![StringPassband::from("g"), StringPassband::from("r")],
         );
         let mut mcts = MultiColorTimeSeries::from_flat(t, m, w, bands);
 
@@ -230,10 +334,7 @@ mod tests {
     fn test_per_band_feature_serde() {
         let feature: PerBandFeature<StringPassband, f64, Feature<f64>> = PerBandFeature::new(
             Mean::default().into(),
-            ["g", "r"]
-                .iter()
-                .map(|&s| StringPassband::from(s))
-                .collect(),
+            vec![StringPassband::from("g"), StringPassband::from("r")],
         );
         let json = serde_json::to_string(&feature).unwrap();
         let feature2: PerBandFeature<StringPassband, f64, Feature<f64>> =
