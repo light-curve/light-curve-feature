@@ -140,6 +140,23 @@ mod tests {
     }
 
     #[test]
+    fn color_of_minimum_reversed_passband_order() {
+        // u before g: result must be u-g, not g-u
+        let eval = ColorOfMinimum::new([StringPassband::from("u"), StringPassband::from("g")]);
+        let t = vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0];
+        let m = vec![6.0_f64, 4.0, 5.0, 3.0, 1.0, 2.0];
+        let w = vec![1.0_f64; 6];
+        let bands: Vec<StringPassband> = vec!["g", "g", "g", "u", "u", "u"]
+            .into_iter()
+            .map(StringPassband::from)
+            .collect();
+        let mut mcts = MultiColorTimeSeries::from_flat(t, m, w, bands);
+        let result = eval.eval_multicolor(&mut mcts).unwrap();
+        // g min = 4.0, u min = 1.0; order is [u, g] so result = u - g = 1.0 - 4.0
+        assert!((result[0] - (1.0 - 4.0)).abs() < 1e-10);
+    }
+
+    #[test]
     fn color_of_minimum_names() {
         let eval = ColorOfMinimum::new([StringPassband::from("g"), StringPassband::from("r")]);
         assert_eq!(eval.get_names(), vec!["color_min_g_r"]);
