@@ -19,18 +19,12 @@ where
     P: PassbandTrait,
 {
     feature: F,
-    /// User-specified passband order: determines feature name order and output value order.
     passband_order: Vec<P>,
-    /// Sorted BTreeSet for `check_mcts` validation only; derived from `passband_order`.
     passband_set: PassbandSet<P>,
     properties: Box<EvaluatorProperties>,
     phantom: PhantomData<T>,
 }
 
-/// Serialization helper — holds the serializable fields of [PerBandFeature].
-///
-/// `passband_set` is the JSON key (kept for backward compatibility); the value is
-/// the user-ordered `Vec<P>`, not a `BTreeSet`.
 #[derive(Serialize, Deserialize, JsonSchema)]
 #[serde(
     rename = "PerBandFeature",
@@ -46,7 +40,6 @@ where
     F: FeatureEvaluator<T>,
 {
     feature: F,
-    #[serde(rename = "passband_set")]
     passband_order: Vec<P>,
     properties: Box<EvaluatorProperties>,
     phantom: PhantomData<T>,
