@@ -107,12 +107,10 @@ where
     {
         let mut maxima = [T::zero(); 2];
         mcts.with_mapping_mut(|mapping| {
-            for ((_passband, band_ts), maximum) in mapping
-                .iter_matched_passbands_mut(self.passbands.iter())
-                .zip(maxima.iter_mut())
-            {
-                let band_ts =
-                    band_ts.expect("MultiColorTimeSeries must have all required passbands");
+            for (passband, maximum) in self.passbands.iter().zip(maxima.iter_mut()) {
+                let band_ts = mapping
+                    .get_mut(passband)
+                    .expect("MultiColorTimeSeries must have all required passbands");
                 *maximum = band_ts.m.get_max();
             }
         });

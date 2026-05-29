@@ -107,12 +107,10 @@ where
     {
         let mut minima = [T::zero(); 2];
         mcts.with_mapping_mut(|mapping| {
-            for ((_passband, band_ts), minimum) in mapping
-                .iter_matched_passbands_mut(self.passbands.iter())
-                .zip(minima.iter_mut())
-            {
-                let band_ts =
-                    band_ts.expect("MultiColorTimeSeries must have all required passbands");
+            for (passband, minimum) in self.passbands.iter().zip(minima.iter_mut()) {
+                let band_ts = mapping
+                    .get_mut(passband)
+                    .expect("MultiColorTimeSeries must have all required passbands");
                 *minimum = band_ts.m.get_min();
             }
         });

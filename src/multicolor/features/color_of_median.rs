@@ -109,12 +109,10 @@ where
     {
         let mut medians = [T::zero(); 2];
         mcts.with_mapping_mut(|mapping| -> Result<(), MultiColorEvaluatorError> {
-            for ((passband, band_ts), median) in mapping
-                .iter_matched_passbands_mut(self.passbands.iter())
-                .zip(medians.iter_mut())
-            {
-                let band_ts =
-                    band_ts.expect("MultiColorTimeSeries must have all required passbands");
+            for (passband, median) in self.passbands.iter().zip(medians.iter_mut()) {
+                let band_ts = mapping
+                    .get_mut(passband)
+                    .expect("MultiColorTimeSeries must have all required passbands");
                 *median = self.median.eval(band_ts).map_err(|error| {
                     MultiColorEvaluatorError::MonochromeEvaluatorError {
                         passband: passband.name().into(),

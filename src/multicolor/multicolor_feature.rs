@@ -11,7 +11,6 @@ use crate::multicolor::{MultiColorBins, MultiColorExtractor, PerBandFeature};
 use enum_dispatch::enum_dispatch;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeSet;
 use std::fmt::Debug;
 
 #[enum_dispatch(MultiColorEvaluator<P, T>, FeatureNamesDescriptionsTrait, EvaluatorInfoTrait, MultiColorPassbandSetTrait<P>)]
@@ -41,10 +40,10 @@ where
     P: PassbandTrait,
     T: Float,
 {
-    pub fn from_per_band_feature<F>(feature: F, passband_set: BTreeSet<P>) -> Self
+    pub fn from_per_band_feature<F>(feature: F, passbands: Vec<P>) -> Self
     where
         F: Into<Feature<T>>,
     {
-        PerBandFeature::new(feature.into(), passband_set).into()
+        PerBandFeature::new(feature.into(), passbands).into()
     }
 }
