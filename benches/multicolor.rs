@@ -98,6 +98,72 @@ pub fn bench_multicolor_from_flat(c: &mut Criterion) {
             let _v = feature.eval_multicolor(black_box(&mut mcts)).ok();
         });
     });
+
+    // --- Missing-band and imbalanced cases (capacity allocation stress tests) ---
+    //
+    // With vec![] capacity=0, each band's Vec reallocates ~log2(N/K) times.
+    // These cases isolate whether the dynamic growth cost is significant.
+
+    // Only 2 of 3 bands present (one missing): K_actual=2, N=3000 interleaved g/i
+    let bands_2of3: Vec<StringPassband> = (0..N)
+        .map(|i| StringPassband::from(band_names[i % 2]))
+        .collect();
+    let bands_2of3_borrowed: Vec<&StringPassband> =
+        (0..N).map(|i| &uniq_passbands[i % 2]).collect();
+
+    c.bench_function("from_flat interleaved 2-of-3 bands present (N=3000)", |b| {
+        b.iter(|| {
+            let mut mcts = MultiColorTimeSeries::from_flat(
+                t.as_slice(),
+                m.as_slice(),
+                w.as_slice(),
+                black_box(bands_2of3.as_slice()),
+            );
+            let _v = feature.eval_multicolor(black_box(&mut mcts)).ok();
+        });
+    });
+
+    c.bench_function(
+        "from_flat_borrowed interleaved 2-of-3 bands present (N=3000)",
+        |b| {
+            b.iter(|| {
+                let mut mcts = MultiColorTimeSeries::from_flat_borrowed(
+                    t.as_slice(),
+                    m.as_slice(),
+                    w.as_slice(),
+                    black_box(bands_2of3_borrowed.clone()),
+                    &uniq_passbands,
+                );
+                let _v = feature.eval_multicolor(black_box(&mut mcts)).ok();
+            });
+        },
+    );
+
+    // Heavily imbalanced: band[0] gets 90%, band[1] gets 9%, band[2] gets 1%
+    let bands_imbalanced: Vec<StringPassband> = (0..N)
+        .map(|i| {
+            let b = if i < N * 9 / 10 {
+                0
+            } else if i < N * 99 / 100 {
+                1
+            } else {
+                2
+            };
+            StringPassband::from(band_names[b])
+        })
+        .collect();
+
+    c.bench_function("from_flat imbalanced bands 90/9/1% (N=3000, K=3)", |b| {
+        b.iter(|| {
+            let mut mcts = MultiColorTimeSeries::from_flat(
+                t.as_slice(),
+                m.as_slice(),
+                w.as_slice(),
+                black_box(bands_imbalanced.as_slice()),
+            );
+            let _v = feature.eval_multicolor(black_box(&mut mcts)).ok();
+        });
+    });
 }
 
 pub fn bench_multicolor(c: &mut Criterion) {
