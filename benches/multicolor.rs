@@ -8,162 +8,117 @@ use light_curve_feature_test_util::SNIA_LIGHT_CURVES_FLUX_F64;
 use std::collections::BTreeSet;
 use std::hint::black_box;
 
-/// Benchmark `from_flat` and `from_flat_borrowed` specifically for the interleaved-passband
-/// code paths fixed in https://github.com/light-curve/light-curve-feature/issues/296 and
-/// https://github.com/light-curve/light-curve-feature/issues/297.
-pub fn bench_multicolor_from_flat(c: &mut Criterion) {
-    const N: usize = 3000;
-    const K: usize = 3;
-    // Must be sorted: from_flat_borrowed requires sorted uniq_passbands for binary_search
-    // in the original code path; alphabetical order is g < i < r.
-    let band_names = ["g", "i", "r"];
+/// Inner helper: run all from_flat / from_flat_borrowed bench variants for a given band set.
+/// `band_names` must be sorted (required by from_flat_borrowed's binary_search contract).
+fn bench_from_flat_variants(c: &mut Criterion, band_names: &[&str], n: usize) {
+    let k = band_names.len();
+    assert_eq!(n % k, 0, "N must be divisible by K for even split");
+
     let uniq_passbands: Vec<StringPassband> = band_names
         .iter()
         .map(|s| StringPassband::from(*s))
         .collect();
+    let t: Vec<f64> = (0..n).map(|i| i as f64).collect();
+    let m: Vec<f64> = vec![1.0_f64; n];
+    let w: Vec<f64> = vec![1.0_f64; n];
 
-    let t: Vec<f64> = (0..N).map(|i| i as f64).collect();
-    let m: Vec<f64> = vec![1.0_f64; N];
-    let w: Vec<f64> = vec![1.0_f64; N];
-
-    // Interleaved: g, r, i, g, r, i, ...  (worst case for old chunk_by)
-    let bands_interleaved: Vec<StringPassband> = (0..N)
-        .map(|i| StringPassband::from(band_names[i % K]))
+    // Interleaved: b0, b1, …, bK-1, b0, b1, …  (worst case for old chunk_by)
+    let bands_interleaved: Vec<StringPassband> = (0..n)
+        .map(|i| StringPassband::from(band_names[i % k]))
         .collect();
-
-    // Sorted by band: all g, then all r, then all i  (best case for old chunk_by)
-    let bands_sorted: Vec<StringPassband> = (0..N)
-        .map(|i| StringPassband::from(band_names[i / (N / K)]))
+    // Sorted by band: all b0, then all b1, …  (best case for old chunk_by)
+    let bands_sorted: Vec<StringPassband> = (0..n)
+        .map(|i| StringPassband::from(band_names[i / (n / k)]))
         .collect();
-
-    let feature: MultiColorFeature<StringPassband, f64> =
-        ColorSpread::new(uniq_passbands.clone()).into();
-
-    // Benchmark the construction + ensure_mapping path (from_flat → chunk_by / direct dispatch)
-    c.bench_function("from_flat interleaved passbands (N=3000, K=3)", |b| {
-        b.iter(|| {
-            let mut mcts = MultiColorTimeSeries::from_flat(
-                t.as_slice(),
-                m.as_slice(),
-                w.as_slice(),
-                black_box(bands_interleaved.as_slice()),
-            );
-            let _v = feature.eval_multicolor(black_box(&mut mcts)).ok();
-        });
-    });
-
-    c.bench_function("from_flat sorted passbands (N=3000, K=3)", |b| {
-        b.iter(|| {
-            let mut mcts = MultiColorTimeSeries::from_flat(
-                t.as_slice(),
-                m.as_slice(),
-                w.as_slice(),
-                black_box(bands_sorted.as_slice()),
-            );
-            let _v = feature.eval_multicolor(black_box(&mut mcts)).ok();
-        });
-    });
-
-    // Benchmark from_flat_borrowed (pointer equality vs binary search fix, issue #297)
-    let bands_borrowed_interleaved: Vec<&StringPassband> =
-        (0..N).map(|i| &uniq_passbands[i % K]).collect();
-    let bands_borrowed_sorted: Vec<&StringPassband> =
-        (0..N).map(|i| &uniq_passbands[i / (N / K)]).collect();
-
-    c.bench_function(
-        "from_flat_borrowed interleaved passbands (N=3000, K=3)",
-        |b| {
-            b.iter(|| {
-                let mut mcts = MultiColorTimeSeries::from_flat_borrowed(
-                    t.as_slice(),
-                    m.as_slice(),
-                    w.as_slice(),
-                    black_box(bands_borrowed_interleaved.clone()),
-                    &uniq_passbands,
-                );
-                let _v = feature.eval_multicolor(black_box(&mut mcts)).ok();
-            });
-        },
-    );
-
-    c.bench_function("from_flat_borrowed sorted passbands (N=3000, K=3)", |b| {
-        b.iter(|| {
-            let mut mcts = MultiColorTimeSeries::from_flat_borrowed(
-                t.as_slice(),
-                m.as_slice(),
-                w.as_slice(),
-                black_box(bands_borrowed_sorted.clone()),
-                &uniq_passbands,
-            );
-            let _v = feature.eval_multicolor(black_box(&mut mcts)).ok();
-        });
-    });
-
-    // --- Missing-band and imbalanced cases (capacity allocation stress tests) ---
-    //
-    // With vec![] capacity=0, each band's Vec reallocates ~log2(N/K) times.
-    // These cases isolate whether the dynamic growth cost is significant.
-
-    // Only 2 of 3 bands present (one missing): K_actual=2, N=3000 interleaved g/i
-    let bands_2of3: Vec<StringPassband> = (0..N)
-        .map(|i| StringPassband::from(band_names[i % 2]))
+    // (K-1) of K bands present, interleaved — one band missing
+    let bands_km1: Vec<StringPassband> = (0..n)
+        .map(|i| StringPassband::from(band_names[i % (k - 1)]))
         .collect();
-    let bands_2of3_borrowed: Vec<&StringPassband> =
-        (0..N).map(|i| &uniq_passbands[i % 2]).collect();
-
-    c.bench_function("from_flat interleaved 2-of-3 bands present (N=3000)", |b| {
-        b.iter(|| {
-            let mut mcts = MultiColorTimeSeries::from_flat(
-                t.as_slice(),
-                m.as_slice(),
-                w.as_slice(),
-                black_box(bands_2of3.as_slice()),
-            );
-            let _v = feature.eval_multicolor(black_box(&mut mcts)).ok();
-        });
-    });
-
-    c.bench_function(
-        "from_flat_borrowed interleaved 2-of-3 bands present (N=3000)",
-        |b| {
-            b.iter(|| {
-                let mut mcts = MultiColorTimeSeries::from_flat_borrowed(
-                    t.as_slice(),
-                    m.as_slice(),
-                    w.as_slice(),
-                    black_box(bands_2of3_borrowed.clone()),
-                    &uniq_passbands,
-                );
-                let _v = feature.eval_multicolor(black_box(&mut mcts)).ok();
-            });
-        },
-    );
-
-    // Heavily imbalanced: band[0] gets 90%, band[1] gets 9%, band[2] gets 1%
-    let bands_imbalanced: Vec<StringPassband> = (0..N)
+    // Heavily imbalanced: first band gets 90 %, second 9 %, rest share 1 %
+    let bands_imbalanced: Vec<StringPassband> = (0..n)
         .map(|i| {
-            let b = if i < N * 9 / 10 {
+            let b = if i < n * 9 / 10 {
                 0
-            } else if i < N * 99 / 100 {
+            } else if i < n * 99 / 100 {
                 1
             } else {
-                2
+                2.min(k - 1)
             };
             StringPassband::from(band_names[b])
         })
         .collect();
 
-    c.bench_function("from_flat imbalanced bands 90/9/1% (N=3000, K=3)", |b| {
-        b.iter(|| {
-            let mut mcts = MultiColorTimeSeries::from_flat(
-                t.as_slice(),
-                m.as_slice(),
-                w.as_slice(),
-                black_box(bands_imbalanced.as_slice()),
-            );
-            let _v = feature.eval_multicolor(black_box(&mut mcts)).ok();
-        });
-    });
+    let feature: MultiColorFeature<StringPassband, f64> =
+        ColorSpread::new(uniq_passbands.clone()).into();
+
+    let bands_borrowed_interleaved: Vec<&StringPassband> =
+        (0..n).map(|i| &uniq_passbands[i % k]).collect();
+    let bands_borrowed_sorted: Vec<&StringPassband> =
+        (0..n).map(|i| &uniq_passbands[i / (n / k)]).collect();
+
+    macro_rules! bench_flat {
+        ($label:expr, $bands:expr) => {
+            c.bench_function($label, |b| {
+                b.iter(|| {
+                    let mut mcts = MultiColorTimeSeries::from_flat(
+                        t.as_slice(),
+                        m.as_slice(),
+                        w.as_slice(),
+                        black_box($bands.as_slice()),
+                    );
+                    let _v = feature.eval_multicolor(black_box(&mut mcts)).ok();
+                });
+            });
+        };
+    }
+    macro_rules! bench_borrowed {
+        ($label:expr, $bands:expr) => {
+            c.bench_function($label, |b| {
+                b.iter(|| {
+                    let mut mcts = MultiColorTimeSeries::from_flat_borrowed(
+                        t.as_slice(),
+                        m.as_slice(),
+                        w.as_slice(),
+                        black_box($bands.clone()),
+                        &uniq_passbands,
+                    );
+                    let _v = feature.eval_multicolor(black_box(&mut mcts)).ok();
+                });
+            });
+        };
+    }
+
+    bench_flat!(
+        &format!("from_flat interleaved (N={n}, K={k})"),
+        bands_interleaved
+    );
+    bench_flat!(&format!("from_flat sorted (N={n}, K={k})"), bands_sorted);
+    bench_flat!(
+        &format!("from_flat {}-of-{k} bands interleaved (N={n})", k - 1),
+        bands_km1
+    );
+    bench_flat!(
+        &format!("from_flat imbalanced 90/9/1% (N={n}, K={k})"),
+        bands_imbalanced
+    );
+    bench_borrowed!(
+        &format!("from_flat_borrowed interleaved (N={n}, K={k})"),
+        bands_borrowed_interleaved
+    );
+    bench_borrowed!(
+        &format!("from_flat_borrowed sorted (N={n}, K={k})"),
+        bands_borrowed_sorted
+    );
+}
+
+/// Benchmark `from_flat` and `from_flat_borrowed` for K=3 and K=6 passbands.
+/// Covers interleaved, sorted, missing-band, and imbalanced cases.
+/// Fixes: https://github.com/light-curve/light-curve-feature/issues/296 and /297.
+pub fn bench_multicolor_from_flat(c: &mut Criterion) {
+    // K=3, sorted alphabetically: g < i < r
+    bench_from_flat_variants(c, &["g", "i", "r"], 3000);
+    // K=6, LSST-like bands sorted alphabetically: g < i < r < u < y < z
+    bench_from_flat_variants(c, &["g", "i", "r", "u", "y", "z"], 3000);
 }
 
 pub fn bench_multicolor(c: &mut Criterion) {
