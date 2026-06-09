@@ -231,8 +231,9 @@ where
     /// * `uniq_passbands` — the K unique passbands, borrowed with `'a`.
     /// * `passband` — per-observation references into `uniq_passbands`, also `'a`.
     ///
-    /// The caller must ensure `uniq_passbands` is sorted and every element of `passband`
-    /// is present in `uniq_passbands` (verified by binary search at construction time).
+    /// The caller must ensure every element of `passband` is a reference that points
+    /// into `uniq_passbands`. Index recovery uses pointer equality (O(K) per observation),
+    /// which is faster than value-based binary search for the typical K of 2–6 bands.
     pub fn from_flat_borrowed(
         t: impl Into<DataSample<'a, T>>,
         m: impl Into<DataSample<'a, T>>,
@@ -247,7 +248,8 @@ where
             .iter()
             .map(|p| {
                 uniq_passbands
-                    .binary_search(p)
+                    .iter()
+                    .position(|q| std::ptr::eq(q, *p))
                     .expect("passband must be present in uniq_passbands")
             })
             .collect();
@@ -472,20 +474,16 @@ where
 {
     pub fn from_flat(flat: &mut FlatMultiColorTimeSeries<'pb, 'a, P, T>) -> Self {
         let mut map = BTreeMap::new();
-        let groups = itertools::multizip((
+        for (&t, &m, &w, p) in itertools::multizip((
             flat.t.as_slice().iter(),
             flat.m.as_slice().iter(),
             flat.w.as_slice().iter(),
             flat.passbands.iter().copied(),
-        ))
-        .chunk_by(|(_t, _m, _w, p)| *p);
-        for (p, group) in &groups {
+        )) {
             let entry = map.entry(p).or_insert_with(|| (vec![], vec![], vec![]));
-            for (&t, &m, &w, _p) in group {
-                entry.0.push(t);
-                entry.1.push(m);
-                entry.2.push(w);
-            }
+            entry.0.push(t);
+            entry.1.push(m);
+            entry.2.push(w);
         }
         Self(
             map.into_iter()

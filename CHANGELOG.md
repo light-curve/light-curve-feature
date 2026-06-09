@@ -13,7 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
---
+- `MappedMultiColorTimeSeries::from_flat` now dispatches observations directly into
+  per-passband vectors instead of using `chunk_by` (run-length grouping), eliminating
+  O(N) BTree lookups on interleaved/time-sorted multiband data https://github.com/light-curve/light-curve-feature/issues/296
+- `MultiColorTimeSeries::from_flat_borrowed` now recovers passband indices via pointer
+  equality instead of binary search, which is faster for the typical K of 2–6 bands
+  https://github.com/light-curve/light-curve-feature/issues/297
 
 ### Deprecated
 
