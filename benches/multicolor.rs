@@ -8,6 +8,98 @@ use light_curve_feature_test_util::SNIA_LIGHT_CURVES_FLUX_F64;
 use std::collections::BTreeSet;
 use std::hint::black_box;
 
+/// Benchmark `from_flat` and `from_flat_borrowed` specifically for the interleaved-passband
+/// code paths fixed in https://github.com/light-curve/light-curve-feature/issues/296 and
+/// https://github.com/light-curve/light-curve-feature/issues/297.
+pub fn bench_multicolor_from_flat(c: &mut Criterion) {
+    const N: usize = 3000;
+    const K: usize = 3;
+    // Must be sorted: from_flat_borrowed requires sorted uniq_passbands for binary_search
+    // in the original code path; alphabetical order is g < i < r.
+    let band_names = ["g", "i", "r"];
+    let uniq_passbands: Vec<StringPassband> = band_names
+        .iter()
+        .map(|s| StringPassband::from(*s))
+        .collect();
+
+    let t: Vec<f64> = (0..N).map(|i| i as f64).collect();
+    let m: Vec<f64> = vec![1.0_f64; N];
+    let w: Vec<f64> = vec![1.0_f64; N];
+
+    // Interleaved: g, r, i, g, r, i, ...  (worst case for old chunk_by)
+    let bands_interleaved: Vec<StringPassband> = (0..N)
+        .map(|i| StringPassband::from(band_names[i % K]))
+        .collect();
+
+    // Sorted by band: all g, then all r, then all i  (best case for old chunk_by)
+    let bands_sorted: Vec<StringPassband> = (0..N)
+        .map(|i| StringPassband::from(band_names[i / (N / K)]))
+        .collect();
+
+    let feature: MultiColorFeature<StringPassband, f64> =
+        ColorSpread::new(uniq_passbands.clone()).into();
+
+    // Benchmark the construction + ensure_mapping path (from_flat → chunk_by / direct dispatch)
+    c.bench_function("from_flat interleaved passbands (N=3000, K=3)", |b| {
+        b.iter(|| {
+            let mut mcts = MultiColorTimeSeries::from_flat(
+                t.as_slice(),
+                m.as_slice(),
+                w.as_slice(),
+                black_box(bands_interleaved.as_slice()),
+            );
+            let _v = feature.eval_multicolor(black_box(&mut mcts)).ok();
+        });
+    });
+
+    c.bench_function("from_flat sorted passbands (N=3000, K=3)", |b| {
+        b.iter(|| {
+            let mut mcts = MultiColorTimeSeries::from_flat(
+                t.as_slice(),
+                m.as_slice(),
+                w.as_slice(),
+                black_box(bands_sorted.as_slice()),
+            );
+            let _v = feature.eval_multicolor(black_box(&mut mcts)).ok();
+        });
+    });
+
+    // Benchmark from_flat_borrowed (pointer equality vs binary search fix, issue #297)
+    let bands_borrowed_interleaved: Vec<&StringPassband> =
+        (0..N).map(|i| &uniq_passbands[i % K]).collect();
+    let bands_borrowed_sorted: Vec<&StringPassband> =
+        (0..N).map(|i| &uniq_passbands[i / (N / K)]).collect();
+
+    c.bench_function(
+        "from_flat_borrowed interleaved passbands (N=3000, K=3)",
+        |b| {
+            b.iter(|| {
+                let mut mcts = MultiColorTimeSeries::from_flat_borrowed(
+                    t.as_slice(),
+                    m.as_slice(),
+                    w.as_slice(),
+                    black_box(bands_borrowed_interleaved.clone()),
+                    &uniq_passbands,
+                );
+                let _v = feature.eval_multicolor(black_box(&mut mcts)).ok();
+            });
+        },
+    );
+
+    c.bench_function("from_flat_borrowed sorted passbands (N=3000, K=3)", |b| {
+        b.iter(|| {
+            let mut mcts = MultiColorTimeSeries::from_flat_borrowed(
+                t.as_slice(),
+                m.as_slice(),
+                w.as_slice(),
+                black_box(bands_borrowed_sorted.clone()),
+                &uniq_passbands,
+            );
+            let _v = feature.eval_multicolor(black_box(&mut mcts)).ok();
+        });
+    });
+}
+
 pub fn bench_multicolor(c: &mut Criterion) {
     let passbands = [StringPassband::from("R"), StringPassband::from("g")];
     let required: BTreeSet<_> = passbands.iter().cloned().collect();

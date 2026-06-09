@@ -17,7 +17,7 @@ mod peak_indices;
 use peak_indices::bench_peak_indices;
 
 mod multicolor;
-use multicolor::bench_multicolor;
+use multicolor::{bench_multicolor, bench_multicolor_from_flat};
 
 criterion_group!(benches_extractor, bench_extractor<f64>);
 criterion_group!(benches_fit, bench_fit_straight_line, bench_fit_snia);
@@ -29,7 +29,11 @@ criterion_group!(
 );
 criterion_group!(benches_recurrent_sin_cos, bench_sin_cos);
 criterion_group!(benches_statistics, bench_peak_indices);
-criterion_group!(benches_multicolor, bench_multicolor);
+criterion_group!(
+    benches_multicolor,
+    bench_multicolor,
+    bench_multicolor_from_flat
+);
 
 criterion_main!(
     benches_extractor,
