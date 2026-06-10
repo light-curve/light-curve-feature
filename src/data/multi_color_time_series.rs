@@ -7,7 +7,7 @@ use conv::prelude::*;
 use itertools::EitherOrBoth;
 use itertools::Itertools;
 use std::borrow::Cow;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::ops::{Deref, DerefMut};
 
 // Inner enum holds the actual variant data; all passband references borrow from
@@ -66,13 +66,14 @@ where
         match self.borrow_inner() {
             MultiColorTimeSeriesInner::Mapping(m)
             | MultiColorTimeSeriesInner::MappingFlat { mapping: m, .. } => {
-                let ts_vec: Vec<TimeSeries<'a, T>> = m.0.values().cloned().collect();
+                let ts_vec: Vec<TimeSeries<'a, T>> = m.map.values().cloned().collect();
                 MultiColorTimeSeriesBuilder {
                     passband_vec: self.borrow_passband_vec().clone(),
                     inner_builder: |vec: &Cow<'_, [P]>| {
-                        MultiColorTimeSeriesInner::Mapping(MappedMultiColorTimeSeries(
-                            vec.iter().zip(ts_vec).collect(),
-                        ))
+                        MultiColorTimeSeriesInner::Mapping(MappedMultiColorTimeSeries {
+                            map: vec.iter().zip(ts_vec).collect(),
+                            uniq_passbands: vec.as_ref(),
+                        })
                     },
                 }
                 .build()
@@ -100,6 +101,7 @@ where
                             m,
                             w,
                             passbands,
+                            uniq_passbands: vec.as_ref(),
                         })
                     },
                 }
@@ -141,8 +143,10 @@ where
         MultiColorTimeSeriesBuilder {
             passband_vec: Cow::Owned(passband_vec),
             inner_builder: |vec: &Cow<'_, [P]>| {
-                let mapping =
-                    MappedMultiColorTimeSeries(vec.iter().zip(map.into_values()).collect());
+                let mapping = MappedMultiColorTimeSeries {
+                    map: vec.iter().zip(map.into_values()).collect(),
+                    uniq_passbands: vec.as_ref(),
+                };
                 MultiColorTimeSeriesInner::Mapping(mapping)
             },
         }
@@ -157,24 +161,6 @@ where
         passband: impl AsRef<[P]>,
     ) -> Self {
         let passband = passband.as_ref();
-        let uniq_passbands: Vec<P> = passband
-            .iter()
-            .collect::<BTreeSet<_>>()
-            .into_iter()
-            .cloned()
-            .collect();
-        Self::from_flat_with_passband_vec(t, m, w, passband, uniq_passbands)
-    }
-
-    /// Build from flat arrays with a pre-built unique passband vec.
-    /// Each item in `passband` must appear in `uniq_passbands`.
-    pub fn from_flat_with_passband_vec(
-        t: impl Into<DataSample<'a, T>>,
-        m: impl Into<DataSample<'a, T>>,
-        w: impl Into<DataSample<'a, T>>,
-        passband: impl AsRef<[P]>,
-        uniq_passbands: Vec<P>,
-    ) -> Self {
         let t = t.into();
         let m = m.into();
         let w = w.into();
@@ -190,27 +176,94 @@ where
         );
         assert_eq!(
             t.sample.len(),
-            passband.as_ref().len(),
+            passband.len(),
             "t and passband should have the same size"
         );
 
+        // Deduplicate passbands into passband_vec (K clones) — &P keys borrow from caller's slice.
+        let passband_vec: Vec<P> = {
+            let mut seen: BTreeMap<&P, ()> = BTreeMap::new();
+            for p in passband.iter() {
+                seen.entry(p).or_default();
+            }
+            seen.keys().map(|&p| p.clone()).collect()
+        };
+
+        // Move passband into the builder closure. Inside, vec: &'pb [P] gives us refs
+        // into the pinned passband_vec, so we build Vec<&'pb P> via linear scan — no
+        // per-observation P clones.
         MultiColorTimeSeriesBuilder {
-            passband_vec: Cow::Owned(uniq_passbands),
+            passband_vec: Cow::Owned(passband_vec),
             inner_builder: move |vec: &Cow<'_, [P]>| {
-                let passbands_refs: Vec<&P> = passband
-                    .as_ref()
+                let passbands: Vec<&P> = passband
                     .iter()
                     .map(|p| {
                         vec.iter()
                             .find(|q| *q == p)
-                            .expect("passband must be present in passband_vec")
+                            .expect("passband must be in passband_vec")
                     })
                     .collect();
                 MultiColorTimeSeriesInner::Flat(FlatMultiColorTimeSeries {
                     t,
                     m,
                     w,
-                    passbands: passbands_refs,
+                    passbands,
+                    uniq_passbands: vec.as_ref(),
+                })
+            },
+        }
+        .build()
+    }
+
+    /// Build from flat arrays with a pre-built unique passband vec.
+    /// Each item in `passband` must appear in `uniq_passbands`.
+    ///
+    /// Observations are grouped directly into per-band time series using a
+    /// linear scan over the K unique passbands (cheap for small K).
+    pub fn from_flat_with_passband_vec(
+        t: impl Into<DataSample<'a, T>>,
+        m: impl Into<DataSample<'a, T>>,
+        w: impl Into<DataSample<'a, T>>,
+        passband: impl AsRef<[P]>,
+        uniq_passbands: Vec<P>,
+    ) -> Self {
+        let passband = passband.as_ref();
+        let t = t.into();
+        let m = m.into();
+        let w = w.into();
+        assert_eq!(
+            t.sample.len(),
+            m.sample.len(),
+            "t and m should have the same size"
+        );
+        assert_eq!(
+            m.sample.len(),
+            w.sample.len(),
+            "m and w should have the same size"
+        );
+        assert_eq!(
+            t.sample.len(),
+            passband.len(),
+            "t and passband should have the same size"
+        );
+
+        MultiColorTimeSeriesBuilder {
+            passband_vec: Cow::Owned(uniq_passbands),
+            inner_builder: move |vec: &Cow<'_, [P]>| {
+                let passbands: Vec<&P> = passband
+                    .iter()
+                    .map(|p| {
+                        vec.iter()
+                            .find(|q| *q == p)
+                            .expect("passband must be present in uniq_passbands")
+                    })
+                    .collect();
+                MultiColorTimeSeriesInner::Flat(FlatMultiColorTimeSeries {
+                    t,
+                    m,
+                    w,
+                    passbands,
+                    uniq_passbands: vec.as_ref(),
                 })
             },
         }
@@ -236,12 +289,13 @@ where
         let w = w.into();
         MultiColorTimeSeriesBuilder {
             passband_vec: Cow::Borrowed(uniq_passbands),
-            inner_builder: |_vec: &Cow<'_, [P]>| {
+            inner_builder: |vec: &Cow<'_, [P]>| {
                 MultiColorTimeSeriesInner::Flat(FlatMultiColorTimeSeries {
                     t,
                     m,
                     w,
                     passbands: passband,
+                    uniq_passbands: vec.as_ref(),
                 })
             },
         }
@@ -249,19 +303,19 @@ where
     }
 
     fn ensure_mapping(&mut self) {
-        let needs_mapping =
-            self.with_inner(|inner| matches!(inner, MultiColorTimeSeriesInner::Flat(_)));
-        if needs_mapping {
-            self.with_inner_mut(|inner| {
-                take_mut::take(inner, |inner| match inner {
-                    MultiColorTimeSeriesInner::Flat(mut flat) => {
-                        let mapping = MappedMultiColorTimeSeries::from_flat(&mut flat);
-                        MultiColorTimeSeriesInner::MappingFlat { mapping, flat }
-                    }
-                    _ => unreachable!("checked above"),
-                });
+        self.with_inner_mut(|inner| {
+            if !matches!(inner, MultiColorTimeSeriesInner::Flat(_)) {
+                return;
+            }
+            take_mut::take(inner, |inner| match inner {
+                MultiColorTimeSeriesInner::Flat(flat) => {
+                    let uniq = flat.uniq_passbands;
+                    let mapping = MappedMultiColorTimeSeries::from_flat_with_passbands(&flat, uniq);
+                    MultiColorTimeSeriesInner::MappingFlat { mapping, flat }
+                }
+                _ => unreachable!("checked above"),
             });
-        }
+        });
     }
 
     /// Run a closure with mutable access to the mapping representation.
@@ -287,19 +341,19 @@ where
     }
 
     fn ensure_flat(&mut self) {
-        let needs_flat =
-            self.with_inner(|inner| matches!(inner, MultiColorTimeSeriesInner::Mapping(_)));
-        if needs_flat {
-            self.with_inner_mut(|inner| {
-                take_mut::take(inner, |inner| match inner {
-                    MultiColorTimeSeriesInner::Mapping(mut mapping) => {
-                        let flat = FlatMultiColorTimeSeries::from_mapping(&mut mapping);
-                        MultiColorTimeSeriesInner::MappingFlat { mapping, flat }
-                    }
-                    _ => unreachable!("checked above"),
-                });
+        self.with_inner_mut(|inner| {
+            if !matches!(inner, MultiColorTimeSeriesInner::Mapping(_)) {
+                return;
+            }
+            take_mut::take(inner, |inner| match inner {
+                MultiColorTimeSeriesInner::Mapping(mut mapping) => {
+                    let uniq = mapping.uniq_passbands;
+                    let flat = FlatMultiColorTimeSeries::from_mapping(&mut mapping, uniq);
+                    MultiColorTimeSeriesInner::MappingFlat { mapping, flat }
+                }
+                _ => unreachable!("checked above"),
             });
-        }
+        });
     }
 
     pub fn with_flat_mut<R>(
@@ -339,7 +393,7 @@ where
                     _ => unreachable!(),
                 };
                 let value = mapping
-                    .0
+                    .map
                     .get_mut(&passband as &P)
                     .expect("passband was found in sorted_passbands, so must be in mapping");
                 old = Some(std::mem::replace(value, ts));
@@ -352,10 +406,17 @@ where
             let mut owned_map: BTreeMap<P, TimeSeries<'a, T>> = BTreeMap::new();
             slf.with_inner_mut(|inner| {
                 take_mut::take(inner, |inner_val| {
+                    let uniq = match &inner_val {
+                        MultiColorTimeSeriesInner::Mapping(m)
+                        | MultiColorTimeSeriesInner::MappingFlat { mapping: m, .. } => {
+                            m.uniq_passbands
+                        }
+                        MultiColorTimeSeriesInner::Flat(f) => f.uniq_passbands,
+                    };
                     match inner_val {
                         MultiColorTimeSeriesInner::Mapping(m)
                         | MultiColorTimeSeriesInner::MappingFlat { mapping: m, .. } => {
-                            for (p, ts) in m.0 {
+                            for (p, ts) in m.map {
                                 owned_map.insert((*p).clone(), ts);
                             }
                         }
@@ -381,7 +442,10 @@ where
                                 .collect();
                         }
                     }
-                    MultiColorTimeSeriesInner::Mapping(MappedMultiColorTimeSeries(BTreeMap::new()))
+                    MultiColorTimeSeriesInner::Mapping(MappedMultiColorTimeSeries {
+                        map: BTreeMap::new(),
+                        uniq_passbands: uniq,
+                    })
                 });
             });
             old_ts = owned_map.insert(passband, ts);
@@ -399,8 +463,11 @@ where
     fn default() -> Self {
         MultiColorTimeSeriesBuilder {
             passband_vec: Cow::Owned(Vec::new()),
-            inner_builder: |_| {
-                MultiColorTimeSeriesInner::Mapping(MappedMultiColorTimeSeries(BTreeMap::new()))
+            inner_builder: |vec: &Cow<'_, [P]>| {
+                MultiColorTimeSeriesInner::Mapping(MappedMultiColorTimeSeries {
+                    map: BTreeMap::new(),
+                    uniq_passbands: vec.as_ref(),
+                })
             },
         }
         .build()
@@ -418,9 +485,11 @@ where
 }
 
 #[derive(Debug)]
-pub struct MappedMultiColorTimeSeries<'pb, 'a, P: PassbandTrait, T: Float>(
-    BTreeMap<&'pb P, TimeSeries<'a, T>>,
-);
+pub struct MappedMultiColorTimeSeries<'pb, 'a, P: PassbandTrait, T: Float> {
+    map: BTreeMap<&'pb P, TimeSeries<'a, T>>,
+    /// Unique passbands, borrowed directly from `MultiColorTimeSeries::passband_vec`.
+    pub uniq_passbands: &'pb [P],
+}
 
 impl<'pb, 'a, P, T> Clone for MappedMultiColorTimeSeries<'pb, 'a, P, T>
 where
@@ -428,7 +497,10 @@ where
     T: Float,
 {
     fn clone(&self) -> Self {
-        Self(self.0.clone())
+        Self {
+            map: self.map.clone(),
+            uniq_passbands: self.uniq_passbands,
+        }
     }
 }
 
@@ -438,12 +510,12 @@ where
     T: Float,
 {
     fn eq(&self, other: &Self) -> bool {
-        if self.0.len() != other.0.len() {
+        if self.map.len() != other.map.len() {
             return false;
         }
-        self.0
+        self.map
             .iter()
-            .zip(other.0.iter())
+            .zip(other.map.iter())
             .all(|((k1, v1), (k2, v2))| k1 == k2 && v1 == v2)
     }
 }
@@ -453,28 +525,57 @@ where
     P: PassbandTrait,
     T: Float,
 {
-    pub fn from_flat(flat: &mut FlatMultiColorTimeSeries<'pb, 'a, P, T>) -> Self {
-        let mut map = BTreeMap::new();
-        for (&t, &m, &w, p) in itertools::multizip((
-            flat.t.as_slice().iter(),
-            flat.m.as_slice().iter(),
-            flat.w.as_slice().iter(),
-            flat.passbands.iter().copied(),
+    pub fn from_flat(flat: &FlatMultiColorTimeSeries<'pb, 'a, P, T>) -> Self {
+        Self::from_flat_with_passbands(flat, flat.uniq_passbands)
+    }
+
+    /// Group flat observations into per-band time series using pointer-identity dispatch.
+    ///
+    /// `uniq_passbands` must be `flat.uniq_passbands` — all per-observation refs in
+    /// `flat.passbands` must point into this slice, enabling O(K) ptr-eq dispatch.
+    fn from_flat_with_passbands(
+        flat: &FlatMultiColorTimeSeries<'pb, 'a, P, T>,
+        uniq_passbands: &'pb [P],
+    ) -> Self {
+        let k = uniq_passbands.len();
+        let cap = flat.len().checked_div(k).map_or(0, |c| c + 1);
+        let mut bufs: Vec<(Vec<T>, Vec<T>, Vec<T>)> = (0..k)
+            .map(|_| {
+                (
+                    Vec::with_capacity(cap),
+                    Vec::with_capacity(cap),
+                    Vec::with_capacity(cap),
+                )
+            })
+            .collect();
+        for (&t_val, &m_val, &w_val, &p) in itertools::multizip((
+            flat.t.sample.iter(),
+            flat.m.sample.iter(),
+            flat.w.sample.iter(),
+            flat.passbands.iter(),
         )) {
-            let entry = map.entry(p).or_insert_with(|| (vec![], vec![], vec![]));
-            entry.0.push(t);
-            entry.1.push(m);
-            entry.2.push(w);
+            let idx = uniq_passbands
+                .iter()
+                .position(|q| std::ptr::eq(q, p))
+                .expect("passband not found in known passbands");
+            let (t_buf, m_buf, w_buf) = &mut bufs[idx];
+            t_buf.push(t_val);
+            m_buf.push(m_val);
+            w_buf.push(w_val);
         }
-        Self(
-            map.into_iter()
+        Self {
+            map: uniq_passbands
+                .iter()
+                .zip(bufs)
+                .filter(|(_, (t, _, _))| !t.is_empty())
                 .map(|(p, (t, m, w))| (p, TimeSeries::new(t, m, w)))
                 .collect(),
-        )
+            uniq_passbands,
+        }
     }
 
     pub fn total_lenu(&self) -> usize {
-        self.0.values().map(|ts| ts.lenu()).sum()
+        self.map.values().map(|ts| ts.lenu()).sum()
     }
 
     pub fn total_lenf(&self) -> T {
@@ -482,11 +583,11 @@ where
     }
 
     pub fn passbands(&self) -> impl Iterator<Item = &P> {
-        self.0.keys().copied()
+        self.map.keys().copied()
     }
 
     pub fn iter_ts(&self) -> std::collections::btree_map::Values<'_, &'pb P, TimeSeries<'a, T>> {
-        self.0.values()
+        self.map.values()
     }
 
     pub fn iter_passband_set<'slf, 'ps>(
@@ -546,13 +647,13 @@ impl<'pb, 'a, P: PassbandTrait, T: Float> Deref for MappedMultiColorTimeSeries<'
     type Target = BTreeMap<&'pb P, TimeSeries<'a, T>>;
 
     fn deref(&self) -> &Self::Target {
-        &self.0
+        &self.map
     }
 }
 
 impl<'pb, 'a, P: PassbandTrait, T: Float> DerefMut for MappedMultiColorTimeSeries<'pb, 'a, P, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
+        &mut self.map
     }
 }
 
@@ -562,6 +663,8 @@ pub struct FlatMultiColorTimeSeries<'pb, 'a, P: PassbandTrait, T: Float> {
     pub m: DataSample<'a, T>,
     pub w: DataSample<'a, T>,
     pub passbands: Vec<&'pb P>,
+    /// Unique passbands, borrowed directly from `MultiColorTimeSeries::passband_vec`.
+    pub uniq_passbands: &'pb [P],
 }
 
 impl<'pb, 'a, P, T> Clone for FlatMultiColorTimeSeries<'pb, 'a, P, T>
@@ -575,6 +678,7 @@ where
             m: self.m.clone(),
             w: self.w.clone(),
             passbands: self.passbands.clone(),
+            uniq_passbands: self.uniq_passbands,
         }
     }
 }
@@ -602,7 +706,10 @@ where
     P: PassbandTrait,
     T: Float,
 {
-    pub fn from_mapping(mapping: &mut MappedMultiColorTimeSeries<'pb, 'a, P, T>) -> Self {
+    pub fn from_mapping(
+        mapping: &mut MappedMultiColorTimeSeries<'pb, 'a, P, T>,
+        uniq_passbands: &'pb [P],
+    ) -> Self {
         let (t, m, w, passbands): (Vec<_>, Vec<_>, Vec<_>, Vec<_>) = mapping
             .iter_mut()
             .map(|(&p, ts)| {
@@ -621,15 +728,20 @@ where
             m: m.into(),
             w: w.into(),
             passbands,
+            uniq_passbands,
         }
     }
 
-    pub fn total_lenu(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.t.sample.len()
     }
 
+    pub fn total_lenu(&self) -> usize {
+        self.len()
+    }
+
     pub fn total_lenf(&self) -> T {
-        self.t.sample.len().value_as::<T>().unwrap()
+        self.len().value_as::<T>().unwrap()
     }
 }
 
@@ -639,8 +751,8 @@ where
     P: PassbandTrait,
     T: Float,
 {
-    fn from(mut flat: FlatMultiColorTimeSeries<'pb, 'a, P, T>) -> Self {
-        Self::from_flat(&mut flat)
+    fn from(flat: FlatMultiColorTimeSeries<'pb, 'a, P, T>) -> Self {
+        Self::from_flat(&flat)
     }
 }
 
@@ -807,13 +919,12 @@ mod tests {
         assert!(mcts.flat().is_some());
         assert!(mcts.mapping().is_some());
 
-        // Flat → Mapping produces correct per-band sizes
+        // from_flat builds Mapping directly — correct per-band sizes
         let mut mcts = make_flat_mcts();
         mcts.with_mapping_mut(|mapping| {
             assert_eq!(mapping.get(&g() as &P).map(|ts| ts.lenu()), Some(3));
             assert_eq!(mapping.get(&r() as &P).map(|ts| ts.lenu()), Some(2));
         });
-        assert!(mcts.flat().is_some());
         assert!(mcts.mapping().is_some());
     }
 
@@ -883,9 +994,8 @@ mod tests {
         assert_eq!(mcts.passband_count(), 3);
         assert_eq!(mcts.total_lenu(), 6);
 
-        // add new passband on Flat
+        // add new passband via from_flat (builds Mapping directly)
         let mut mcts = make_flat_mcts();
-        assert!(mcts.flat().is_some());
         mcts.insert(
             i(),
             TimeSeries::new_without_weight(
