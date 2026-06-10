@@ -121,6 +121,47 @@ pub fn bench_multicolor_from_flat(c: &mut Criterion) {
     bench_from_flat_variants(c, &["g", "i", "r", "u", "y", "z"], 3000);
 }
 
+/// Micro-benchmark the per-observation passband lookup inside `from_flat_with_passband_vec`.
+/// Parameterised over K (number of unique passbands) so we can see where linear scan wins.
+pub fn bench_passband_lookup(c: &mut Criterion) {
+    const N: usize = 3000;
+    for k in [2_usize, 3, 4, 6, 8, 12, 16, 32] {
+        let band_names: Vec<String> = (0..k)
+            .map(|i| format!("{}", char::from(b'a' + i as u8)))
+            .collect();
+        let uniq: Vec<StringPassband> = band_names
+            .iter()
+            .map(|s| StringPassband::from(s.as_str()))
+            .collect();
+        let obs: Vec<StringPassband> = (0..N)
+            .map(|i| StringPassband::from(band_names[i % k].as_str()))
+            .collect();
+
+        c.bench_function(&format!("passband_lookup/linear K={k} N={N}"), |b| {
+            b.iter(|| {
+                let refs: Vec<&StringPassband> = obs
+                    .iter()
+                    .map(|p| black_box(&uniq).iter().find(|q| *q == p).unwrap())
+                    .collect();
+                black_box(refs)
+            });
+        });
+
+        c.bench_function(&format!("passband_lookup/binary K={k} N={N}"), |b| {
+            b.iter(|| {
+                let refs: Vec<&StringPassband> = obs
+                    .iter()
+                    .map(|p| {
+                        let idx = black_box(&uniq).binary_search(p).unwrap();
+                        &uniq[idx]
+                    })
+                    .collect();
+                black_box(refs)
+            });
+        });
+    }
+}
+
 pub fn bench_multicolor(c: &mut Criterion) {
     let passbands = [StringPassband::from("R"), StringPassband::from("g")];
     let required: BTreeSet<_> = passbands.iter().cloned().collect();
