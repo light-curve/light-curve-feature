@@ -13,12 +13,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `MappedMultiColorTimeSeries` is now a named struct with `map` and `uniq_passbands` fields
+  instead of a newtype tuple; `Deref`/`DerefMut` still target `BTreeMap<&P, TimeSeries<T>>`
+  https://github.com/light-curve/light-curve-feature/issues/296 https://github.com/light-curve/light-curve-feature/issues/297
+- `MultiColorTimeSeries::from_flat*` constructors now produce a `Flat` (lazy) internal state
+  and perform the band-grouping allocation only when mapping is first requested
 - `MappedMultiColorTimeSeries::from_flat` now dispatches observations directly into
   per-passband vectors instead of using `chunk_by` (run-length grouping), eliminating
   O(N) BTree lookups on interleaved/time-sorted multiband data https://github.com/light-curve/light-curve-feature/issues/296
-- `MultiColorTimeSeries::from_flat_borrowed` now recovers passband indices via pointer
-  equality instead of binary search, which is faster for the typical K of 2–6 bands
-  https://github.com/light-curve/light-curve-feature/issues/297
+- `MultiColorTimeSeries::from_flat_borrowed` now recovers passband pointers via pointer
+  equality scan (O(K) per observation) instead of binary search; linear scan is faster for
+  the typical K of 2–8 bands https://github.com/light-curve/light-curve-feature/issues/297
+- Performance improvements measured at N=3000 observations (SNIa real data, 2-band):
+  `from_flat` interleaved K=3: 154 µs → 69 µs (2.2×), K=6: 205 µs → 106 µs (1.9×);
+  `from_flat_borrowed` interleaved K=3: 111 µs → 19 µs (5.8×), K=6: 145 µs → 20 µs (7.3×);
+  `ColorSpread`/`ColorOf*` end-to-end on SNIa flux data: ~2.1 ms → ~0.8 ms (2.6×)
 
 ### Deprecated
 
