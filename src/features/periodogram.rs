@@ -337,6 +337,8 @@ where
             .info
             .min_ts_length
             .max(feature.min_ts_length());
+        self.properties.info.w_required |= feature.is_w_required();
+        self.properties.info.variability_required |= feature.is_variability_required();
         self.properties.names.extend(
             feature
                 .get_names()
@@ -1038,6 +1040,43 @@ mod tests {
             result[2] < 0.01,
             "lafler_kinman_string_length = {}",
             result[2]
+        );
+    }
+
+    // ── Info propagation tests ────────────────────────────────────────────────
+
+    #[test]
+    fn phase_feature_w_required_propagated() {
+        use crate::features::WeightedMean;
+        let mut periodogram: Periodogram<f64, Feature<f64>> = Periodogram::default();
+        assert!(!periodogram.is_w_required());
+        periodogram.add_phase_feature(WeightedMean::default().into());
+        assert!(
+            periodogram.is_w_required(),
+            "w_required must be true after adding a weight-requiring phase feature"
+        );
+    }
+
+    #[test]
+    fn phase_feature_variability_required_propagated() {
+        use crate::features::OtsuSplit;
+        let mut periodogram: Periodogram<f64, Feature<f64>> = Periodogram::default();
+        assert!(!periodogram.is_variability_required());
+        periodogram.add_phase_feature(OtsuSplit::default().into());
+        assert!(
+            periodogram.is_variability_required(),
+            "variability_required must be true after adding a variability-requiring phase feature"
+        );
+    }
+
+    #[test]
+    fn spectrum_feature_does_not_set_w_required() {
+        use crate::features::WeightedMean;
+        let mut periodogram: Periodogram<f64, Feature<f64>> = Periodogram::default();
+        periodogram.add_spectrum_feature(WeightedMean::default().into());
+        assert!(
+            !periodogram.is_w_required(),
+            "spectrum features operate on the periodogram output, not original weights"
         );
     }
 

@@ -235,8 +235,10 @@ where
         normalization: MultiColorPeriodogramNormalisation,
         passband_set: PassbandSet<P>,
     ) -> Self {
+        let mut info = monochrome.get_info().clone();
+        info.w_required |= matches!(normalization, MultiColorPeriodogramNormalisation::Chi2);
         let properties = EvaluatorProperties {
-            info: monochrome.get_info().clone(),
+            info,
             names: monochrome
                 .get_names()
                 .iter()
@@ -420,6 +422,11 @@ where
             info: EvaluatorInfo {
                 size: monochrome_info.size + phase_size,
                 min_ts_length: monochrome_info.min_ts_length.max(phase_min_ts),
+                w_required: monochrome_info.w_required
+                    || matches!(self.normalization, MultiColorPeriodogramNormalisation::Chi2)
+                    || self.phase_extractor.is_w_required(),
+                variability_required: monochrome_info.variability_required
+                    || self.phase_extractor.is_variability_required(),
                 ..*monochrome_info
             },
             names,
@@ -1044,6 +1051,62 @@ mod tests {
         assert!(
             eval_chi2_flat.eval_multicolor(&mut mcts_flat).is_err(),
             "Chi2 with all-flat bands should return an error"
+        );
+    }
+
+    #[test]
+    fn chi2_norm_is_w_required() {
+        let eval_count = McPeriodogram::new(
+            1,
+            MultiColorPeriodogramNormalisation::Count,
+            make_gr_passbands(),
+        );
+        let eval_chi2 = McPeriodogram::new(
+            1,
+            MultiColorPeriodogramNormalisation::Chi2,
+            make_gr_passbands(),
+        );
+        assert!(
+            !eval_count.is_w_required(),
+            "Count normalization must not require weights"
+        );
+        assert!(
+            eval_chi2.is_w_required(),
+            "Chi2 normalization must require weights"
+        );
+    }
+
+    #[test]
+    fn phase_feature_w_required_propagated() {
+        use crate::features::WeightedMean;
+        let mut eval = McPeriodogram::new(
+            1,
+            MultiColorPeriodogramNormalisation::Count,
+            make_gr_passbands(),
+        );
+        assert!(!eval.is_w_required());
+        eval.set_phase_bands(vec![StringPassband::from("g")]);
+        eval.add_phase_feature(WeightedMean::default().into());
+        assert!(
+            eval.is_w_required(),
+            "w_required must be true after adding a weight-requiring phase feature"
+        );
+    }
+
+    #[test]
+    fn phase_feature_variability_required_propagated() {
+        use crate::features::OtsuSplit;
+        let mut eval = McPeriodogram::new(
+            1,
+            MultiColorPeriodogramNormalisation::Count,
+            make_gr_passbands(),
+        );
+        assert!(!eval.is_variability_required());
+        eval.set_phase_bands(vec![StringPassband::from("g")]);
+        eval.add_phase_feature(OtsuSplit::default().into());
+        assert!(
+            eval.is_variability_required(),
+            "variability_required must be true after adding a variability-requiring phase feature"
         );
     }
 
