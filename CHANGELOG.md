@@ -25,7 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
---
+- Fix `Periodogram::add_phase_feature` not propagating `w_required` and `variability_required`
+  from phase features to the top-level `EvaluatorInfo`
+- Fix `MultiColorPeriodogram` reporting `is_w_required() = false` for `Chi2` normalization and
+  not propagating `w_required` / `variability_required` from phase features
 
 ### Security
 
