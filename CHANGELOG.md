@@ -13,7 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
---
+- **Breaking** `MappedMultiColorTimeSeries` is now a named struct with `map` and
+  `uniq_passbands` fields instead of a newtype tuple; `Deref`/`DerefMut` still target
+  `BTreeMap<&P, TimeSeries<T>>` https://github.com/light-curve/light-curve-feature/pull/298
+- Significant speedup for `from_flat`, `from_flat_borrowed`, and all `MultiColor` feature
+  evaluations, especially for interleaved passband orderings
+  https://github.com/light-curve/light-curve-feature/issues/296
+  https://github.com/light-curve/light-curve-feature/issues/297
+  https://github.com/light-curve/light-curve-feature/pull/298
 
 ### Deprecated
 
