@@ -87,7 +87,7 @@ where
             return Ok(vec![T::zero()]);
         }
 
-        let c = T::three() * T::three(); // tuning constant, 9
+        let c = T::nine(); // tuning constant
         let denominator = c * mad;
 
         // numerator = sum d^2 (1 - u^2)^4, denominator = sum (1 - u^2)(1 - 5 u^2)

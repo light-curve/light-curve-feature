@@ -69,6 +69,7 @@ pub trait Float:
     fn three() -> Self;
     fn four() -> Self;
     fn five() -> Self;
+    fn nine() -> Self;
     fn ten() -> Self;
     fn hundred() -> Self;
     fn array0_unity() -> &'static Array0<Self>;
@@ -115,6 +116,7 @@ pub trait Float:
     fn three() -> Self;
     fn four() -> Self;
     fn five() -> Self;
+    fn nine() -> Self;
     fn ten() -> Self;
     fn hundred() -> Self;
     fn array0_unity() -> &'static Array0<Self>;
@@ -144,6 +146,11 @@ impl Float for f32 {
     #[inline]
     fn five() -> Self {
         5.0
+    }
+
+    #[inline]
+    fn nine() -> Self {
+        9.0
     }
 
     #[inline]
@@ -185,6 +192,11 @@ impl Float for f64 {
     #[inline]
     fn five() -> Self {
         5.0
+    }
+
+    #[inline]
+    fn nine() -> Self {
+        9.0
     }
 
     #[inline]
