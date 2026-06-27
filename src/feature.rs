@@ -27,6 +27,7 @@ where
     Bins(Bins<T, Self>),
     BazinFit,
     BeyondNStd(BeyondNStd<T>),
+    BiweightScale,
     Chi2Pvar,
     Cusum,
     Duration,
