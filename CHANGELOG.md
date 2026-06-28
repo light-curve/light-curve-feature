@@ -9,7 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
---
+- Add `QnScale` feature: the Qn robust scale estimator of Rousseeuw & Croux (1993), a robust
+  alternative to the standard deviation based on pairwise differences
+  https://github.com/light-curve/light-curve-feature/issues/170
 
 ### Changed
 

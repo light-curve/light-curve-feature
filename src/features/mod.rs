@@ -97,6 +97,9 @@ pub use _periodogram_peaks::PeriodogramPeaks as _PeriodogramPeaks;
 pub use periodogram::Periodogram;
 pub(crate) use periodogram::{eval_phase_ts, eval_phase_ts_or_fill, phase_fold_or_compute};
 
+mod qn_scale;
+pub use qn_scale::QnScale;
+
 mod reduced_chi2;
 pub use reduced_chi2::ReducedChi2;
 
