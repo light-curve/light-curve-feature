@@ -90,22 +90,26 @@ fn whimed<T: Float>(a: &[T], w: &[i64]) -> T {
     let mut n = a_cp.len();
     let wtot: i64 = w_cp.iter().sum();
     let mut wrest: i64 = 0;
+    // Reused scratch for the per-iteration median selection (avoids reallocating).
+    let mut scratch: Vec<T> = vec![T::zero(); n];
     loop {
         // trial = the (n / 2)-th order statistic (0-based) of the current candidates.
         let mid = n / 2;
-        let mut tmp = a_cp[..n].to_vec();
-        tmp.select_nth_unstable_by(mid, |x, y| x.partial_cmp(y).unwrap());
-        let trial = tmp[mid];
+        let buf = &mut scratch[..n];
+        buf.copy_from_slice(&a_cp[..n]);
+        buf.select_nth_unstable_by(mid, |x, y| x.partial_cmp(y).unwrap());
+        let trial = buf[mid];
 
+        // Iterating over exact-length slices lets the optimizer drop bounds checks.
         let mut wleft = 0i64;
         let mut wright = 0i64;
         let mut wcur = 0i64;
-        for i in 0..n {
-            wcur += w_cp[i];
-            if a_cp[i] < trial {
-                wleft += w_cp[i];
-            } else if a_cp[i] > trial {
-                wright += w_cp[i];
+        for (&ai, &wi) in a_cp[..n].iter().zip(&w_cp[..n]) {
+            wcur += wi;
+            if ai < trial {
+                wleft += wi;
+            } else if ai > trial {
+                wright += wi;
             }
         }
         let wmid = wcur - wleft - wright;
