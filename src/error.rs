@@ -19,6 +19,11 @@ pub enum EvaluatorError {
 
     #[error("periodogram error: {0}")]
     Periodogram(#[from] PeriodogramPowerError),
+
+    #[error(
+        "too few valid bootstrap resamples: {actual} obtained, at least {minimum} required to estimate the uncertainty"
+    )]
+    InsufficientResamples { actual: usize, minimum: usize },
 }
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
@@ -48,11 +53,6 @@ pub enum MultiColorEvaluatorError {
 
     #[error("All time-series are flat")]
     AllTimeSeriesAreFlat,
-
-    #[error(
-        "too few valid bootstrap resamples: {actual} obtained, at least {minimum} required to estimate the uncertainty"
-    )]
-    InsufficientResamples { actual: usize, minimum: usize },
 }
 
 impl MultiColorEvaluatorError {
