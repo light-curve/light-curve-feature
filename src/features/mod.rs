@@ -17,6 +17,8 @@ pub use beyond_n_std::BeyondNStd;
 
 pub(crate) mod bins;
 pub use bins::Bins;
+mod bootstrap;
+pub use bootstrap::{Bootstrap, BootstrapUncertainty};
 mod chi2_pvar;
 pub use chi2_pvar::Chi2Pvar;
 

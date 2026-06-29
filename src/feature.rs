@@ -27,6 +27,7 @@ where
     Bins(Bins<T, Self>),
     BazinFit,
     BeyondNStd(BeyondNStd<T>),
+    Bootstrap(Bootstrap<T, Self>),
     Chi2Pvar,
     Cusum,
     Duration,
