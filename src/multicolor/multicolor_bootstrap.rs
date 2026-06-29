@@ -3,7 +3,9 @@ use crate::error::MultiColorEvaluatorError;
 use crate::evaluator::{
     EvaluatorInfo, EvaluatorInfoTrait, EvaluatorProperties, FeatureNamesDescriptionsTrait,
 };
-use crate::features::bootstrap::{BootstrapUncertainty, aggregate_bootstrap};
+use crate::features::bootstrap::{
+    BootstrapFeatureError, BootstrapUncertainty, aggregate_bootstrap,
+};
 use crate::float_trait::Float;
 use crate::multicolor::multicolor_evaluator::*;
 use crate::multicolor::{MultiColorExtractor, MultiColorFeature, PassbandSet, PassbandTrait};
@@ -53,7 +55,7 @@ impl BandStrategy {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(
     into = "MultiColorBootstrapParameters<P, T>",
-    from = "MultiColorBootstrapParameters<P, T>",
+    try_from = "MultiColorBootstrapParameters<P, T>",
     bound(
         serialize = "P: PassbandTrait + Serialize, T: Float",
         deserialize = "P: PassbandTrait + Deserialize<'de>, T: Float"
@@ -119,20 +121,19 @@ where
 
     /// Add a multi-color feature to estimate the bootstrap uncertainty of.
     ///
-    /// # Panics
-    /// * If the feature requires both time and sorting (bagging produces duplicate timestamps).
-    /// * If the feature requires variability (a resample may be constant).
-    pub fn add_feature(&mut self, feature: MultiColorFeature<P, T>) -> &mut Self {
-        assert!(
-            !(feature.is_t_required() && feature.is_sorting_required()),
-            "MultiColorBootstrap cannot wrap a feature that requires both time and sorting \
-             (it divides by time intervals, but bagging produces duplicate timestamps)"
-        );
-        assert!(
-            !feature.is_variability_required(),
-            "MultiColorBootstrap cannot wrap a feature that requires variability \
-             (a resample may be constant)"
-        );
+    /// # Errors
+    /// Returns [BootstrapFeatureError] if the feature requires both time and sorting (bagging
+    /// produces duplicate timestamps) or requires variability (a resample may be constant).
+    pub fn add_feature(
+        &mut self,
+        feature: MultiColorFeature<P, T>,
+    ) -> Result<&mut Self, BootstrapFeatureError> {
+        if feature.is_t_required() && feature.is_sorting_required() {
+            return Err(BootstrapFeatureError::TimeAndSortingRequired);
+        }
+        if feature.is_variability_required() {
+            return Err(BootstrapFeatureError::VariabilityRequired);
+        }
 
         let multiplier = 1 + self.uncertainty.len();
         self.properties.info.size += feature.size_hint() * multiplier;
@@ -152,7 +153,7 @@ where
             self.properties.descriptions.extend(descriptions);
         }
         self.feature_extractor.add_feature(feature);
-        self
+        Ok(self)
     }
 
     #[inline]
@@ -377,17 +378,19 @@ where
     }
 }
 
-impl<P, T> From<MultiColorBootstrapParameters<P, T>> for MultiColorBootstrap<P, T>
+impl<P, T> TryFrom<MultiColorBootstrapParameters<P, T>> for MultiColorBootstrap<P, T>
 where
     P: PassbandTrait,
     T: Float,
 {
-    fn from(p: MultiColorBootstrapParameters<P, T>) -> Self {
+    type Error = BootstrapFeatureError;
+
+    fn try_from(p: MultiColorBootstrapParameters<P, T>) -> Result<Self, Self::Error> {
         let mut bootstrap = Self::new(p.n_bootstrap, p.seed, p.uncertainty, p.band_strategy);
         for feature in p.feature_extractor.get_features().iter().cloned() {
-            bootstrap.add_feature(feature);
+            bootstrap.add_feature(feature)?;
         }
-        bootstrap
+        Ok(bootstrap)
     }
 }
 
@@ -429,7 +432,7 @@ mod tests {
     fn stratified_size_value_and_names() {
         let mut b =
             MultiColorBootstrap::new(50, 0, BootstrapUncertainty::Std, BandStrategy::Stratified);
-        b.add_feature(color_of_maximum());
+        b.add_feature(color_of_maximum()).unwrap();
         assert_eq!(b.size_hint(), 2); // value + sigma
         assert_eq!(
             b.get_names(),
@@ -456,14 +459,12 @@ mod tests {
         let mut b = MultiColorBootstrap::new(
             30,
             1,
-            BootstrapUncertainty::Quantiles {
-                levels: vec![0.16, 0.84],
-            },
+            BootstrapUncertainty::quantiles([0.16, 0.84]),
             BandStrategy::Rejection {
                 max_attempts_factor: 100,
             },
         );
-        b.add_feature(color_of_maximum());
+        b.add_feature(color_of_maximum()).unwrap();
         assert_eq!(b.size_hint(), 3); // value + 2 quantiles
 
         let t = [0.0_f64, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0];
@@ -487,7 +488,7 @@ mod tests {
                 max_attempts_factor: 50,
             },
         );
-        b.add_feature(color_of_maximum());
+        b.add_feature(color_of_maximum()).unwrap();
         let json = serde_json::to_string(&b).unwrap();
         let b2: MultiColorBootstrap<StringPassband, f64> = serde_json::from_str(&json).unwrap();
         assert_eq!(b.get_names(), b2.get_names());

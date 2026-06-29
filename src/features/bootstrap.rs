@@ -1,7 +1,9 @@
+use crate::data::SortedArray;
 use crate::evaluator::*;
 use crate::extractor::FeatureExtractor;
 
 use conv::ConvUtil;
+use ordered_float::NotNan;
 use rand::RngExt;
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -38,18 +40,49 @@ estimators, …) and time-value-only features (``TimeMean``) are supported.
 ";
 }
 
+/// Error returned by [Bootstrap::add_feature] (and the multi-color counterpart) when a sub-feature
+/// cannot be wrapped by a bootstrap meta-feature.
+#[derive(Clone, Debug, thiserror::Error, PartialEq, Eq)]
+pub enum BootstrapFeatureError {
+    /// The sub-feature requires both time and sorting; bagging produces duplicate timestamps,
+    /// which is ill-defined for features that divide by time intervals.
+    #[error(
+        "bootstrap cannot wrap a feature that requires both time and sorting \
+         (it divides by time intervals, but bagging produces duplicate timestamps)"
+    )]
+    TimeAndSortingRequired,
+    /// The sub-feature requires variability; a resample may be constant.
+    #[error(
+        "bootstrap cannot wrap a feature that requires variability (a resample may be constant)"
+    )]
+    VariabilityRequired,
+}
+
 /// How [Bootstrap] summarizes the spread of a feature over the resamples.
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Default)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash, Default)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum BootstrapUncertainty {
     /// Sample standard deviation (``ddof = 1``).
     #[default]
     Std,
     /// Quantile levels, each in ``[0, 1]`` (e.g. ``[0.16, 0.84]`` for a 1σ-like interval).
-    Quantiles { levels: Vec<f32> },
+    Quantiles { levels: Vec<NotNan<f32>> },
 }
 
 impl BootstrapUncertainty {
+    /// Construct [Self::Quantiles] from plain `f32` levels.
+    ///
+    /// # Panics
+    /// If any level is NaN.
+    pub fn quantiles(levels: impl IntoIterator<Item = f32>) -> Self {
+        Self::Quantiles {
+            levels: levels
+                .into_iter()
+                .map(|q| NotNan::new(q).expect("quantile level must not be NaN"))
+                .collect(),
+        }
+    }
+
     /// Number of uncertainty values produced per wrapped feature value.
     pub(crate) fn len(&self) -> usize {
         match self {
@@ -65,11 +98,14 @@ impl BootstrapUncertainty {
         match self {
             Self::Std => names.push(format!("bootstrap_{base}_sigma")),
             Self::Quantiles { levels } => {
-                names.extend(
-                    levels
-                        .iter()
-                        .map(|q| format!("bootstrap_{base}_quantile_{q}")),
-                );
+                // Name by the integer percentile (100 * quantile), matching the convention of
+                // other percentile-based features (e.g. `median_buffer_range_percentage_16`).
+                names.extend(levels.iter().map(|q| {
+                    format!(
+                        "bootstrap_{base}_quantile_{:.0}",
+                        100.0 * f64::from(q.into_inner())
+                    )
+                }));
             }
         }
         names
@@ -81,11 +117,12 @@ impl BootstrapUncertainty {
         match self {
             Self::Std => descriptions.push(format!("bootstrap standard deviation of {base}")),
             Self::Quantiles { levels } => {
-                descriptions.extend(
-                    levels
-                        .iter()
-                        .map(|q| format!("bootstrap {q} quantile of {base}")),
-                );
+                descriptions.extend(levels.iter().map(|q| {
+                    format!(
+                        "bootstrap {:.3e} quantile of {base}",
+                        f64::from(q.into_inner())
+                    )
+                }));
             }
         }
         descriptions
@@ -94,7 +131,8 @@ impl BootstrapUncertainty {
     pub(crate) fn validate(&self) {
         if let Self::Quantiles { levels } = self {
             assert!(!levels.is_empty(), "quantile levels must not be empty");
-            for &q in levels {
+            for q in levels {
+                let q = q.into_inner();
                 assert!(
                     q.is_finite() && (0.0..=1.0).contains(&q),
                     "quantile level {q} must be in [0, 1]"
@@ -108,7 +146,7 @@ impl BootstrapUncertainty {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(
     into = "BootstrapParameters<T, F>",
-    from = "BootstrapParameters<T, F>",
+    try_from = "BootstrapParameters<T, F>",
     bound(deserialize = "T: Float, F: FeatureEvaluator<T>")
 )]
 pub struct Bootstrap<T, F>
@@ -156,21 +194,16 @@ where
 
     /// Add a feature to estimate the bootstrap uncertainty of.
     ///
-    /// # Panics
-    /// * If the feature requires both time and sorting: bagging produces duplicate timestamps,
-    ///   which is ill-defined for features that divide by time intervals.
-    /// * If the feature requires variability: a resample may be constant.
-    pub fn add_feature(&mut self, feature: F) -> &mut Self {
-        assert!(
-            !(feature.is_t_required() && feature.is_sorting_required()),
-            "Bootstrap cannot wrap a feature that requires both time and sorting \
-             (it divides by time intervals, but bagging produces duplicate timestamps)"
-        );
-        assert!(
-            !feature.is_variability_required(),
-            "Bootstrap cannot wrap a feature that requires variability \
-             (a resample may be constant)"
-        );
+    /// # Errors
+    /// Returns [BootstrapFeatureError] if the feature requires both time and sorting (bagging
+    /// produces duplicate timestamps) or requires variability (a resample may be constant).
+    pub fn add_feature(&mut self, feature: F) -> Result<&mut Self, BootstrapFeatureError> {
+        if feature.is_t_required() && feature.is_sorting_required() {
+            return Err(BootstrapFeatureError::TimeAndSortingRequired);
+        }
+        if feature.is_variability_required() {
+            return Err(BootstrapFeatureError::VariabilityRequired);
+        }
 
         let multiplier = 1 + self.uncertainty.len();
         self.properties.info.size += feature.size_hint() * multiplier;
@@ -190,7 +223,7 @@ where
             self.properties.descriptions.extend(descriptions);
         }
         self.feature_extractor.add_feature(feature);
-        self
+        Ok(self)
     }
 
     #[inline]
@@ -220,8 +253,9 @@ fn sample_std<T: Float>(values: &[T]) -> T {
 
 /// Combine per-value resample columns into the flat `[value, uncertainty…]` output, shared by
 /// the single-band and multi-color bootstrap meta-features. `columns[j]` holds the resample
-/// values for `original[j]` and is sorted in place for the quantile case. Each column must hold
-/// at least two resamples (the callers enforce this).
+/// values for `original[j]` (consumed for the quantile case). Each column must hold at least two
+/// resamples (the callers enforce this). Quantiles reuse [SortedArray::ppf] so the bootstrap uses
+/// exactly the same quantile definition (R-5) as the other percentile-based features.
 pub(crate) fn aggregate_bootstrap<T: Float>(
     original: &[T],
     columns: &mut [Vec<T>],
@@ -233,26 +267,14 @@ pub(crate) fn aggregate_bootstrap<T: Float>(
         match uncertainty {
             BootstrapUncertainty::Std => output.push(sample_std(column)),
             BootstrapUncertainty::Quantiles { levels } => {
-                column.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
-                for &q in levels {
-                    output.push(quantile_sorted(column, q));
+                let sorted: SortedArray<T> = std::mem::take(column).into();
+                for q in levels {
+                    output.push(sorted.ppf(q.into_inner()));
                 }
             }
         }
     }
     output
-}
-
-/// Linear-interpolated quantile of `values` (already sorted ascending). Requires a non-empty
-/// slice (guaranteed by the callers).
-fn quantile_sorted<T: Float>(values: &[T], q: f32) -> T {
-    let n = values.len();
-    debug_assert!(n >= 1, "quantile_sorted requires a non-empty slice");
-    let pos = f64::from(q) * (n - 1) as f64;
-    let lo = pos.floor() as usize;
-    let hi = pos.ceil() as usize;
-    let frac = (pos - lo as f64).approx_as::<T>().unwrap();
-    values[lo] + (values[hi] - values[lo]) * frac
 }
 
 impl<T, F> Default for Bootstrap<T, F>
@@ -377,17 +399,19 @@ where
     }
 }
 
-impl<T, F> From<BootstrapParameters<T, F>> for Bootstrap<T, F>
+impl<T, F> TryFrom<BootstrapParameters<T, F>> for Bootstrap<T, F>
 where
     T: Float,
     F: FeatureEvaluator<T>,
 {
-    fn from(p: BootstrapParameters<T, F>) -> Self {
+    type Error = BootstrapFeatureError;
+
+    fn try_from(p: BootstrapParameters<T, F>) -> Result<Self, Self::Error> {
         let mut bootstrap = Self::new(p.n_bootstrap, p.seed, p.uncertainty);
         for feature in p.feature_extractor.get_features().iter().cloned() {
-            bootstrap.add_feature(feature);
+            bootstrap.add_feature(feature)?;
         }
-        bootstrap
+        Ok(bootstrap)
     }
 }
 
@@ -414,7 +438,7 @@ mod tests {
         Bootstrap<f64, Feature<f64>>,
         {
             let mut b = Bootstrap::default();
-            b.add_feature(Amplitude::default().into());
+            b.add_feature(Amplitude::default().into()).unwrap();
             b
         },
     );
@@ -423,16 +447,16 @@ mod tests {
 
     check_finite!(check_values_finite, {
         let mut b: Bootstrap<_, Feature<_>> = Bootstrap::default();
-        b.add_feature(Amplitude::default().into());
-        b.add_feature(StandardDeviation::default().into());
+        b.add_feature(Amplitude::default().into()).unwrap();
+        b.add_feature(StandardDeviation::default().into()).unwrap();
         b
     });
 
     #[test]
     fn size_and_value_std() {
         let mut b: Bootstrap<f64, Feature<f64>> = Bootstrap::default();
-        b.add_feature(Amplitude::default().into());
-        b.add_feature(StandardDeviation::default().into());
+        b.add_feature(Amplitude::default().into()).unwrap();
+        b.add_feature(StandardDeviation::default().into()).unwrap();
         assert_eq!(b.size_hint(), 4); // (value + sigma) x 2 features
         assert_eq!(
             b.get_names(),
@@ -462,21 +486,16 @@ mod tests {
 
     #[test]
     fn quantiles_layout() {
-        let mut b: Bootstrap<f64, Feature<f64>> = Bootstrap::new(
-            200,
-            0,
-            BootstrapUncertainty::Quantiles {
-                levels: vec![0.16, 0.84],
-            },
-        );
-        b.add_feature(Amplitude::default().into());
+        let mut b: Bootstrap<f64, Feature<f64>> =
+            Bootstrap::new(200, 0, BootstrapUncertainty::quantiles([0.16, 0.84]));
+        b.add_feature(Amplitude::default().into()).unwrap();
         assert_eq!(b.size_hint(), 3); // value + 2 quantiles
         assert_eq!(
             b.get_names(),
             &[
                 "bootstrap_amplitude",
-                "bootstrap_amplitude_quantile_0.16",
-                "bootstrap_amplitude_quantile_0.84"
+                "bootstrap_amplitude_quantile_16",
+                "bootstrap_amplitude_quantile_84"
             ]
         );
 
@@ -491,17 +510,21 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "both time and sorting")]
     fn rejects_time_and_sorting_feature() {
         let mut b: Bootstrap<f64, Feature<f64>> = Bootstrap::default();
-        b.add_feature(EtaE::default().into());
+        assert_eq!(
+            b.add_feature(EtaE::default().into()).unwrap_err(),
+            BootstrapFeatureError::TimeAndSortingRequired
+        );
     }
 
     #[test]
-    #[should_panic(expected = "variability")]
     fn rejects_variability_feature() {
         // Skew requires variability (a resample may be constant).
         let mut b: Bootstrap<f64, Feature<f64>> = Bootstrap::default();
-        b.add_feature(Skew::default().into());
+        assert_eq!(
+            b.add_feature(Skew::default().into()).unwrap_err(),
+            BootstrapFeatureError::VariabilityRequired
+        );
     }
 }
