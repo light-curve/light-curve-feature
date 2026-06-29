@@ -1,5 +1,5 @@
 use crate::data::MultiColorTimeSeries;
-use crate::error::MultiColorEvaluatorError;
+use crate::error::{EvaluatorError, MultiColorEvaluatorError};
 use crate::evaluator::{
     EvaluatorInfo, EvaluatorInfoTrait, EvaluatorProperties, FeatureNamesDescriptionsTrait,
 };
@@ -328,10 +328,11 @@ where
         // Like any feature, return an error when the uncertainty cannot be estimated (too few
         // valid resamples). The caller's `eval_or_fill` then substitutes its fill value.
         if inner_size > 0 && n_resamples < 2 {
-            return Err(MultiColorEvaluatorError::InsufficientResamples {
+            return Err(EvaluatorError::InsufficientResamples {
                 actual: n_resamples,
                 minimum: 2,
-            });
+            }
+            .into());
         }
 
         Ok(aggregate_bootstrap(
