@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   weighted parabolic (quadratic) least-squares fit
   https://github.com/light-curve/light-curve-feature/issues/166
   https://github.com/light-curve/light-curve-feature/pull/302
+- Add `Bootstrap` meta-feature: estimates feature uncertainties by bagging (resampling the light
+  curve with replacement) and returns each wrapped feature value plus its bootstrap standard
+  deviation or quantiles. Rejects sub-features that require both time and sorting, or variability
+  https://github.com/light-curve/light-curve-feature/issues/285
 
 ### Changed
 
