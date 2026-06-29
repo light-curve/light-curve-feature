@@ -48,6 +48,11 @@ pub enum MultiColorEvaluatorError {
 
     #[error("All time-series are flat")]
     AllTimeSeriesAreFlat,
+
+    #[error(
+        "too few valid bootstrap resamples: {actual} obtained, at least {minimum} required to estimate the uncertainty"
+    )]
+    InsufficientResamples { actual: usize, minimum: usize },
 }
 
 impl MultiColorEvaluatorError {

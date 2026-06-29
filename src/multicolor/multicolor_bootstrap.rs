@@ -32,8 +32,9 @@ pub enum BandStrategy {
     /// Resamples that fail the wrapped features' requirements (e.g. a band falling below its
     /// minimum) are rejected (via `check_mcts`) and redrawn, up to a bounded budget of
     /// `n_bootstrap * max_attempts_factor` total draws — there is no unbounded loop. If the budget
-    /// is exhausted the valid resamples collected so far are used (the uncertainty is `NaN` when
-    /// fewer than two are obtained).
+    /// is exhausted the valid resamples collected so far are used; if fewer than two valid
+    /// resamples are obtained the feature returns an error (handled by `eval_or_fill` like any
+    /// feature), never `NaN`.
     Rejection { max_attempts_factor: usize },
 }
 
@@ -265,7 +266,7 @@ where
         let mut rng = StdRng::seed_from_u64(self.seed);
         let mut columns: Vec<Vec<T>> = vec![Vec::with_capacity(self.n_bootstrap); inner_size];
 
-        match &self.band_strategy {
+        let n_resamples = match &self.band_strategy {
             BandStrategy::Stratified => {
                 // Group flat indices by passband, then resample each group with replacement.
                 let mut groups: BTreeMap<&P, Vec<usize>> = BTreeMap::new();
@@ -291,6 +292,7 @@ where
                         column.push(value);
                     }
                 }
+                self.n_bootstrap
             }
             BandStrategy::Rejection {
                 max_attempts_factor,
@@ -318,7 +320,17 @@ where
                     }
                     collected += 1;
                 }
+                collected
             }
+        };
+
+        // Like any feature, return an error when the uncertainty cannot be estimated (too few
+        // valid resamples). The caller's `eval_or_fill` then substitutes its fill value.
+        if inner_size > 0 && n_resamples < 2 {
+            return Err(MultiColorEvaluatorError::InsufficientResamples {
+                actual: n_resamples,
+                minimum: 2,
+            });
         }
 
         Ok(aggregate_bootstrap(
