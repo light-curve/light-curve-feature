@@ -16,6 +16,10 @@ the wrapped feature(s) on each resample. For every wrapped feature value it retu
 the original light curve followed by an uncertainty summary over the resamples — either the sample
 standard deviation or a set of quantiles (see [BootstrapUncertainty]).
 
+The single-band feature always evaluates `n_bootstrap` (≥ 2) resamples, so the uncertainty is
+always defined. (The multi-color counterpart's rejection strategy may collect too few valid
+resamples; it then returns an error, handled like any feature via `eval_or_fill`.)
+
 [Bootstrap::add_feature] rejects features that cannot be evaluated on a resample:
 
 * features requiring **both** time and time-sorting (they divide by time intervals, e.g.
@@ -204,13 +208,11 @@ where
     }
 }
 
-/// Sample standard deviation (`ddof = 1`) of finite values; `NaN` for fewer than two.
+/// Sample standard deviation (`ddof = 1`). Requires at least two values; the callers guarantee
+/// this (a feature with too few resamples returns an error instead of calling this).
 fn sample_std<T: Float>(values: &[T]) -> T {
-    let n = values.len();
-    if n < 2 {
-        return T::nan();
-    }
-    let nf = n.approx_as::<T>().unwrap();
+    debug_assert!(values.len() >= 2, "sample_std requires at least two values");
+    let nf = values.len().approx_as::<T>().unwrap();
     let mean = values.iter().copied().sum::<T>() / nf;
     let var = values.iter().map(|&v| (v - mean).powi(2)).sum::<T>() / (nf - T::one());
     var.sqrt()
@@ -218,7 +220,8 @@ fn sample_std<T: Float>(values: &[T]) -> T {
 
 /// Combine per-value resample columns into the flat `[value, uncertainty…]` output, shared by
 /// the single-band and multi-color bootstrap meta-features. `columns[j]` holds the resample
-/// values for `original[j]` and is sorted in place for the quantile case.
+/// values for `original[j]` and is sorted in place for the quantile case. Each column must hold
+/// at least two resamples (the callers enforce this).
 pub(crate) fn aggregate_bootstrap<T: Float>(
     original: &[T],
     columns: &mut [Vec<T>],
@@ -240,15 +243,11 @@ pub(crate) fn aggregate_bootstrap<T: Float>(
     output
 }
 
-/// Linear-interpolated quantile of `values` (already sorted ascending); `NaN` if empty.
+/// Linear-interpolated quantile of `values` (already sorted ascending). Requires a non-empty
+/// slice (guaranteed by the callers).
 fn quantile_sorted<T: Float>(values: &[T], q: f32) -> T {
     let n = values.len();
-    if n == 0 {
-        return T::nan();
-    }
-    if n == 1 {
-        return values[0];
-    }
+    debug_assert!(n >= 1, "quantile_sorted requires a non-empty slice");
     let pos = f64::from(q) * (n - 1) as f64;
     let lo = pos.floor() as usize;
     let hi = pos.ceil() as usize;
