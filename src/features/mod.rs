@@ -86,6 +86,9 @@ pub use observation_count::ObservationCount;
 mod otsu_split;
 pub use otsu_split::OtsuSplit;
 
+mod parabola_fit;
+pub use parabola_fit::ParabolaFit;
+
 mod percent_amplitude;
 pub use percent_amplitude::PercentAmplitude;
 

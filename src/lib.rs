@@ -59,6 +59,10 @@ pub use periodogram::{
 
 pub mod prelude;
 
+mod parabola_fit;
+#[doc(hidden)]
+pub use parabola_fit::fit_parabola;
+
 mod straight_line_fit;
 #[doc(hidden)]
 pub use straight_line_fit::fit_straight_line;
