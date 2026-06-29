@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   curve with replacement) and returns each wrapped feature value plus its bootstrap standard
   deviation or quantiles. Rejects sub-features that require both time and sorting, or variability
   https://github.com/light-curve/light-curve-feature/issues/285
+- Add `MultiColorBootstrap` multi-color meta-feature: the multi-band counterpart of `Bootstrap`,
+  with a `BandStrategy` choosing between `Stratified` (per-band resampling, preserves per-band
+  counts) and `Rejection` (i.i.d. resampling with bounded rejection of resamples that fail the
+  wrapped features' per-band requirements)
+  https://github.com/light-curve/light-curve-feature/issues/285
 
 ### Changed
 

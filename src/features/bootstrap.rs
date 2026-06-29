@@ -47,14 +47,47 @@ pub enum BootstrapUncertainty {
 
 impl BootstrapUncertainty {
     /// Number of uncertainty values produced per wrapped feature value.
-    fn len(&self) -> usize {
+    pub(crate) fn len(&self) -> usize {
         match self {
             Self::Std => 1,
             Self::Quantiles { levels } => levels.len(),
         }
     }
 
-    fn validate(&self) {
+    /// Output names for one wrapped feature value named `base`: the value followed by its
+    /// uncertainty descriptor(s). Shared by the single-band and multi-color meta-features.
+    pub(crate) fn value_and_uncertainty_names(&self, base: &str) -> Vec<String> {
+        let mut names = vec![format!("bootstrap_{base}")];
+        match self {
+            Self::Std => names.push(format!("bootstrap_{base}_sigma")),
+            Self::Quantiles { levels } => {
+                names.extend(
+                    levels
+                        .iter()
+                        .map(|q| format!("bootstrap_{base}_quantile_{q}")),
+                );
+            }
+        }
+        names
+    }
+
+    /// Output descriptions matching [Self::value_and_uncertainty_names].
+    pub(crate) fn value_and_uncertainty_descriptions(&self, base: &str) -> Vec<String> {
+        let mut descriptions = vec![base.to_string()];
+        match self {
+            Self::Std => descriptions.push(format!("bootstrap standard deviation of {base}")),
+            Self::Quantiles { levels } => {
+                descriptions.extend(
+                    levels
+                        .iter()
+                        .map(|q| format!("bootstrap {q} quantile of {base}")),
+                );
+            }
+        }
+        descriptions
+    }
+
+    pub(crate) fn validate(&self) {
         if let Self::Quantiles { levels } = self {
             assert!(!levels.is_empty(), "quantile levels must not be empty");
             for &q in levels {
@@ -145,38 +178,12 @@ where
         self.properties.info.sorting_required |= feature.is_sorting_required();
 
         for name in feature.get_names() {
-            self.properties.names.push(format!("bootstrap_{name}"));
-            match &self.uncertainty {
-                BootstrapUncertainty::Std => {
-                    self.properties
-                        .names
-                        .push(format!("bootstrap_{name}_sigma"));
-                }
-                BootstrapUncertainty::Quantiles { levels } => {
-                    for q in levels {
-                        self.properties
-                            .names
-                            .push(format!("bootstrap_{name}_quantile_{q}"));
-                    }
-                }
-            }
+            let names = self.uncertainty.value_and_uncertainty_names(name);
+            self.properties.names.extend(names);
         }
         for desc in feature.get_descriptions() {
-            self.properties.descriptions.push(desc.to_string());
-            match &self.uncertainty {
-                BootstrapUncertainty::Std => {
-                    self.properties
-                        .descriptions
-                        .push(format!("bootstrap standard deviation of {desc}"));
-                }
-                BootstrapUncertainty::Quantiles { levels } => {
-                    for q in levels {
-                        self.properties
-                            .descriptions
-                            .push(format!("bootstrap {q} quantile of {desc}"));
-                    }
-                }
-            }
+            let descriptions = self.uncertainty.value_and_uncertainty_descriptions(desc);
+            self.properties.descriptions.extend(descriptions);
         }
         self.feature_extractor.add_feature(feature);
         self
@@ -207,6 +214,30 @@ fn sample_std<T: Float>(values: &[T]) -> T {
     let mean = values.iter().copied().sum::<T>() / nf;
     let var = values.iter().map(|&v| (v - mean).powi(2)).sum::<T>() / (nf - T::one());
     var.sqrt()
+}
+
+/// Combine per-value resample columns into the flat `[value, uncertainty…]` output, shared by
+/// the single-band and multi-color bootstrap meta-features. `columns[j]` holds the resample
+/// values for `original[j]` and is sorted in place for the quantile case.
+pub(crate) fn aggregate_bootstrap<T: Float>(
+    original: &[T],
+    columns: &mut [Vec<T>],
+    uncertainty: &BootstrapUncertainty,
+) -> Vec<T> {
+    let mut output = Vec::with_capacity(original.len() * (1 + uncertainty.len()));
+    for (&value, column) in original.iter().zip(columns.iter_mut()) {
+        output.push(value);
+        match uncertainty {
+            BootstrapUncertainty::Std => output.push(sample_std(column)),
+            BootstrapUncertainty::Quantiles { levels } => {
+                column.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
+                for &q in levels {
+                    output.push(quantile_sorted(column, q));
+                }
+            }
+        }
+    }
+    output
 }
 
 /// Linear-interpolated quantile of `values` (already sorted ascending); `NaN` if empty.
@@ -311,20 +342,11 @@ where
             }
         }
 
-        let mut output = Vec::with_capacity(self.properties.info.size);
-        for (j, &value) in original.iter().enumerate() {
-            output.push(value);
-            match &self.uncertainty {
-                BootstrapUncertainty::Std => output.push(sample_std(&columns[j])),
-                BootstrapUncertainty::Quantiles { levels } => {
-                    columns[j].sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
-                    for &q in levels {
-                        output.push(quantile_sorted(&columns[j], q));
-                    }
-                }
-            }
-        }
-        Ok(output)
+        Ok(aggregate_bootstrap(
+            &original,
+            &mut columns,
+            &self.uncertainty,
+        ))
     }
 }
 
