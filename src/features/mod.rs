@@ -22,7 +22,7 @@ mod biweight_scale;
 pub use biweight_scale::BiweightScale;
 
 pub(crate) mod bootstrap;
-pub use bootstrap::{Bootstrap, BootstrapUncertainty};
+pub use bootstrap::{Bootstrap, BootstrapFeatureError, BootstrapUncertainty};
 
 mod chi2_pvar;
 pub use chi2_pvar::Chi2Pvar;
