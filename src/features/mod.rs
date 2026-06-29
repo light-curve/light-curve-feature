@@ -21,7 +21,7 @@ pub use bins::Bins;
 mod biweight_scale;
 pub use biweight_scale::BiweightScale;
 
-mod bootstrap;
+pub(crate) mod bootstrap;
 pub use bootstrap::{Bootstrap, BootstrapUncertainty};
 
 mod chi2_pvar;

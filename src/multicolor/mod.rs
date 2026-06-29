@@ -3,6 +3,9 @@ pub mod features;
 mod multicolor_bins;
 pub use multicolor_bins::MultiColorBins;
 
+mod multicolor_bootstrap;
+pub use multicolor_bootstrap::{BandStrategy, MultiColorBootstrap};
+
 mod per_band_feature;
 pub use per_band_feature::PerBandFeature;
 
