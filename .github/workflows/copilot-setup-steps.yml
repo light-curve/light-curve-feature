@@ -18,7 +18,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout code with submodules
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           submodules: true
 
