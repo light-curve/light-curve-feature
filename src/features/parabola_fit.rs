@@ -19,9 +19,10 @@ $\frac{\sum{((m_i - a t_i^2 - b t_i - c) / \delta_i)^2}}{N - 3}$.
 The extremum position $t_0 = -\frac{b}{2a}$ is not returned: it is an absolute time, which is a
 poor classification feature and diverges as $g \to 0$.
 
-Note that for a (nearly) straight light curve the curvature $g \to 0$ and the extremum
-moves to infinity, so $m_0$ is not finite. Constant (plateau) light curves are rejected, as
-the fit is degenerate.
+Degenerate fits are rejected with an error: constant (plateau) light curves fail the
+variability check, while exactly straight light curves have zero curvature, so the extremum
+moves to infinity and $m_0$ is undefined. Note that for a nearly straight light curve the fit
+is still accepted and $m_0$ can be arbitrarily large.
 
 - Depends on: **time**, **magnitude**, **magnitude error**
 - Minimum number of observations: **4**
@@ -79,6 +80,13 @@ where
 {
     fn eval_no_ts_check(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
         let result = fit_parabola(ts);
+        // m0 is +-inf for an exactly straight light curve (zero curvature) and NaN when the
+        // normal matrix is singular (fewer than three distinct times).
+        if !result.m0.is_finite() {
+            return Err(EvaluatorError::ZeroDivision(
+                "curvature of the parabolic fit is zero (straight-line or degenerate light curve), the extremum value is undefined",
+            ));
+        }
         Ok(vec![result.g, result.m0, result.reduced_chi2])
     }
 }
@@ -102,6 +110,20 @@ mod tests {
         [1.0_f64, 1.0, 1.0, 1.0, 1.0, 1.0],
         1e-10,
     );
+
+    #[test]
+    fn straight_light_curve_is_rejected() {
+        // An exactly straight light curve has zero curvature, so the extremum value m0
+        // diverges; the feature must return an error instead of +-inf.
+        let t = [0.0_f64, 1.0, 2.0, 3.0, 4.0, 5.0];
+        let m: Vec<f64> = t.iter().map(|&t| 2.0 * t + 1.0).collect();
+        let w = [1.0_f64; 6];
+        let mut ts = TimeSeries::new(&t, &m, &w);
+        assert!(matches!(
+            ParabolaFit::default().eval(&mut ts),
+            Err(EvaluatorError::ZeroDivision(_))
+        ));
+    }
 
     #[test]
     fn flat_light_curve_is_rejected() {

@@ -138,7 +138,8 @@ mod tests {
     fn linear_has_no_finite_extremum() {
         // Perfectly linear data has zero curvature, so the parabola extremum is
         // at infinity: g == 0 and m0 is non-finite.  The fit must not panic
-        // (float division by zero yields inf, not a panic).
+        // (float division by zero yields inf, not a panic); the ParabolaFit
+        // evaluator turns the non-finite m0 into an error.
         let t = [0.0_f64, 1.0, 2.0, 3.0, 4.0, 5.0];
         let m: Vec<f64> = t.iter().map(|&t| 2.0 * t + 1.0).collect();
         let result = fit_parabola(&TimeSeries::new_without_weight(&t, &m));
