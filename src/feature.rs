@@ -51,6 +51,7 @@ where
     MedianBufferRangePercentage(MedianBufferRangePercentage<T>),
     ObservationCount,
     OtsuSplit,
+    ParabolaFit,
     PercentAmplitude,
     PercentDifferenceMagnitudePercentile,
     Periodogram(Periodogram<T, Self>),
