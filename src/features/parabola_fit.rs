@@ -80,11 +80,11 @@ where
 {
     fn eval_no_ts_check(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
         let result = fit_parabola(ts);
-        // m0 is +-inf for an exactly straight light curve (zero curvature) and NaN when the
-        // normal matrix is singular (fewer than three distinct times).
+        // m0 is non-finite for an exactly straight light curve: zero curvature puts the
+        // extremum at infinity.
         if !result.m0.is_finite() {
             return Err(EvaluatorError::ZeroDivision(
-                "curvature of the parabolic fit is zero (straight-line or degenerate light curve), the extremum value is undefined",
+                "curvature of the parabolic fit is zero (straight-line light curve), the extremum value is undefined",
             ));
         }
         Ok(vec![result.g, result.m0, result.reduced_chi2])
