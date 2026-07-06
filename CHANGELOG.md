@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   alternative to the standard deviation based on pairwise differences
   https://github.com/light-curve/light-curve-feature/issues/170
   https://github.com/light-curve/light-curve-feature/pull/304
+- Add `ParabolaFit` feature: curvature, extremum value, and reduced $\chi^2$ of a
+  weighted parabolic (quadratic) least-squares fit
+  https://github.com/light-curve/light-curve-feature/issues/166
+  https://github.com/light-curve/light-curve-feature/pull/302
 
 ### Changed
 
