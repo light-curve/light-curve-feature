@@ -44,7 +44,7 @@ fftw = { version = "^0.8", default-features = false, optional = true }
 realfft = "3.4"
 rustfft = "6.2"
 GSL = { version = "^7", default-features = false, optional = true }
-itertools = "^0.14"
+itertools = "^0.15"
 lazy_static = "^1.4"
 libm = "^0.2"
 macro_const = "^0.1"
