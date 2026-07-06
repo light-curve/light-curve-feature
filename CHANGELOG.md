@@ -9,9 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `BiweightScale` feature: Tukey's biweight robust scale estimator of the magnitude
+  (Beers, Flynn & Gebhardt 1990), a robust alternative to the standard deviation
+  https://github.com/light-curve/light-curve-feature/issues/170
 - Add `ParabolaFit` feature: curvature, extremum value, and reduced $\chi^2$ of a
   weighted parabolic (quadratic) least-squares fit
   https://github.com/light-curve/light-curve-feature/issues/166
+  https://github.com/light-curve/light-curve-feature/pull/302
 
 ### Changed
 
