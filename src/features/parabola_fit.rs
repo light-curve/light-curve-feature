@@ -80,9 +80,9 @@ where
 {
     fn eval_no_ts_check(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
         let result = fit_parabola(ts);
-        // m0 is non-finite for an exactly straight light curve: zero curvature puts the
-        // extremum at infinity.
-        if !result.m0.is_finite() {
+        // The curvature divides b^2 in m0 = c - b^2 / (4 g): an exactly straight light curve
+        // has zero curvature, so the extremum value is undefined.
+        if result.g.is_zero() {
             return Err(EvaluatorError::ZeroDivision(
                 "curvature of the parabolic fit is zero (straight-line light curve), the extremum value is undefined",
             ));
