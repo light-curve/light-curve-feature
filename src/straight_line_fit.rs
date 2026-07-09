@@ -68,6 +68,7 @@ pub fn fit_straight_line<T: Float>(
     }
     StraightLineFitterResult {
         slope,
+        intercept,
         slope_sigma2,
         reduced_chi2,
     }
@@ -75,6 +76,7 @@ pub fn fit_straight_line<T: Float>(
 
 pub struct StraightLineFitterResult<T> {
     pub slope: T,
+    pub intercept: T,
     pub slope_sigma2: T,
     pub reduced_chi2: T,
 }

@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   weighted parabolic (quadratic) least-squares fit
   https://github.com/light-curve/light-curve-feature/issues/166
   https://github.com/light-curve/light-curve-feature/pull/302
+- Add `DurbinWatson` evaluator for the Durbin-Watson serial-autocorrelation statistic of
+  residuals from a linear fit https://github.com/light-curve/light-curve-feature/issues/312
 
 ### Changed
 

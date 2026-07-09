@@ -31,6 +31,7 @@ where
     Chi2Pvar,
     Cusum,
     Duration,
+    DurbinWatson,
     Eta,
     EtaE,
     ExcessVariance,

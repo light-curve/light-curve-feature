@@ -350,6 +350,7 @@ mod tests {
 
         StraightLineFitterResult {
             slope: param.get(1).approx_as::<T>().unwrap(),
+            intercept: param.get(0).approx_as::<T>().unwrap(),
             slope_sigma2: T::nan(),
             reduced_chi2: T::nan(),
         }
