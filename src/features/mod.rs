@@ -28,6 +28,9 @@ pub use cusum::Cusum;
 mod duration;
 pub use duration::Duration;
 
+mod durbin_watson;
+pub use durbin_watson::DurbinWatson;
+
 mod eta;
 pub use eta::Eta;
 
