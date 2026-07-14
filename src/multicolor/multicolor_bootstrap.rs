@@ -1,4 +1,4 @@
-use crate::data::MultiColorTimeSeries;
+use crate::data::{MultiColorTimeSeries, TimeSeries};
 use crate::error::{EvaluatorError, MultiColorEvaluatorError};
 use crate::evaluator::{
     EvaluatorInfo, EvaluatorInfoTrait, EvaluatorProperties, FeatureNamesDescriptionsTrait,
@@ -17,6 +17,9 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fmt::Debug;
+
+/// Per-passband resample buffers: `(t, m, w)` value columns, keyed by a borrowed passband.
+type BandBuffers<'p, P, T> = BTreeMap<&'p P, (Vec<T>, Vec<T>, Vec<T>)>;
 
 /// Per-band resampling strategy for [MultiColorBootstrap].
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Default)]
@@ -50,8 +53,8 @@ impl BandStrategy {
 /// Multi-color [Bootstrap](crate::Bootstrap): estimates multi-color feature uncertainties by
 /// bagging the multi-band light curve. See [BandStrategy] for the per-band resampling options.
 ///
-/// As in the single-band case, sub-features that require both time and sorting, or that require
-/// variability, are rejected by [MultiColorBootstrap::add_feature].
+/// As in the single-band case, sub-features that require sorting, or that require variability,
+/// are rejected by [MultiColorBootstrap::add_feature].
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(
     into = "MultiColorBootstrapParameters<P, T>",
@@ -122,14 +125,16 @@ where
     /// Add a multi-color feature to estimate the bootstrap uncertainty of.
     ///
     /// # Errors
-    /// Returns [BootstrapFeatureError] if the feature requires both time and sorting (bagging
-    /// produces duplicate timestamps) or requires variability (a resample may be constant).
+    /// Returns [BootstrapFeatureError] if the feature requires sorting (bagging duplicates
+    /// points, which is ill-defined for time-interval-dividing features and biases
+    /// consecutive-difference-based features) or requires variability (a resample may be
+    /// constant).
     pub fn add_feature(
         &mut self,
         feature: MultiColorFeature<P, T>,
     ) -> Result<&mut Self, BootstrapFeatureError> {
-        if feature.is_t_required() && feature.is_sorting_required() {
-            return Err(BootstrapFeatureError::TimeAndSortingRequired);
+        if feature.is_sorting_required() {
+            return Err(BootstrapFeatureError::SortingRequired);
         }
         if feature.is_variability_required() {
             return Err(BootstrapFeatureError::VariabilityRequired);
@@ -166,32 +171,22 @@ where
         0
     }
 
-    /// Build a resampled multi-color light curve from the chosen flat indices.
-    fn resample_from_indices(
-        indices: &[usize],
-        t: &[T],
-        m: &[T],
-        w: &[T],
-        bands: &[P],
-    ) -> (Vec<T>, Vec<T>, Vec<T>, Vec<P>) {
-        // Gather and sort by time (defensive: keeps each band time-ordered for any
-        // order-sensitive sub-feature; allowed sub-features are order-independent anyway).
-        let mut rows: Vec<(T, T, T, P)> = indices
+    /// Build a `passband -> TimeSeries` map from per-band resample buffers.
+    ///
+    /// Bands absent from a resample (empty buffers) are dropped rather than inserted empty, so
+    /// `check_mcts` sees them as missing (matching the previous flat-based behaviour). For
+    /// `Stratified` every group is always non-empty, so the filter is a no-op there.
+    fn collect_map<'p, 'b>(buffers: &'b BandBuffers<'p, P, T>) -> BTreeMap<P, TimeSeries<'b, T>> {
+        buffers
             .iter()
-            .map(|&i| (t[i], m[i], w[i], bands[i].clone()))
-            .collect();
-        rows.sort_unstable_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
-        let mut rt = Vec::with_capacity(rows.len());
-        let mut rm = Vec::with_capacity(rows.len());
-        let mut rw = Vec::with_capacity(rows.len());
-        let mut rb = Vec::with_capacity(rows.len());
-        for (tt, mm, ww, bb) in rows {
-            rt.push(tt);
-            rm.push(mm);
-            rw.push(ww);
-            rb.push(bb);
-        }
-        (rt, rm, rw, rb)
+            .filter(|(_, (t_buf, _, _))| !t_buf.is_empty())
+            .map(|(&band, (t_buf, m_buf, w_buf))| {
+                (
+                    band.clone(),
+                    TimeSeries::new(&t_buf[..], &m_buf[..], &w_buf[..]),
+                )
+            })
+            .collect()
     }
 }
 
@@ -267,24 +262,52 @@ where
         let mut rng = StdRng::seed_from_u64(self.seed);
         let mut columns: Vec<Vec<T>> = vec![Vec::with_capacity(self.n_bootstrap); inner_size];
 
+        // Group original indices by passband: used to drive stratified resampling and to
+        // pre-size the per-band buffers below.
+        let mut groups: BTreeMap<&P, Vec<usize>> = BTreeMap::new();
+        for (i, band) in bands.iter().enumerate() {
+            groups.entry(band).or_default().push(i);
+        }
+
+        // Per-band resample buffers, reused across iterations (cleared and refilled by index,
+        // no per-resample array allocation). Building the resample via `from_map` below clones
+        // each passband once per resample per present band (K clones), not once per observation
+        // (n clones) as the flat representation would require — `P` may be expensive to clone,
+        // and most multi-color features work with the mapping representation anyway. No
+        // sub-feature requires sorting (add_feature rejects those), so rows needn't be
+        // time-ordered.
+        let mut band_buffers: BandBuffers<P, T> = groups
+            .iter()
+            .map(|(&band, idx)| {
+                (
+                    band,
+                    (
+                        Vec::with_capacity(idx.len()),
+                        Vec::with_capacity(idx.len()),
+                        Vec::with_capacity(idx.len()),
+                    ),
+                )
+            })
+            .collect();
+
         let n_resamples = match &self.band_strategy {
             BandStrategy::Stratified => {
-                // Group flat indices by passband, then resample each group with replacement.
-                let mut groups: BTreeMap<&P, Vec<usize>> = BTreeMap::new();
-                for (i, band) in bands.iter().enumerate() {
-                    groups.entry(band).or_default().push(i);
-                }
-                let mut indices = Vec::with_capacity(n);
                 for _ in 0..self.n_bootstrap {
-                    indices.clear();
-                    for group in groups.values() {
-                        for _ in 0..group.len() {
-                            indices.push(group[rng.random_range(0..group.len())]);
+                    for (&band, idx) in &groups {
+                        let (t_buf, m_buf, w_buf) =
+                            band_buffers.get_mut(band).expect("band was pre-populated");
+                        t_buf.clear();
+                        m_buf.clear();
+                        w_buf.clear();
+                        for _ in 0..idx.len() {
+                            let i = idx[rng.random_range(0..idx.len())];
+                            t_buf.push(t[i]);
+                            m_buf.push(m[i]);
+                            w_buf.push(w[i]);
                         }
                     }
-                    let (rt, rm, rw, rb) =
-                        Self::resample_from_indices(&indices, &t, &m, &w, &bands);
-                    let mut resample = MultiColorTimeSeries::from_flat(rt, rm, rw, &rb);
+                    let map = Self::collect_map(&band_buffers);
+                    let mut resample = MultiColorTimeSeries::from_map(map);
                     // Per-band counts are preserved, so validity is guaranteed; skip the check.
                     let values = self
                         .feature_extractor
@@ -301,14 +324,24 @@ where
                 let budget = self.n_bootstrap.saturating_mul(*max_attempts_factor);
                 let mut collected = 0usize;
                 let mut attempts = 0usize;
-                let mut indices = Vec::with_capacity(n);
                 while collected < self.n_bootstrap && attempts < budget {
                     attempts += 1;
-                    indices.clear();
-                    indices.extend((0..n).map(|_| rng.random_range(0..n)));
-                    let (rt, rm, rw, rb) =
-                        Self::resample_from_indices(&indices, &t, &m, &w, &bands);
-                    let mut resample = MultiColorTimeSeries::from_flat(rt, rm, rw, &rb);
+                    for (t_buf, m_buf, w_buf) in band_buffers.values_mut() {
+                        t_buf.clear();
+                        m_buf.clear();
+                        w_buf.clear();
+                    }
+                    for _ in 0..n {
+                        let i = rng.random_range(0..n);
+                        let (t_buf, m_buf, w_buf) = band_buffers
+                            .get_mut(&bands[i])
+                            .expect("band was pre-populated");
+                        t_buf.push(t[i]);
+                        m_buf.push(m[i]);
+                        w_buf.push(w[i]);
+                    }
+                    let map = Self::collect_map(&band_buffers);
+                    let mut resample = MultiColorTimeSeries::from_map(map);
                     // Use the framework's validity check as the rejection criterion.
                     if self.feature_extractor.check_mcts(&mut resample).is_err() {
                         continue;

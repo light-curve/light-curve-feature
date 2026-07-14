@@ -24,14 +24,12 @@ resamples; it then returns an error, handled like any feature via `eval_or_fill`
 
 [Bootstrap::add_feature] rejects features that cannot be evaluated on a resample:
 
-* features requiring **both** time and time-sorting (they divide by time intervals, e.g.
-  ``EtaE``, ``MaximumSlope``, ``LinearFit``, the curve fits) — bagging produces duplicate
-  timestamps;
-* features requiring **variability** (e.g. ``StetsonK``, ``Skew``, ``Kurtosis``, ``Eta``,
-  ``Cusum``) — a resample may be constant.
-
-Distribution features (``Amplitude``, ``StandardDeviation``, percentiles, the robust scale
-estimators, …) and time-value-only features (``TimeMean``) are supported.
+* features requiring **sorting** — bagging (sampling with replacement) duplicates points,
+  which either divides by a zero time interval for features that also need time, or —
+  even when time itself isn't read — silently biases statistics built from consecutive
+  differences, since duplicated points sort adjacent and contribute spurious zero-difference
+  terms;
+* features requiring **variability** — a resample may be constant.
 
 - Depends on: as required by sub-features
 - Minimum number of observations: as required by sub-features, but at least **1**
@@ -44,13 +42,16 @@ estimators, …) and time-value-only features (``TimeMean``) are supported.
 /// cannot be wrapped by a bootstrap meta-feature.
 #[derive(Clone, Debug, thiserror::Error, PartialEq, Eq)]
 pub enum BootstrapFeatureError {
-    /// The sub-feature requires both time and sorting; bagging produces duplicate timestamps,
-    /// which is ill-defined for features that divide by time intervals.
+    /// The sub-feature requires sorting; bagging duplicates points, which is ill-defined for
+    /// features that divide by time intervals and silently biases features built from
+    /// consecutive differences (duplicated points sort adjacent, contributing spurious
+    /// zero-difference terms).
     #[error(
-        "bootstrap cannot wrap a feature that requires both time and sorting \
-         (it divides by time intervals, but bagging produces duplicate timestamps)"
+        "bootstrap cannot wrap a feature that requires sorting \
+         (bagging duplicates points, which is ill-defined for features dividing by time \
+         intervals and biases features built from consecutive differences)"
     )]
-    TimeAndSortingRequired,
+    SortingRequired,
     /// The sub-feature requires variability; a resample may be constant.
     #[error(
         "bootstrap cannot wrap a feature that requires variability (a resample may be constant)"
@@ -195,11 +196,13 @@ where
     /// Add a feature to estimate the bootstrap uncertainty of.
     ///
     /// # Errors
-    /// Returns [BootstrapFeatureError] if the feature requires both time and sorting (bagging
-    /// produces duplicate timestamps) or requires variability (a resample may be constant).
+    /// Returns [BootstrapFeatureError] if the feature requires sorting (bagging duplicates
+    /// points, which is ill-defined for time-interval-dividing features and biases
+    /// consecutive-difference-based features) or requires variability (a resample may be
+    /// constant).
     pub fn add_feature(&mut self, feature: F) -> Result<&mut Self, BootstrapFeatureError> {
-        if feature.is_t_required() && feature.is_sorting_required() {
-            return Err(BootstrapFeatureError::TimeAndSortingRequired);
+        if feature.is_sorting_required() {
+            return Err(BootstrapFeatureError::SortingRequired);
         }
         if feature.is_variability_required() {
             return Err(BootstrapFeatureError::VariabilityRequired);
@@ -336,24 +339,21 @@ where
 
         let mut rng = StdRng::seed_from_u64(self.seed);
 
-        // Per-inner-value resample results. By construction (no variability-, dt-requiring
+        // Per-inner-value resample results. By construction (no sorting-, variability-requiring
         // sub-features) every resample evaluates successfully, so no values are dropped.
         let mut columns: Vec<Vec<T>> = vec![Vec::with_capacity(self.n_bootstrap); inner_size];
-        let mut triples: Vec<(T, T, T)> = Vec::with_capacity(n);
-        let (mut rt, mut rm, mut rw) = (vec![T::zero(); n], vec![T::zero(); n], vec![T::zero(); n]);
+        let mut rt = vec![T::zero(); n];
+        let mut rm = vec![T::zero(); n];
+        let mut rw = vec![T::zero(); n];
 
         for _ in 0..self.n_bootstrap {
-            // Bagging: draw n observations with replacement, then sort by time.
-            triples.clear();
-            triples.extend((0..n).map(|_| {
+            // Bagging: draw n observations with replacement. No sub-feature requires sorting
+            // (add_feature rejects those), so the resample needn't be time-ordered.
+            for k in 0..n {
                 let i = rng.random_range(0..n);
-                (t[i], m[i], w[i])
-            }));
-            triples.sort_unstable_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
-            for (k, &(tt, mm, ww)) in triples.iter().enumerate() {
-                rt[k] = tt;
-                rm[k] = mm;
-                rw[k] = ww;
+                rt[k] = t[i];
+                rm[k] = m[i];
+                rw[k] = w[i];
             }
 
             let mut resample = TimeSeries::new(&rt, &rm, &rw);
@@ -428,7 +428,7 @@ where
 #[allow(clippy::excessive_precision)]
 mod tests {
     use super::*;
-    use crate::features::{Amplitude, EtaE, Skew, StandardDeviation};
+    use crate::features::{Amplitude, Eta, EtaE, Skew, StandardDeviation};
     use crate::tests::*;
 
     serialization_name_test!(Bootstrap<f64, Feature<f64>>);
@@ -510,11 +510,23 @@ mod tests {
     }
 
     #[test]
-    fn rejects_time_and_sorting_feature() {
+    fn rejects_sorting_required_feature() {
         let mut b: Bootstrap<f64, Feature<f64>> = Bootstrap::default();
         assert_eq!(
             b.add_feature(EtaE::default().into()).unwrap_err(),
-            BootstrapFeatureError::TimeAndSortingRequired
+            BootstrapFeatureError::SortingRequired
+        );
+    }
+
+    #[test]
+    fn rejects_sorting_required_feature_without_time() {
+        // Eta requires sorting but not time; rejected as SortingRequired (checked before
+        // variability), since consecutive-difference statistics are biased by bagging
+        // regardless of whether they read time values.
+        let mut b: Bootstrap<f64, Feature<f64>> = Bootstrap::default();
+        assert_eq!(
+            b.add_feature(Eta::default().into()).unwrap_err(),
+            BootstrapFeatureError::SortingRequired
         );
     }
 
