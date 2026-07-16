@@ -28,6 +28,7 @@ where
     BazinFit,
     BeyondNStd(BeyondNStd<T>),
     BiweightScale(BiweightScale<T>),
+    Bootstrap(Bootstrap<T, Self>),
     Chi2Pvar,
     Cusum,
     Duration,
