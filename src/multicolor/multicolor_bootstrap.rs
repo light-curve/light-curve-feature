@@ -245,46 +245,32 @@ where
         let original = self.feature_extractor.eval_multicolor_no_mcts_check(mcts)?;
         let inner_size = original.len();
 
-        // Copy the original observations into a flat, owned buffer for resampling.
-        let (t, m, w, bands) = mcts.with_flat_mut(|flat| {
-            (
-                flat.t.as_slice().to_vec(),
-                flat.m.as_slice().to_vec(),
-                flat.w.as_slice().to_vec(),
-                flat.passbands
-                    .iter()
-                    .map(|&p| p.clone())
-                    .collect::<Vec<P>>(),
-            )
-        });
-        let n = t.len();
+        // Read directly from the mapping representation: zero passband clones and zero t/m/w
+        // copies for the source data (most multi-color features use the mapping representation
+        // anyway, so this is at worst a no-op conversion, not an extra one).
+        mcts.with_mapping_mut(|_| {});
+        let mapping = mcts.mapping().expect("mapping was just ensured");
+        let n: usize = mapping.iter_ts().map(TimeSeries::lenu).sum();
 
         let mut rng = StdRng::seed_from_u64(self.seed);
         let mut columns: Vec<Vec<T>> = vec![Vec::with_capacity(self.n_bootstrap); inner_size];
 
-        // Group original indices by passband: used to drive stratified resampling and to
-        // pre-size the per-band buffers below.
-        let mut groups: BTreeMap<&P, Vec<usize>> = BTreeMap::new();
-        for (i, band) in bands.iter().enumerate() {
-            groups.entry(band).or_default().push(i);
-        }
-
         // Per-band resample buffers, reused across iterations (cleared and refilled by index,
         // no per-resample array allocation). Building the resample via `from_map` below clones
         // each passband once per resample per present band (K clones), not once per observation
-        // (n clones) as the flat representation would require — `P` may be expensive to clone,
-        // and most multi-color features work with the mapping representation anyway. No
-        // sub-feature requires sorting (add_feature rejects those), so rows needn't be
+        // (n clones) as the flat representation would require — `P` may be expensive to clone.
+        // No sub-feature requires sorting (add_feature rejects those), so rows needn't be
         // time-ordered.
-        let mut band_buffers: BandBuffers<P, T> = groups
+        let mut band_buffers: BandBuffers<P, T> = mapping
             .iter()
-            .map(|(&band, idx)| {
+            .map(|(&band, ts)| {
+                let len = ts.lenu();
                 (
                     band,
                     (
-                        Vec::with_capacity(idx.len()),
-                        Vec::with_capacity(idx.len()),
-                        Vec::with_capacity(idx.len()),
+                        Vec::with_capacity(len),
+                        Vec::with_capacity(len),
+                        Vec::with_capacity(len),
                     ),
                 )
             })
@@ -293,17 +279,18 @@ where
         let n_resamples = match &self.band_strategy {
             BandStrategy::Stratified => {
                 for _ in 0..self.n_bootstrap {
-                    for (&band, idx) in &groups {
+                    for (&band, ts) in mapping.iter() {
                         let (t_buf, m_buf, w_buf) =
                             band_buffers.get_mut(band).expect("band was pre-populated");
                         t_buf.clear();
                         m_buf.clear();
                         w_buf.clear();
-                        for _ in 0..idx.len() {
-                            let i = idx[rng.random_range(0..idx.len())];
-                            t_buf.push(t[i]);
-                            m_buf.push(m[i]);
-                            w_buf.push(w[i]);
+                        let len = ts.lenu();
+                        for _ in 0..len {
+                            let i = rng.random_range(0..len);
+                            t_buf.push(ts.t.sample[i]);
+                            m_buf.push(ts.m.sample[i]);
+                            w_buf.push(ts.w.sample[i]);
                         }
                     }
                     let map = Self::collect_map(&band_buffers);
@@ -332,13 +319,21 @@ where
                         w_buf.clear();
                     }
                     for _ in 0..n {
-                        let i = rng.random_range(0..n);
-                        let (t_buf, m_buf, w_buf) = band_buffers
-                            .get_mut(&bands[i])
-                            .expect("band was pre-populated");
-                        t_buf.push(t[i]);
-                        m_buf.push(m[i]);
-                        w_buf.push(w[i]);
+                        // Draw a point uniformly across all bands: pick a global index, then
+                        // locate which band it falls into (K is small, so a linear scan is fine).
+                        let mut i = rng.random_range(0..n);
+                        for (&band, ts) in mapping.iter() {
+                            let len = ts.lenu();
+                            if i < len {
+                                let (t_buf, m_buf, w_buf) =
+                                    band_buffers.get_mut(band).expect("band was pre-populated");
+                                t_buf.push(ts.t.sample[i]);
+                                m_buf.push(ts.m.sample[i]);
+                                w_buf.push(ts.w.sample[i]);
+                                break;
+                            }
+                            i -= len;
+                        }
                     }
                     let map = Self::collect_map(&band_buffers);
                     let mut resample = MultiColorTimeSeries::from_map(map);
