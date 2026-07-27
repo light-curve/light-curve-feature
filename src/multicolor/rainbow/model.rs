@@ -41,6 +41,7 @@ fn baseline_param_name(band_name: &str) -> String {
 
 /// Maps each term's local parameter indices (and, if `with_baseline`, each band's baseline
 /// parameter) to indices in the model's global (deduplicated-by-name) parameter vector.
+#[derive(Clone)]
 struct ParamLayout {
     names: Vec<String>,
     bol_map: Vec<usize>,
@@ -61,7 +62,10 @@ impl ParamLayout {
         let mut names: Vec<String> = Vec::new();
         let mut name_to_idx: HashMap<String, usize> = HashMap::new();
 
-        let intern = |name: String, names: &mut Vec<String>, name_to_idx: &mut HashMap<String, usize>| -> usize {
+        let intern = |name: String,
+                      names: &mut Vec<String>,
+                      name_to_idx: &mut HashMap<String, usize>|
+         -> usize {
             if let Some(&idx) = name_to_idx.get(&name) {
                 idx
             } else {
@@ -97,12 +101,19 @@ impl ParamLayout {
             Vec::new()
         };
 
-        Self { names, bol_map, temp_map, spec_map, baseline_map }
+        Self {
+            names,
+            bol_map,
+            temp_map,
+            spec_map,
+            baseline_map,
+        }
     }
 }
 
 /// The Rainbow model: a chosen bolometric/temperature/spectral term combination (plus an
 /// optional per-band additive baseline) bound to a fixed set of bands.
+#[derive(Clone)]
 pub(crate) struct RainbowModel {
     bolometric: Bolometric,
     temperature: Temperature,
@@ -124,10 +135,20 @@ impl RainbowModel {
         with_baseline: bool,
     ) -> Self {
         assert!(!bands.is_empty(), "RainbowModel requires at least one band");
-        let mean_wave_cm: f64 = bands.iter().map(|b| b.wavelength_cm).sum::<f64>() / bands.len() as f64;
+        let mean_wave_cm: f64 =
+            bands.iter().map(|b| b.wavelength_cm).sum::<f64>() / bands.len() as f64;
         let average_nu = SPEED_OF_LIGHT / mean_wave_cm;
-        let layout = ParamLayout::build(&bolometric, &temperature, &spectral, &bands, with_baseline);
-        Self { bolometric, temperature, spectral, with_baseline, bands, average_nu, layout }
+        let layout =
+            ParamLayout::build(&bolometric, &temperature, &spectral, &bands, with_baseline);
+        Self {
+            bolometric,
+            temperature,
+            spectral,
+            with_baseline,
+            bands,
+            average_nu,
+            layout,
+        }
     }
 
     pub(crate) fn n_params(&self) -> usize {
@@ -138,10 +159,6 @@ impl RainbowModel {
         &self.layout.names
     }
 
-    pub(crate) fn bands(&self) -> &[Band] {
-        &self.bands
-    }
-
     /// Evaluate the model flux at time `t` in the given band.
     pub(crate) fn model(&self, t: f64, band_idx: usize, params: &[f64]) -> f64 {
         self.model_and_gradient(t, band_idx, params).0
@@ -150,7 +167,12 @@ impl RainbowModel {
     /// Evaluate the model flux and its gradient w.r.t. every global parameter (length
     /// `n_params()`), mirroring `_lsq_jac_{no_,with_}baseline`'s chain rule through
     /// `bol(t) * SED(wave, T(t)) / norm(T(t)) [+ baseline_band]`.
-    pub(crate) fn model_and_gradient(&self, t: f64, band_idx: usize, params: &[f64]) -> (f64, Vec<f64>) {
+    pub(crate) fn model_and_gradient(
+        &self,
+        t: f64,
+        band_idx: usize,
+        params: &[f64],
+    ) -> (f64, Vec<f64>) {
         let wave_cm = self.bands[band_idx].wavelength_cm;
 
         let n_bol = self.bolometric.n_params();
@@ -162,22 +184,30 @@ impl RainbowModel {
             bol_local[i] = params[self.layout.bol_map[i]];
         }
         let mut bol_jac = [0.0; MAX_LOCAL_PARAMS];
-        let bol = self.bolometric.value_jac(t, &bol_local[..n_bol], &mut bol_jac[..n_bol]);
+        let bol = self
+            .bolometric
+            .value_jac(t, &bol_local[..n_bol], &mut bol_jac[..n_bol]);
 
         let mut temp_local = [0.0; MAX_LOCAL_PARAMS];
         for i in 0..n_temp {
             temp_local[i] = params[self.layout.temp_map[i]];
         }
         let mut temp_jac = [0.0; MAX_LOCAL_PARAMS];
-        let temp = self.temperature.value_jac(t, &temp_local[..n_temp], &mut temp_jac[..n_temp]);
+        let temp = self
+            .temperature
+            .value_jac(t, &temp_local[..n_temp], &mut temp_jac[..n_temp]);
 
         let mut spec_local = [0.0; MAX_LOCAL_PARAMS];
         for i in 0..n_spec {
             spec_local[i] = params[self.layout.spec_map[i]];
         }
         let mut spec_jac = [0.0; MAX_LOCAL_PARAMS];
-        let (spectral_val, dspectral_dt) =
-            self.spectral.value_jac(wave_cm, temp, &spec_local[..n_spec], &mut spec_jac[..n_spec]);
+        let (spectral_val, dspectral_dt) = self.spectral.value_jac(
+            wave_cm,
+            temp,
+            &spec_local[..n_spec],
+            &mut spec_jac[..n_spec],
+        );
 
         // norm(T) is always the Stefan-Boltzmann/Planck-based normalization, regardless of which
         // spectral term is in use (matches Python: only the SED *shape* varies per term, the
@@ -241,18 +271,36 @@ impl RainbowModel {
     fn per_band_baseline_estimate(&self, flux: &[f64], band_idx: &[usize]) -> Vec<f64> {
         (0..self.bands.len())
             .map(|b| {
-                let band_flux: Vec<f64> =
-                    flux.iter().zip(band_idx).filter(|&(_, &bi)| bi == b).map(|(&f, _)| f).collect();
-                if band_flux.is_empty() { 0.0 } else { median(&band_flux) }
+                let band_flux: Vec<f64> = flux
+                    .iter()
+                    .zip(band_idx)
+                    .filter(|&(_, &bi)| bi == b)
+                    .map(|(&f, _)| f)
+                    .collect();
+                if band_flux.is_empty() {
+                    0.0
+                } else {
+                    median(&band_flux)
+                }
             })
             .collect()
     }
 
     /// Heuristic initial guess (physical units), same order as [`Self::param_names`].
-    pub(crate) fn initial_guess(&self, t: &[f64], flux: &[f64], flux_err: &[f64], band_idx: &[usize]) -> Vec<f64> {
+    pub(crate) fn initial_guess(
+        &self,
+        t: &[f64],
+        flux: &[f64],
+        flux_err: &[f64],
+        band_idx: &[usize],
+    ) -> Vec<f64> {
         let (flux_corrected, baseline_guess) = if self.with_baseline {
             let baseline_guess = self.per_band_baseline_estimate(flux, band_idx);
-            let corrected: Vec<f64> = flux.iter().zip(band_idx).map(|(&f, &b)| f - baseline_guess[b]).collect();
+            let corrected: Vec<f64> = flux
+                .iter()
+                .zip(band_idx)
+                .map(|(&f, &b)| f - baseline_guess[b])
+                .collect();
             (corrected, baseline_guess)
         } else {
             (flux.to_vec(), Vec::new())
@@ -277,14 +325,28 @@ impl RainbowModel {
     }
 
     /// Box bounds `(lower, upper)` (physical units), same order as [`Self::param_names`].
-    pub(crate) fn bounds(&self, t: &[f64], flux: &[f64], flux_err: &[f64], band_idx: &[usize]) -> Vec<(f64, f64)> {
+    pub(crate) fn bounds(
+        &self,
+        t: &[f64],
+        flux: &[f64],
+        flux_err: &[f64],
+        band_idx: &[usize],
+    ) -> Vec<(f64, f64)> {
         let (flux_corrected, baseline_bounds) = if self.with_baseline {
             let baseline_guess = self.per_band_baseline_estimate(flux, band_idx);
-            let corrected: Vec<f64> = flux.iter().zip(band_idx).map(|(&f, &b)| f - baseline_guess[b]).collect();
+            let corrected: Vec<f64> = flux
+                .iter()
+                .zip(band_idx)
+                .map(|(&f, &b)| f - baseline_guess[b])
+                .collect();
             let bounds: Vec<(f64, f64)> = (0..self.bands.len())
                 .map(|b| {
-                    let band_flux: Vec<f64> =
-                        flux.iter().zip(band_idx).filter(|&(_, &bi)| bi == b).map(|(&f, _)| f).collect();
+                    let band_flux: Vec<f64> = flux
+                        .iter()
+                        .zip(band_idx)
+                        .filter(|&(_, &bi)| bi == b)
+                        .map(|(&f, _)| f)
+                        .collect();
                     if band_flux.is_empty() {
                         (0.0, 0.0)
                     } else {
@@ -327,8 +389,14 @@ mod tests {
 
     fn sample_bands() -> Vec<Band> {
         vec![
-            Band { name: "g".to_string(), wavelength_cm: 4770.0e-8 },
-            Band { name: "r".to_string(), wavelength_cm: 6231.0e-8 },
+            Band {
+                name: "g".to_string(),
+                wavelength_cm: 4770.0e-8,
+            },
+            Band {
+                name: "r".to_string(),
+                wavelength_cm: 6231.0e-8,
+            },
         ]
     }
 
@@ -355,8 +423,13 @@ mod tests {
 
     #[test]
     fn bazin_sigmoid_planck_gradient_matches_finite_difference() {
-        let model =
-            RainbowModel::new(Bolometric::Bazin, Temperature::Sigmoid, Spectral::Planck, sample_bands(), false);
+        let model = RainbowModel::new(
+            Bolometric::Bazin,
+            Temperature::Sigmoid,
+            Spectral::Planck,
+            sample_bands(),
+            false,
+        );
         // reference_time, amplitude, rise_time, fall_time, T, T_amplitude, t_color
         let params = [10.0, 5.0, 3.0, 20.0, 9000.0, 0.2, 5.0];
         let h = [1e-4, 1e-5, 1e-5, 1e-5, 1e-2, 1e-6, 1e-5];
@@ -365,7 +438,13 @@ mod tests {
 
     #[test]
     fn bazin_sigmoid_planck_with_baseline_gradient_matches_finite_difference() {
-        let model = RainbowModel::new(Bolometric::Bazin, Temperature::Sigmoid, Spectral::Planck, sample_bands(), true);
+        let model = RainbowModel::new(
+            Bolometric::Bazin,
+            Temperature::Sigmoid,
+            Spectral::Planck,
+            sample_bands(),
+            true,
+        );
         // reference_time, amplitude, rise_time, fall_time, T, T_amplitude, t_color, baseline_g, baseline_r
         let params = [10.0, 5.0, 3.0, 20.0, 9000.0, 0.2, 5.0, 1.5, -0.7];
         let h = [1e-4, 1e-5, 1e-5, 1e-5, 1e-2, 1e-6, 1e-5, 1e-5, 1e-5];
@@ -374,8 +453,13 @@ mod tests {
 
     #[test]
     fn sigmoid_bol_constant_genwien_gradient_matches_finite_difference() {
-        let model =
-            RainbowModel::new(Bolometric::Sigmoid, Temperature::Constant, Spectral::GenWien, sample_bands(), false);
+        let model = RainbowModel::new(
+            Bolometric::Sigmoid,
+            Temperature::Constant,
+            Spectral::GenWien,
+            sample_bands(),
+            false,
+        );
         // reference_time, amplitude, rise_time, T, spec_k
         let params = [10.0, 5.0, 3.0, 9000.0, 1.3];
         let h = [1e-4, 1e-5, 1e-5, 1e-2, 1e-6];
@@ -393,29 +477,46 @@ mod tests {
         );
         // reference_time, amplitude, time1, time2, p, T, T_amplitude, t_color, t_delay, sp_a, sp_b
         let params = [10.0, 5.0, 3.0, 4.0, 1.5, 9000.0, 0.2, 5.0, 1.0, 0.3, -0.2];
-        let h = [1e-4, 1e-5, 1e-5, 1e-5, 1e-5, 1e-2, 1e-6, 1e-5, 1e-5, 1e-6, 1e-6];
+        let h = [
+            1e-4, 1e-5, 1e-5, 1e-5, 1e-5, 1e-2, 1e-6, 1e-5, 1e-5, 1e-6, 1e-6,
+        ];
         check_gradient(&model, &params, &h);
     }
 
     #[test]
     fn shared_reference_time_deduplicated() {
-        let model =
-            RainbowModel::new(Bolometric::Bazin, Temperature::Sigmoid, Spectral::Planck, sample_bands(), false);
+        let model = RainbowModel::new(
+            Bolometric::Bazin,
+            Temperature::Sigmoid,
+            Spectral::Planck,
+            sample_bands(),
+            false,
+        );
         assert_eq!(model.n_params(), 7); // not 4+4+0=8; reference_time is shared
         assert_eq!(model.param_names()[0], "reference_time");
     }
 
     #[test]
     fn constant_temperature_has_no_reference_time_collision() {
-        let model =
-            RainbowModel::new(Bolometric::Bazin, Temperature::Constant, Spectral::Planck, sample_bands(), false);
+        let model = RainbowModel::new(
+            Bolometric::Bazin,
+            Temperature::Constant,
+            Spectral::Planck,
+            sample_bands(),
+            false,
+        );
         assert_eq!(model.n_params(), 5); // 4 bol + 1 temp (T), no shared name
     }
 
     #[test]
     fn baseline_params_appended_per_band() {
-        let model =
-            RainbowModel::new(Bolometric::Bazin, Temperature::Sigmoid, Spectral::Planck, sample_bands(), true);
+        let model = RainbowModel::new(
+            Bolometric::Bazin,
+            Temperature::Sigmoid,
+            Spectral::Planck,
+            sample_bands(),
+            true,
+        );
         assert_eq!(model.n_params(), 9); // 7 + baseline_g + baseline_r
         assert_eq!(model.param_names()[7], "baseline_g");
         assert_eq!(model.param_names()[8], "baseline_r");

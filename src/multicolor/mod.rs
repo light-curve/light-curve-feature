@@ -23,7 +23,5 @@ pub use passband::*;
 
 #[cfg(feature = "rainbow")]
 mod rainbow;
-// TODO(next commit): re-export RainbowFit once the public struct lands.
 #[cfg(feature = "rainbow")]
-#[allow(unused_imports)]
-use rainbow::terms;
+pub use rainbow::{Bolometric, RainbowFit, RainbowFitError, Spectral, Temperature};

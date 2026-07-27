@@ -59,7 +59,10 @@ fn internal_to_external(u: &DVector<f64>, bounds: &[(f64, f64)]) -> (Vec<f64>, V
 fn external_to_internal(external: &[f64], bounds: &[(f64, f64)]) -> DVector<f64> {
     DVector::from_iterator(
         bounds.len(),
-        external.iter().zip(bounds).map(|(&e, &(lower, upper))| inverse_bounded_transform(e, lower, upper)),
+        external
+            .iter()
+            .zip(bounds)
+            .map(|(&e, &(lower, upper))| inverse_bounded_transform(e, lower, upper)),
     )
 }
 
@@ -98,13 +101,14 @@ fn covariance_from_jacobian(
     }
     let jtj = j.transpose() * &j;
 
-    if let Some(inv) = jtj.clone().try_inverse() {
-        if inv.diagonal().iter().all(|&x| x.is_finite() && x > 0.0) {
-            return inv;
-        }
+    if let Some(inv) = jtj.clone().try_inverse()
+        && inv.diagonal().iter().all(|&x| x.is_finite() && x > 0.0)
+    {
+        return inv;
     }
     let svd = jtj.svd(true, true);
-    svd.pseudo_inverse(1e-12).unwrap_or_else(|_| DMatrix::from_element(n_params, n_params, f64::NAN))
+    svd.pseudo_inverse(1e-12)
+        .unwrap_or_else(|_| DMatrix::from_element(n_params, n_params, f64::NAN))
 }
 
 struct RainbowFitProblem<'a> {
@@ -147,7 +151,9 @@ impl<'a> LeastSquaresProblem<f64, Dyn, Dyn> for RainbowFitProblem<'a> {
         let n_params = params.len();
         let mut j = OMatrix::<f64, Dyn, Dyn>::zeros(n, n_params);
         for i in 0..n {
-            let (_, grad) = self.model.model_and_gradient(self.t[i], self.band_idx[i], &params);
+            let (_, grad) = self
+                .model
+                .model_and_gradient(self.t[i], self.band_idx[i], &params);
             for k in 0..n_params {
                 j[(i, k)] = grad[k] * dext_du[k] / self.flux_err[i];
             }
@@ -162,11 +168,11 @@ pub(crate) struct FitResult {
     pub(crate) params: Vec<f64>,
     /// 1-sigma uncertainty on each parameter (same order as `params`), from the Gauss-Newton
     /// covariance approximation. See [`covariance_from_jacobian`] for the method and its caveats
-    /// around genuinely degenerate parameters.
+    /// around genuinely degenerate parameters. (The full covariance matrix, off-diagonal
+    /// correlations included, is computed as an intermediate value but not currently surfaced
+    /// here -- a flat per-parameter matrix doesn't fit this crate's flat named-scalar feature
+    /// output convention. Easy to add later if a use for it comes up.)
     pub(crate) errors: Vec<f64>,
-    /// Full parameter covariance matrix (`covariance[i][j]`), same order and method as `errors`
-    /// (whose entries are `sqrt(covariance[i][i])`).
-    pub(crate) covariance: Vec<Vec<f64>>,
     pub(crate) reduced_chi2: f64,
     pub(crate) success: bool,
 }
@@ -178,7 +184,13 @@ pub(crate) struct FitResult {
 /// -- real light curves are sometimes too sparse) instead returns a [`FitResult`] with
 /// `success: false` and NaN-filled outputs, so callers don't need to pre-check `t.len()`
 /// themselves.
-pub(crate) fn fit(model: &RainbowModel, t: &[f64], flux: &[f64], flux_err: &[f64], band_idx: &[usize]) -> FitResult {
+pub(crate) fn fit(
+    model: &RainbowModel,
+    t: &[f64],
+    flux: &[f64],
+    flux_err: &[f64],
+    band_idx: &[usize],
+) -> FitResult {
     assert_eq!(t.len(), flux.len());
     assert_eq!(t.len(), flux_err.len());
     assert_eq!(t.len(), band_idx.len());
@@ -188,7 +200,6 @@ pub(crate) fn fit(model: &RainbowModel, t: &[f64], flux: &[f64], flux_err: &[f64
         return FitResult {
             params: vec![f64::NAN; n_params],
             errors: vec![f64::NAN; n_params],
-            covariance: vec![vec![f64::NAN; n_params]; n_params],
             reduced_chi2: f64::NAN,
             success: false,
         };
@@ -198,7 +209,15 @@ pub(crate) fn fit(model: &RainbowModel, t: &[f64], flux: &[f64], flux_err: &[f64
     let guess = model.initial_guess(t, flux, flux_err, band_idx);
     let u0 = external_to_internal(&guess, &bounds);
 
-    let problem = RainbowFitProblem { model, t, flux, flux_err, band_idx, bounds, u: u0 };
+    let problem = RainbowFitProblem {
+        model,
+        t,
+        flux,
+        flux_err,
+        band_idx,
+        bounds,
+        u: u0,
+    };
 
     let (solved, report) = LevenbergMarquardt::new().minimize(problem);
     let (params, _) = internal_to_external(&solved.u, &solved.bounds);
@@ -209,26 +228,41 @@ pub(crate) fn fit(model: &RainbowModel, t: &[f64], flux: &[f64], flux_err: &[f64
 
     let cov = covariance_from_jacobian(model, t, flux_err, band_idx, &params);
     let errors: Vec<f64> = cov.diagonal().iter().map(|&v| v.max(0.0).sqrt()).collect();
-    let covariance: Vec<Vec<f64>> =
-        (0..params.len()).map(|i| (0..params.len()).map(|j| cov[(i, j)]).collect()).collect();
 
-    FitResult { params, errors, covariance, reduced_chi2, success: report.termination.was_successful() }
+    FitResult {
+        params,
+        errors,
+        reduced_chi2,
+        success: report.termination.was_successful(),
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::model::Band;
     use super::super::terms::{Bolometric, Spectral, Temperature};
+    use super::*;
     use levenberg_marquardt::differentiate_numerically;
 
     #[test]
     fn analytic_jacobian_matches_numerical_differentiation() {
         let bands = vec![
-            Band { name: "g".to_string(), wavelength_cm: 4770.0e-8 },
-            Band { name: "r".to_string(), wavelength_cm: 6231.0e-8 },
+            Band {
+                name: "g".to_string(),
+                wavelength_cm: 4770.0e-8,
+            },
+            Band {
+                name: "r".to_string(),
+                wavelength_cm: 6231.0e-8,
+            },
         ];
-        let model = RainbowModel::new(Bolometric::Bazin, Temperature::Sigmoid, Spectral::Planck, bands, false);
+        let model = RainbowModel::new(
+            Bolometric::Bazin,
+            Temperature::Sigmoid,
+            Spectral::Planck,
+            bands,
+            false,
+        );
 
         let t: Vec<f64> = (0..20).map(|i| i as f64 * 3.0).collect();
         let band_idx: Vec<usize> = (0..20).map(|i| i % 2).collect();
@@ -239,8 +273,15 @@ mod tests {
         let truth_external = [30.0, 100.0, 5.0, 20.0, 9000.0, 0.1, 6.0];
         let u = external_to_internal(&truth_external, &bounds);
 
-        let mut problem =
-            RainbowFitProblem { model: &model, t: &t, flux: &flux, flux_err: &flux_err, band_idx: &band_idx, bounds, u };
+        let mut problem = RainbowFitProblem {
+            model: &model,
+            t: &t,
+            flux: &flux,
+            flux_err: &flux_err,
+            band_idx: &band_idx,
+            bounds,
+            u,
+        };
 
         let analytic = problem.jacobian().unwrap();
         let numeric = differentiate_numerically(&mut problem).unwrap();
@@ -250,7 +291,10 @@ mod tests {
             for j in 0..analytic.ncols() {
                 let a = analytic[(i, j)];
                 let n = numeric[(i, j)];
-                assert!((a - n).abs() <= 1e-4 * n.abs().max(1.0), "jacobian[{i},{j}]: analytic={a}, numeric={n}");
+                assert!(
+                    (a - n).abs() <= 1e-4 * n.abs().max(1.0),
+                    "jacobian[{i},{j}]: analytic={a}, numeric={n}"
+                );
             }
         }
     }
@@ -258,11 +302,26 @@ mod tests {
     #[test]
     fn too_few_points_returns_failure_instead_of_panicking() {
         let bands = vec![
-            Band { name: "g".to_string(), wavelength_cm: 4770.0e-8 },
-            Band { name: "r".to_string(), wavelength_cm: 6231.0e-8 },
-            Band { name: "i".to_string(), wavelength_cm: 7625.0e-8 },
+            Band {
+                name: "g".to_string(),
+                wavelength_cm: 4770.0e-8,
+            },
+            Band {
+                name: "r".to_string(),
+                wavelength_cm: 6231.0e-8,
+            },
+            Band {
+                name: "i".to_string(),
+                wavelength_cm: 7625.0e-8,
+            },
         ];
-        let model = RainbowModel::new(Bolometric::Bazin, Temperature::Sigmoid, Spectral::Planck, bands, false);
+        let model = RainbowModel::new(
+            Bolometric::Bazin,
+            Temperature::Sigmoid,
+            Spectral::Planck,
+            bands,
+            false,
+        );
 
         let t = vec![0.0, 1.0, 2.0];
         let flux = vec![1.0, 2.0, 1.5];

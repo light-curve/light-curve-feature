@@ -16,24 +16,14 @@ use super::common::{max_min, ptp, t0_and_weighted_centroid_sigma};
 // Bazin (symmetric, peak-normalized)
 // ---------------------------------------------------------------------
 
-fn bazin(t: f64, t0: f64, amplitude: f64, rise_time: f64, fall_time: f64) -> f64 {
-    let dt = t - t0;
-    if !(dt > -100.0 * rise_time && dt < 100.0 * fall_time) {
-        return 0.0;
-    }
-    let scale = bazin_scale(rise_time, fall_time);
-    amplitude * scale / ((-dt / rise_time).exp() + (dt / fall_time).exp())
-}
-
-fn bazin_scale(rise_time: f64, fall_time: f64) -> f64 {
-    let alpha = fall_time / rise_time;
-    let tau = rise_time + fall_time;
-    let u = rise_time / tau;
-    let v = fall_time / tau;
-    alpha.powf(u) + alpha.powf(-v)
-}
-
-fn bazin_jacobian(t: f64, t0: f64, amplitude: f64, rise_time: f64, fall_time: f64, jac: &mut [f64]) -> f64 {
+fn bazin_jacobian(
+    t: f64,
+    t0: f64,
+    amplitude: f64,
+    rise_time: f64,
+    fall_time: f64,
+    jac: &mut [f64],
+) -> f64 {
     let dt = t - t0;
     if !(dt > -100.0 * rise_time && dt < 100.0 * fall_time) {
         jac[..4].fill(0.0);
@@ -52,8 +42,10 @@ fn bazin_jacobian(t: f64, t0: f64, amplitude: f64, rise_time: f64, fall_time: f6
     let a1 = alpha.powf(u);
     let a2 = alpha.powf(-v);
     let scale = a1 + a2;
-    let dscale_dr = a1 * (v * log_alpha / tau - u / rise_time) + a2 * (v * log_alpha / tau + v / rise_time);
-    let dscale_df = a1 * u * (1.0 / fall_time - log_alpha / tau) + a2 * (-u * log_alpha / tau - v / fall_time);
+    let dscale_dr =
+        a1 * (v * log_alpha / tau - u / rise_time) + a2 * (v * log_alpha / tau + v / rise_time);
+    let dscale_df =
+        a1 * u * (1.0 / fall_time - log_alpha / tau) + a2 * (-u * log_alpha / tau - v / fall_time);
 
     let b = amplitude * scale / denom;
     let value = b;
@@ -73,14 +65,6 @@ fn bazin_jacobian(t: f64, t0: f64, amplitude: f64, rise_time: f64, fall_time: f6
 // ---------------------------------------------------------------------
 // Sigmoid
 // ---------------------------------------------------------------------
-
-fn sigmoid_bol(t: f64, t0: f64, amplitude: f64, rise_time: f64) -> f64 {
-    let dt = t - t0;
-    if dt <= -100.0 * rise_time {
-        return 0.0;
-    }
-    amplitude / ((-dt / rise_time).exp() + 1.0)
-}
 
 fn sigmoid_bol_jacobian(t: f64, t0: f64, amplitude: f64, rise_time: f64, jac: &mut [f64]) -> f64 {
     let dt = t - t0;
@@ -102,14 +86,6 @@ fn sigmoid_bol_jacobian(t: f64, t0: f64, amplitude: f64, rise_time: f64, jac: &m
 // ---------------------------------------------------------------------
 // Doublexp
 // ---------------------------------------------------------------------
-
-fn doublexp_bol(t: f64, t0: f64, amplitude: f64, time1: f64, time2: f64, p: f64) -> f64 {
-    let dt = t - t0;
-    let v = (-dt / time2).exp();
-    let a_inner = -(dt / time1) * (p - v);
-    let a_inner = a_inner.min(20.0);
-    amplitude * a_inner.exp()
-}
 
 fn doublexp_bol_jacobian(
     t: f64,
@@ -157,7 +133,11 @@ fn lambert_w0(x: f64) -> f64 {
     if x == 0.0 {
         return 0.0;
     }
-    let mut w = if x < 10.0 { (x + 1.0).ln().max(1e-4) } else { x.ln() - x.ln().ln() };
+    let mut w = if x < 10.0 {
+        (x + 1.0).ln().max(1e-4)
+    } else {
+        x.ln() - x.ln().ln()
+    };
     for _ in 0..50 {
         let ew = w.exp();
         let f = w * ew - x;
@@ -283,7 +263,11 @@ impl Bolometric {
             }
             Bolometric::Sigmoid => {
                 let (_, dt) = t0_and_weighted_centroid_sigma(t, flux, flux_err);
-                vec![reference_time_bounds, (0.0, 20.0 * ptp_flux), (dt / 100.0, 10.0 * ptp_t)]
+                vec![
+                    reference_time_bounds,
+                    (0.0, 20.0 * ptp_flux),
+                    (dt / 100.0, 10.0 * ptp_t),
+                ]
             }
             Bolometric::Doublexp => {
                 let (_, dt) = t0_and_weighted_centroid_sigma(t, flux, flux_err);
@@ -303,7 +287,10 @@ impl Bolometric {
         match self {
             Bolometric::Bazin => {
                 let (t0, _a, rise_time, fall_time) = (p[0], p[1], p[2], p[3]);
-                Some(t0 + (fall_time / rise_time).ln() * rise_time * fall_time / (rise_time + fall_time))
+                Some(
+                    t0 + (fall_time / rise_time).ln() * rise_time * fall_time
+                        / (rise_time + fall_time),
+                )
             }
             // Peak time is not defined for the sigmoid (monotonic), so it returns the
             // inflection point (mid-time of the rise) instead.
@@ -320,7 +307,12 @@ impl Bolometric {
 mod tests {
     use super::*;
 
-    fn finite_diff_check(name: &str, n: usize, value_jac: impl Fn(&[f64], &mut [f64]) -> f64, p: &[f64]) {
+    fn finite_diff_check(
+        name: &str,
+        n: usize,
+        value_jac: impl Fn(&[f64], &mut [f64]) -> f64,
+        p: &[f64],
+    ) {
         let mut jac = vec![0.0; n];
         value_jac(p, &mut jac);
         let h = 1e-6;
@@ -356,8 +348,10 @@ mod tests {
     #[test]
     fn bazin_peak_equals_amplitude() {
         let (t0, amplitude, rise_time, fall_time): (f64, f64, f64, f64) = (100.0, 5.0, 3.0, 20.0);
-        let peak_t = t0 + (fall_time / rise_time).ln() * rise_time * fall_time / (rise_time + fall_time);
-        let value = bazin(peak_t, t0, amplitude, rise_time, fall_time);
+        let peak_t =
+            t0 + (fall_time / rise_time).ln() * rise_time * fall_time / (rise_time + fall_time);
+        let mut jac = [0.0; 4];
+        let value = bazin_jacobian(peak_t, t0, amplitude, rise_time, fall_time, &mut jac);
         assert!((value - amplitude).abs() <= 1e-9 * amplitude);
     }
 
@@ -386,7 +380,10 @@ mod tests {
         for &x in &[0.1, 1.0, 2.0, 10.0, 100.0, 0.001] {
             let w = lambert_w0(x);
             let check = w * w.exp();
-            assert!((check - x).abs() <= 1e-8 * x.max(1.0), "x={x}, w={w}, w*e^w={check}");
+            assert!(
+                (check - x).abs() <= 1e-8 * x.max(1.0),
+                "x={x}, w={w}, w*e^w={check}"
+            );
         }
     }
 }

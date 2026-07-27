@@ -16,10 +16,18 @@ pub fn t0_and_weighted_centroid_sigma(t: &[f64], flux: &[f64], flux_err: &[f64])
     let idx: Vec<usize> = (0..t.len()).filter(|&i| flux[i] > median).collect();
 
     let weight_sum: f64 = idx.iter().map(|&i| flux[i] / flux_err[i]).sum();
-    let t0 = idx.iter().map(|&i| t[i] * flux[i] / flux_err[i]).sum::<f64>() / weight_sum;
+    let t0 = idx
+        .iter()
+        .map(|&i| t[i] * flux[i] / flux_err[i])
+        .sum::<f64>()
+        / weight_sum;
 
     let mc_weight_sum: f64 = idx.iter().map(|&i| mc[i] / flux_err[i]).sum();
-    let var = idx.iter().map(|&i| (t[i] - t0).powi(2) * mc[i] / flux_err[i]).sum::<f64>() / mc_weight_sum;
+    let var = idx
+        .iter()
+        .map(|&i| (t[i] - t0).powi(2) * mc[i] / flux_err[i])
+        .sum::<f64>()
+        / mc_weight_sum;
     let dt = var.sqrt();
 
     // Guard against a degenerate spread (e.g. all bright points at the same time): fall back to
@@ -36,7 +44,10 @@ pub fn t0_and_weighted_centroid_sigma(t: &[f64], flux: &[f64], flux_err: &[f64])
 }
 
 pub fn max_min(x: &[f64]) -> (f64, f64) {
-    (x.iter().cloned().fold(f64::MIN, f64::max), x.iter().cloned().fold(f64::MAX, f64::min))
+    (
+        x.iter().cloned().fold(f64::MIN, f64::max),
+        x.iter().cloned().fold(f64::MAX, f64::min),
+    )
 }
 
 pub fn ptp(x: &[f64]) -> f64 {
@@ -58,5 +69,9 @@ pub fn median(x: &[f64]) -> f64 {
     let mut sorted = x.to_vec();
     sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
     let n = sorted.len();
-    if n % 2 == 1 { sorted[n / 2] } else { 0.5 * (sorted[n / 2 - 1] + sorted[n / 2]) }
+    if n % 2 == 1 {
+        sorted[n / 2]
+    } else {
+        0.5 * (sorted[n / 2 - 1] + sorted[n / 2])
+    }
 }

@@ -29,6 +29,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   counts) and `Rejection` (i.i.d. resampling with bounded rejection of resamples that fail the
   wrapped features' per-band requirements)
   https://github.com/light-curve/light-curve-feature/issues/285
+- Add `RainbowFit` multi-color feature (opt-in `rainbow` Cargo feature): joint multi-band fit of
+  a bolometric envelope times a temperature-dependent spectral energy distribution (the "Rainbow"
+  model, Russeil et al. 2023). Bolometric in {Bazin, Sigmoid, Doublexp}, temperature in
+  {Constant, Sigmoid, DelayedSigmoid}, spectral in {Planck, GenWien, ModifiedBlackBody,
+  LogParabola}, plus an optional per-band additive baseline; returns fitted parameters, their
+  1-sigma (Gauss-Newton) uncertainties, and reduced chi2. Adds `PassbandTrait::wavelength()`
+  (default `None`) so wavelength-aware features can participate in the generic
+  `MultiColorFeature<P, T>` registry. First pure-Rust linear-algebra dependency in the crate
+  (`levenberg-marquardt`/`nalgebra`), hence the opt-in feature gate rather than `default`.
+  `bolometric = "linexp"` and `spectral = "blanketed"` from the Python reference are not ported
+  (see the `multicolor::rainbow` module docs for why)
 
 ### Changed
 

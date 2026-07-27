@@ -2,6 +2,8 @@ use crate::data::{MultiColorTimeSeries, TimeSeries};
 use crate::error::MultiColorEvaluatorError;
 use crate::evaluator::{EvaluatorInfoTrait, FeatureNamesDescriptionsTrait};
 use crate::float_trait::Float;
+#[cfg(feature = "rainbow")]
+use crate::multicolor::RainbowFit;
 use crate::multicolor::features::{
     ColorOfMaximum, ColorOfMedian, ColorOfMinimum, ColorSpread, MultiColorPeriodogram,
 };
@@ -34,6 +36,8 @@ where
     MultiColorPeriodogram(MultiColorPeriodogram<P, T, Feature<T>>),
     MultiColorBins(MultiColorBins<P, T>),
     MultiColorBootstrap(MultiColorBootstrap<P, T>),
+    #[cfg(feature = "rainbow")]
+    RainbowFit(RainbowFit<P, T>),
 }
 
 impl<P, T> MultiColorFeature<P, T>

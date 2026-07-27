@@ -18,18 +18,6 @@ fn constant_temperature_jacobian(temperature: f64, jac: &mut [f64]) -> f64 {
 // Sigmoid
 // ---------------------------------------------------------------------
 
-fn sigmoid_temperature(t: f64, t0: f64, temperature: f64, temperature_amplitude: f64, t_color: f64) -> f64 {
-    let dt = t - t0;
-    if dt <= -100.0 * t_color {
-        return temperature * (1.0 + temperature_amplitude);
-    }
-    if dt >= 100.0 * t_color {
-        return temperature * (1.0 - temperature_amplitude);
-    }
-    let s = 1.0 / (1.0 + (dt / t_color).exp());
-    temperature * (1.0 + temperature_amplitude * (2.0 * s - 1.0))
-}
-
 fn sigmoid_temperature_jacobian(
     t: f64,
     t0: f64,
@@ -82,8 +70,14 @@ fn delayed_sigmoid_temperature_jacobian(
     jac: &mut [f64],
 ) -> f64 {
     let mut sigmoid_jac = [0.0; 4];
-    let value =
-        sigmoid_temperature_jacobian(t, t0 + t_delay, temperature, temperature_amplitude, t_color, &mut sigmoid_jac);
+    let value = sigmoid_temperature_jacobian(
+        t,
+        t0 + t_delay,
+        temperature,
+        temperature_amplitude,
+        t_color,
+        &mut sigmoid_jac,
+    );
     jac[0] = sigmoid_jac[0]; // d/d(reference_time)
     jac[1] = sigmoid_jac[1]; // d/d(T)
     jac[2] = sigmoid_jac[2]; // d/d(T_amplitude)
@@ -129,7 +123,8 @@ pub enum Temperature {
 
 const CONSTANT_PARAMS: [&str; 1] = ["T"];
 const SIGMOID_TEMP_PARAMS: [&str; 4] = ["reference_time", "T", "T_amplitude", "t_color"];
-const DELAYED_SIGMOID_PARAMS: [&str; 5] = ["reference_time", "T", "T_amplitude", "t_color", "t_delay"];
+const DELAYED_SIGMOID_PARAMS: [&str; 5] =
+    ["reference_time", "T", "T_amplitude", "t_color", "t_delay"];
 
 impl Temperature {
     pub(crate) fn params(&self) -> &'static [&'static str] {
@@ -148,7 +143,9 @@ impl Temperature {
         match self {
             Temperature::Constant => constant_temperature_jacobian(p[0], jac),
             Temperature::Sigmoid => sigmoid_temperature_jacobian(t, p[0], p[1], p[2], p[3], jac),
-            Temperature::DelayedSigmoid => delayed_sigmoid_temperature_jacobian(t, p[0], p[1], p[2], p[3], p[4], jac),
+            Temperature::DelayedSigmoid => {
+                delayed_sigmoid_temperature_jacobian(t, p[0], p[1], p[2], p[3], p[4], jac)
+            }
         }
     }
 
@@ -208,7 +205,12 @@ impl Temperature {
 mod tests {
     use super::*;
 
-    fn finite_diff_check(name: &str, n: usize, value_jac: impl Fn(&[f64], &mut [f64]) -> f64, p: &[f64]) {
+    fn finite_diff_check(
+        name: &str,
+        n: usize,
+        value_jac: impl Fn(&[f64], &mut [f64]) -> f64,
+        p: &[f64],
+    ) {
         let mut jac = vec![0.0; n];
         value_jac(p, &mut jac);
         let h = 1e-6;
@@ -244,8 +246,23 @@ mod tests {
     #[test]
     fn sigmoid_temperature_plateaus() {
         let (t0, temperature, temperature_amplitude, t_color) = (10.0, 8000.0, 0.3, 2.0);
-        let early = sigmoid_temperature(t0 - 1000.0, t0, temperature, temperature_amplitude, t_color);
-        let late = sigmoid_temperature(t0 + 1000.0, t0, temperature, temperature_amplitude, t_color);
+        let mut jac = [0.0; 4];
+        let early = sigmoid_temperature_jacobian(
+            t0 - 1000.0,
+            t0,
+            temperature,
+            temperature_amplitude,
+            t_color,
+            &mut jac,
+        );
+        let late = sigmoid_temperature_jacobian(
+            t0 + 1000.0,
+            t0,
+            temperature,
+            temperature_amplitude,
+            t_color,
+            &mut jac,
+        );
         assert!((early - temperature * 1.3).abs() <= 1e-9 * temperature);
         assert!((late - temperature * 0.7).abs() <= 1e-9 * temperature);
     }

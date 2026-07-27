@@ -28,7 +28,8 @@ fn planck_dtemperature(wave_cm: f64, temperature: f64) -> f64 {
     let nu = SPEED_OF_LIGHT / wave_cm;
     let x = PLANCK_H * nu / (BOLTZMANN_K * temperature);
     let neg_expm1 = -(-x).exp_m1();
-    let value = (2.0 * PLANCK_H / (SPEED_OF_LIGHT * SPEED_OF_LIGHT)) * nu.powi(3) * (-x).exp() / neg_expm1;
+    let value =
+        (2.0 * PLANCK_H / (SPEED_OF_LIGHT * SPEED_OF_LIGHT)) * nu.powi(3) * (-x).exp() / neg_expm1;
     // d(planck)/dT = planck * x*e^x / (T*expm1(x)) = planck * x / (T * (1 - e^{-x})), the same
     // overflow-safe rewrite as `planck` itself.
     value * x / (temperature * neg_expm1)
@@ -41,12 +42,9 @@ fn planck_dtemperature(wave_cm: f64, temperature: f64) -> f64 {
 fn genwien_x_value(wave_cm: f64, temperature: f64, spec_k: f64) -> (f64, f64) {
     let nu = SPEED_OF_LIGHT / wave_cm;
     let x = PLANCK_H * nu / (BOLTZMANN_K * temperature);
-    let value = (2.0 * PLANCK_H / (SPEED_OF_LIGHT * SPEED_OF_LIGHT)) * nu.powi(3) * (-x.powf(spec_k)).exp();
+    let value =
+        (2.0 * PLANCK_H / (SPEED_OF_LIGHT * SPEED_OF_LIGHT)) * nu.powi(3) * (-x.powf(spec_k)).exp();
     (x, value)
-}
-
-fn genwien(wave_cm: f64, temperature: f64, spec_k: f64) -> f64 {
-    genwien_x_value(wave_cm, temperature, spec_k).1
 }
 
 fn genwien_dtemperature(wave_cm: f64, temperature: f64, spec_k: f64) -> f64 {
@@ -65,11 +63,6 @@ fn genwien_jacobian(wave_cm: f64, temperature: f64, spec_k: f64, jac: &mut [f64]
 // ---------------------------------------------------------------------
 
 const MODIFIED_BB_WAVE_REF_CM: f64 = 6000e-8;
-
-fn modified_bb(wave_cm: f64, temperature: f64, beta: f64) -> f64 {
-    let tilt = (wave_cm / MODIFIED_BB_WAVE_REF_CM).powf(beta);
-    planck(wave_cm, temperature) * tilt
-}
 
 fn modified_bb_dtemperature(wave_cm: f64, temperature: f64, beta: f64) -> f64 {
     let tilt = (wave_cm / MODIFIED_BB_WAVE_REF_CM).powf(beta);
@@ -94,17 +87,18 @@ fn logparabola_l_fac(wave_cm: f64, sp_a: f64, sp_b: f64) -> (f64, f64) {
     (ell, (sp_a * ell + sp_b * ell * ell).exp())
 }
 
-fn logparabola(wave_cm: f64, temperature: f64, sp_a: f64, sp_b: f64) -> f64 {
-    let (_ell, fac) = logparabola_l_fac(wave_cm, sp_a, sp_b);
-    planck(wave_cm, temperature) * fac
-}
-
 fn logparabola_dtemperature(wave_cm: f64, temperature: f64, sp_a: f64, sp_b: f64) -> f64 {
     let (_ell, fac) = logparabola_l_fac(wave_cm, sp_a, sp_b);
     planck_dtemperature(wave_cm, temperature) * fac
 }
 
-fn logparabola_jacobian(wave_cm: f64, temperature: f64, sp_a: f64, sp_b: f64, jac: &mut [f64]) -> f64 {
+fn logparabola_jacobian(
+    wave_cm: f64,
+    temperature: f64,
+    sp_a: f64,
+    sp_b: f64,
+    jac: &mut [f64],
+) -> f64 {
     let (ell, fac) = logparabola_l_fac(wave_cm, sp_a, sp_b);
     let value = planck(wave_cm, temperature) * fac;
     jac[0] = value * ell;
@@ -191,9 +185,18 @@ impl Spectral {
 
     /// Evaluates the SED and writes its Jacobian w.r.t. this term's own local parameters
     /// (length `n_params()`, NOT including `T`) into `jac`, returning `(value, d(value)/dT)`.
-    pub(crate) fn value_jac(&self, wave_cm: f64, temperature: f64, p: &[f64], jac: &mut [f64]) -> (f64, f64) {
+    pub(crate) fn value_jac(
+        &self,
+        wave_cm: f64,
+        temperature: f64,
+        p: &[f64],
+        jac: &mut [f64],
+    ) -> (f64, f64) {
         match self {
-            Spectral::Planck => (planck(wave_cm, temperature), planck_dtemperature(wave_cm, temperature)),
+            Spectral::Planck => (
+                planck(wave_cm, temperature),
+                planck_dtemperature(wave_cm, temperature),
+            ),
             Spectral::GenWien => {
                 let value = genwien_jacobian(wave_cm, temperature, p[0], jac);
                 (value, genwien_dtemperature(wave_cm, temperature, p[0]))
@@ -204,7 +207,10 @@ impl Spectral {
             }
             Spectral::LogParabola => {
                 let value = logparabola_jacobian(wave_cm, temperature, p[0], p[1], jac);
-                (value, logparabola_dtemperature(wave_cm, temperature, p[0], p[1]))
+                (
+                    value,
+                    logparabola_dtemperature(wave_cm, temperature, p[0], p[1]),
+                )
             }
         }
     }
@@ -234,7 +240,12 @@ impl Spectral {
 mod tests {
     use super::*;
 
-    fn finite_diff_check_local(name: &str, n: usize, value_jac: impl Fn(&[f64], &mut [f64]) -> f64, p: &[f64]) {
+    fn finite_diff_check_local(
+        name: &str,
+        n: usize,
+        value_jac: impl Fn(&[f64], &mut [f64]) -> f64,
+        p: &[f64],
+    ) {
         let mut jac = vec![0.0; n];
         value_jac(p, &mut jac);
         let h = 1e-6;
@@ -257,7 +268,12 @@ mod tests {
         }
     }
 
-    fn finite_diff_check_dt(name: &str, value: impl Fn(f64) -> f64, dvalue: impl Fn(f64) -> f64, t: f64) {
+    fn finite_diff_check_dt(
+        name: &str,
+        value: impl Fn(f64) -> f64,
+        dvalue: impl Fn(f64) -> f64,
+        t: f64,
+    ) {
         let h = 1e-2;
         let numeric = (value(t + h) - value(t - h)) / (2.0 * h);
         let analytic = dvalue(t);
@@ -272,15 +288,25 @@ mod tests {
 
     #[test]
     fn planck_dtemperature_matches_finite_difference() {
-        finite_diff_check_dt("planck_dT", |t| planck(WAVE_CM, t), |t| planck_dtemperature(WAVE_CM, t), TEMP);
+        finite_diff_check_dt(
+            "planck_dT",
+            |t| planck(WAVE_CM, t),
+            |t| planck_dtemperature(WAVE_CM, t),
+            TEMP,
+        );
     }
 
     #[test]
     fn genwien_jacobian_matches_finite_difference() {
-        finite_diff_check_local("genwien", 1, |p, jac| genwien_jacobian(WAVE_CM, TEMP, p[0], jac), &[1.3]);
+        finite_diff_check_local(
+            "genwien",
+            1,
+            |p, jac| genwien_jacobian(WAVE_CM, TEMP, p[0], jac),
+            &[1.3],
+        );
         finite_diff_check_dt(
             "genwien_dT",
-            |t| genwien(WAVE_CM, t, 1.3),
+            |t| genwien_jacobian(WAVE_CM, t, 1.3, &mut [0.0; 1]),
             |t| genwien_dtemperature(WAVE_CM, t, 1.3),
             TEMP,
         );
@@ -288,10 +314,15 @@ mod tests {
 
     #[test]
     fn modified_bb_jacobian_matches_finite_difference() {
-        finite_diff_check_local("modified_bb", 1, |p, jac| modified_bb_jacobian(WAVE_CM, TEMP, p[0], jac), &[0.5]);
+        finite_diff_check_local(
+            "modified_bb",
+            1,
+            |p, jac| modified_bb_jacobian(WAVE_CM, TEMP, p[0], jac),
+            &[0.5],
+        );
         finite_diff_check_dt(
             "modified_bb_dT",
-            |t| modified_bb(WAVE_CM, t, 0.5),
+            |t| modified_bb_jacobian(WAVE_CM, t, 0.5, &mut [0.0; 1]),
             |t| modified_bb_dtemperature(WAVE_CM, t, 0.5),
             TEMP,
         );
@@ -307,7 +338,7 @@ mod tests {
         );
         finite_diff_check_dt(
             "logparabola_dT",
-            |t| logparabola(WAVE_CM, t, 0.3, -0.2),
+            |t| logparabola_jacobian(WAVE_CM, t, 0.3, -0.2, &mut [0.0; 2]),
             |t| logparabola_dtemperature(WAVE_CM, t, 0.3, -0.2),
             TEMP,
         );
@@ -315,7 +346,7 @@ mod tests {
 
     #[test]
     fn modified_bb_beta_zero_equals_planck() {
-        let a = modified_bb(WAVE_CM, TEMP, 0.0);
+        let a = modified_bb_jacobian(WAVE_CM, TEMP, 0.0, &mut [0.0; 1]);
         let b = planck(WAVE_CM, TEMP);
         assert!((a - b).abs() <= 1e-9 * b);
     }
