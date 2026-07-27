@@ -28,7 +28,7 @@ jobs:
       - run: cargo build --all-targets --features gsl,fftw-source --no-default-features
       - run: cargo build --all-targets --features gsl,fftw-system --no-default-features
       - run: cargo build --all-targets --features gsl,fftw-mkl --no-default-features
-      - run: cargo build --all-targets --features gsl,fftw-source,ceres-source --no-default-features
+      - run: cargo build --all-targets --features gsl,fftw-source,ceres-source,rainbow --no-default-features
       - run: cargo build --all-targets --features fftw-source,ceres-source --no-default-features
       # Build without FFTW (RustFFT-only)
       - run: cargo build --all-targets --no-default-features
@@ -55,7 +55,7 @@ jobs:
         with:
           shared-key: "msrv"
       # Build "normal" target only, see https://github.com/light-curve/light-curve-feature/issues/74
-      - run: cargo +${{ steps.get_msrv.outputs.msrv }} build --no-default-features --features ceres-source,fftw-source,gsl
+      - run: cargo +${{ steps.get_msrv.outputs.msrv }} build --no-default-features --features ceres-source,fftw-source,gsl,rainbow
 
   test:
     runs-on: ${{ matrix.os }}
@@ -78,7 +78,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: "stable"
-      - run: cargo test --no-default-features --features=ceres-source,fftw-source,gsl
+      - run: cargo test --no-default-features --features=ceres-source,fftw-source,gsl,rainbow
 
   test-release:
     runs-on: ubuntu-latest
@@ -97,7 +97,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: "stable"
-      - run: cargo test --profile=release-with-debug --no-default-features --features=ceres-source,fftw-source,gsl
+      - run: cargo test --profile=release-with-debug --no-default-features --features=ceres-source,fftw-source,gsl,rainbow
 
   examples:
     runs-on: ubuntu-latest
@@ -145,7 +145,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: "stable"
-      - run: cargo clippy --all-targets --no-default-features --features=ceres-source,fftw-source,gsl -- -D warnings
+      - run: cargo clippy --all-targets --no-default-features --features=ceres-source,fftw-source,gsl,rainbow -- -D warnings
 
   fmt-test-util:
     runs-on: ubuntu-latest
@@ -201,7 +201,7 @@ jobs:
           sudo apt-get install -y libfftw3-dev libgsl-dev libfontconfig-dev
       - name: Generate code coverage
         run: |
-          cargo llvm-cov --no-report --no-default-features --features=ceres-source,fftw-system,gsl
+          cargo llvm-cov --no-report --no-default-features --features=ceres-source,fftw-system,gsl,rainbow
           cargo llvm-cov run --example=plot_snia_curve_fits --no-report --no-default-features --features=ceres-source,fftw-source,gsl -- -n=1
           cargo llvm-cov report --lcov --output-path lcov.info
       - name: Upload coverage to Codecov
@@ -227,7 +227,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: "macos"
-      - run: cargo build --all-targets --no-default-features --features=ceres-source,fftw-source,gsl
+      - run: cargo build --all-targets --no-default-features --features=ceres-source,fftw-source,gsl,rainbow
 
   windows:
     runs-on: windows-latest
@@ -258,4 +258,4 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: "windows"
-      - run: cargo test --no-default-features --features=ceres-system,gsl
+      - run: cargo test --no-default-features --features=ceres-system,gsl,rainbow
