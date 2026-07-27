@@ -24,6 +24,10 @@ fftw-system = ["fftw", "fftw/system"]
 fftw-source = ["fftw", "fftw/source"]
 fftw-mkl = ["fftw", "fftw/intel-mkl"]
 gsl = ["GSL/v2_1"]
+# Enables the multi-band `RainbowFit` feature. This is the first pure-Rust linear-algebra
+# dependency in the crate (via `levenberg-marquardt`/`nalgebra`), so it is opt-in like the
+# GSL/Ceres-backed fits, rather than part of `default`.
+rainbow = ["dep:levenberg-marquardt", "dep:nalgebra"]
 
 [profile.release]
 lto = true
@@ -46,8 +50,13 @@ rustfft = "6.2"
 GSL = { version = "^7", default-features = false, optional = true }
 itertools = "^0.15"
 lazy_static = "^1.4"
+levenberg-marquardt = { version = "0.15.0", optional = true }
 libm = "^0.2"
 macro_const = "^0.1"
+# Pinned exactly: `levenberg-marquardt` 0.15.0 depends on nalgebra 0.34.2 specifically, and a
+# second nalgebra version in the dependency tree would break `LeastSquaresProblem` impls across
+# the version boundary.
+nalgebra = { version = "=0.34.2", optional = true }
 ndarray = { version = "^0.17", features = ["serde"] }
 ndarray-stats = "^0.7"
 num-complex = "^0.4"
@@ -102,4 +111,4 @@ rustdoc-args = [
     "katex-header.html",
 ]
 no-default-features = true
-features = ["ceres-source", "fftw-system", "gsl"]
+features = ["ceres-source", "fftw-system", "gsl", "rainbow"]
