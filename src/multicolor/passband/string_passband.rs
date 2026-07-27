@@ -36,6 +36,8 @@ mod tests {
         let band = StringPassband::from("r");
         assert_eq!(band.name(), "r");
         assert_eq!(band.0, "r");
+        // No wavelength override: falls back to PassbandTrait's default.
+        assert_eq!(band.wavelength(), None);
     }
 
     #[test]

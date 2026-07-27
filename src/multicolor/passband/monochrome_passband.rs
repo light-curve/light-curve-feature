@@ -74,6 +74,10 @@ where
     fn name(&self) -> &str {
         self.name
     }
+
+    fn wavelength(&self) -> Option<f64> {
+        Some(self.wavelength.value_into().unwrap())
+    }
 }
 
 #[cfg(test)]
@@ -85,5 +89,6 @@ mod tests {
         let passband = MonochromePassband::new(1.0, "test");
         assert_eq!(passband.name(), "test");
         assert_eq!(passband.wavelength, 1.0);
+        assert_eq!(PassbandTrait::wavelength(&passband), Some(1.0));
     }
 }
