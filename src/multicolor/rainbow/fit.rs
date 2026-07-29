@@ -177,61 +177,6 @@ pub(crate) struct FitResult {
     pub(crate) success: bool,
 }
 
-/// Number of extra jittered-restart attempts if the primary fit doesn't converge (see [`fit`]).
-const MAX_RETRIES: usize = 4;
-
-/// Tiny deterministic xorshift64 PRNG, used only to generate reproducible jittered restarts when
-/// the primary fit attempt doesn't converge. A hand-rolled generator avoids pulling in a `rand`
-/// dependency for what's a handful of uniform perturbations.
-struct Xorshift64(u64);
-
-impl Xorshift64 {
-    /// Uniform value in `(0, 1)`.
-    fn next_unit(&mut self) -> f64 {
-        let mut x = self.0;
-        x ^= x << 13;
-        x ^= x >> 7;
-        x ^= x << 17;
-        self.0 = x;
-        ((x >> 11) as f64) / ((1u64 << 53) as f64)
-    }
-
-    /// Uniform value in `(-halfwidth, halfwidth)`.
-    fn next_offset(&mut self, halfwidth: f64) -> f64 {
-        (2.0 * self.next_unit() - 1.0) * halfwidth
-    }
-}
-
-/// Bundles the data a fit attempt needs, so [`run_lm`] only takes one data argument regardless
-/// of how many arrays that turns out to be.
-struct FitData<'a> {
-    model: &'a RainbowModel,
-    t: &'a [f64],
-    flux: &'a [f64],
-    flux_err: &'a [f64],
-    band_idx: &'a [usize],
-}
-
-/// Runs a single Levenberg-Marquardt attempt from internal-space starting point `u0`.
-fn run_lm(
-    lm: &LevenbergMarquardt<f64>,
-    data: &FitData,
-    bounds: &[(f64, f64)],
-    u0: DVector<f64>,
-) -> (DVector<f64>, levenberg_marquardt::MinimizationReport<f64>) {
-    let problem = RainbowFitProblem {
-        model: data.model,
-        t: data.t,
-        flux: data.flux,
-        flux_err: data.flux_err,
-        band_idx: data.band_idx,
-        bounds: bounds.to_vec(),
-        u: u0,
-    };
-    let (solved, report) = lm.minimize(problem);
-    (solved.u, report)
-}
-
 /// Jointly fits all bands' flux observations `(t, flux, flux_err, band_idx)` to `model`.
 ///
 /// `band_idx[i]` must index into `model`'s bands. Mismatched array lengths are a caller bug and
@@ -250,10 +195,14 @@ fn run_lm(
 /// chance to be reached on harder fits rather than hitting the (now effectively unchanged)
 /// absolute evaluation cap first.
 ///
-/// If that first attempt still doesn't converge, retries up to [`MAX_RETRIES`] times from
-/// jittered starting points (deterministic, so results are reproducible), keeping whichever
-/// attempt reaches the lowest objective. This only adds cost on the failure path -- the common
-/// case (first attempt converges) is unaffected.
+/// Deliberately does *not* retry from jittered starting points on failure: tried it (see git
+/// history), and on every real non-converging light curve tested it either reproduced the same
+/// point or landed somewhere worse, while roughly doubling worst-case runtime on exactly the
+/// hardest fits (each retry re-running up to the full evaluation budget). A light curve that's
+/// still `LostPatience` after this tolerance/budget is either genuinely too sparse to constrain
+/// the model, or (like one observed case) converging so slowly that reaching the tolerance would
+/// cost seconds for a <0.1% change in the objective -- in both cases `success: false` is the
+/// more honest answer than spending that time to relabel an unchanged result.
 pub(crate) fn fit(
     model: &RainbowModel,
     t: &[f64],
@@ -278,39 +227,25 @@ pub(crate) fn fit(
     let bounds = model.bounds(t, flux, flux_err, band_idx);
     let guess = model.initial_guess(t, flux, flux_err, band_idx);
     let u0 = external_to_internal(&guess, &bounds);
-    let data = FitData {
+
+    let problem = RainbowFitProblem {
         model,
         t,
         flux,
         flux_err,
         band_idx,
+        bounds,
+        u: u0,
     };
 
-    let lm = LevenbergMarquardt::new().with_tol(1e-8).with_patience(1000);
-    let (mut best_u, mut best_report) = run_lm(&lm, &data, &bounds, u0.clone());
-
-    if !best_report.termination.was_successful() {
-        // Seed depends only on the data size, so retries are deterministic and reproducible
-        // across runs on the same light curve, but vary between differently-sized fits.
-        let mut rng = Xorshift64(0x9E3779B97F4A7C15 ^ (t.len() as u64));
-        for _ in 0..MAX_RETRIES {
-            let jittered_u0 =
-                DVector::from_iterator(u0.len(), u0.iter().map(|&u| u + rng.next_offset(3.0)));
-            let (candidate_u, candidate_report) = run_lm(&lm, &data, &bounds, jittered_u0);
-            if candidate_report.objective_function < best_report.objective_function {
-                best_u = candidate_u;
-                best_report = candidate_report;
-            }
-            if best_report.termination.was_successful() {
-                break;
-            }
-        }
-    }
-
-    let (params, _) = internal_to_external(&best_u, &bounds);
+    let (solved, report) = LevenbergMarquardt::new()
+        .with_tol(1e-8)
+        .with_patience(1000)
+        .minimize(problem);
+    let (params, _) = internal_to_external(&solved.u, &solved.bounds);
 
     let dof = (t.len() as isize - n_params as isize).max(1) as f64;
-    let chi2 = 2.0 * best_report.objective_function;
+    let chi2 = 2.0 * report.objective_function;
     let reduced_chi2 = chi2 / dof;
 
     let cov = covariance_from_jacobian(model, t, flux_err, band_idx, &params);
@@ -320,7 +255,7 @@ pub(crate) fn fit(
         params,
         errors,
         reduced_chi2,
-        success: best_report.termination.was_successful(),
+        success: report.termination.was_successful(),
     }
 }
 
@@ -383,18 +318,6 @@ mod tests {
                     "jacobian[{i},{j}]: analytic={a}, numeric={n}"
                 );
             }
-        }
-    }
-
-    #[test]
-    fn xorshift64_offsets_stay_in_range_and_are_deterministic() {
-        let mut rng_a = Xorshift64(12345);
-        let mut rng_b = Xorshift64(12345);
-        for _ in 0..100 {
-            let a = rng_a.next_offset(3.0);
-            let b = rng_b.next_offset(3.0);
-            assert_eq!(a, b, "same seed must give the same sequence");
-            assert!((-3.0..=3.0).contains(&a), "offset {a} out of (-3, 3)");
         }
     }
 
