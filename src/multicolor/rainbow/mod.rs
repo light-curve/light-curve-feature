@@ -4,69 +4,43 @@
 //! $$
 //! \mathrm{flux}(t, \lambda) = \mathrm{bol}(t) \cdot \frac{B(\lambda, T(t))}{\mathrm{norm}(T(t))} \ [+ \ \mathrm{baseline}_\mathrm{band}].
 //! $$
-//! `bol(t)` (a [`terms::Bolometric`] choice), `T(t)` (a [`terms::Temperature`] choice), and
-//! `B(lambda, T)` (a [`terms::Spectral`] choice) are independently pluggable; see [`RainbowFit::new`]
-//! and each enum's own documentation for the available functional forms and their parameters.
-//! `norm(T)` is always the Stefan-Boltzmann/Planck-based normalization regardless of which SED is
-//! chosen (see [`model`] for the composition), so the overall flux scale is carried entirely by
-//! the bolometric term's `amplitude`.
+//! `bol(t)`, `T(t)`, and `B(lambda, T)` are independently pluggable ([`terms::Bolometric`],
+//! [`terms::Temperature`], [`terms::Spectral`] -- see [`RainbowFit::new`]). `norm(T)` is always
+//! the Planck-based normalization, so overall flux scale is carried by the bolometric term's
+//! `amplitude`.
 //!
-//! # Why this doesn't use `nl_fit`/`CurveFitAlgorithm`
+//! # Why not `nl_fit`
 //!
-//! [`nl_fit`](crate::nl_fit) (used by `BazinFit`, `VillarFit`, etc.) is built around a
-//! compile-time-fixed `const NPARAMS: usize`: fixed-size `[f64; NPARAMS]` arrays throughout, and
-//! [`CurveFitTrait`](crate::nl_fit::CurveFitTrait)'s `curve_fit` is generic over that same
-//! constant. Rainbow's parameter count depends on which bolometric/temperature/spectral terms are
-//! chosen (and whether a baseline is fit), so it can't be a compile-time constant here. Instead,
-//! [`fit`] implements a self-contained Levenberg-Marquardt fit (via the `levenberg-marquardt`
-//! crate, `Dyn`-dimensioned rather than `Const<NPARAMS>`) directly, the same way `ParabolaFit`
-//! (`crate::parabola_fit`) implements its own closed-form fit without going through `nl_fit`.
-//!
-//! # Bounds instead of `nl_fit`'s internal/dimensionless/external spaces
-//!
-//! Every parameter is fit through an unconstrained internal optimizer variable, reparametrized
-//! into a physical-unit `(lower, upper)` box via a logistic map (see [`fit`]'s module doc for the
-//! exact transform) -- conceptually the same idea as `nl_fit`'s internal/dimensionless/external
-//! split (e.g. `BazinFit` using `abs()` to enforce positivity), but expressed as a single bounded
-//! transform per parameter rather than a separate data-normalization layer plus a sign-only
-//! reparametrization. Bounds are computed per-fit from the data (mirroring the Python reference
-//! implementation's heuristics) by each term's own `bounds()` method.
+//! [`nl_fit`](crate::nl_fit) (used by `BazinFit`, `VillarFit`, etc.) assumes a compile-time
+//! `const NPARAMS`. Rainbow's parameter count depends on which terms are chosen, so it can't be
+//! one; [`fit`] instead runs its own `Dyn`-dimensioned Levenberg-Marquardt fit directly, the same
+//! way `ParabolaFit` bypasses `nl_fit` for its own closed-form fit. See [`fit`]'s module doc for
+//! the bounded-parameter transform.
 //!
 //! # Uncertainties
 //!
-//! [`fit::fit`] additionally computes 1-sigma parameter uncertainties from the Gauss-Newton
-//! covariance approximation `inv(JᵀJ)` (cheap: reuses the fit's own per-point gradient, one
-//! `n_params x n_params` matrix inversion). These are appended to this feature's output as
-//! `<name>_sigma` columns rather than requiring the generic `Bootstrap`/`MultiColorBootstrap`
-//! wrapper (which would substantially multiply the cost via resampling) -- see
-//! [`RainbowFit::build_properties`] for the exact output layout. Whether this is the right
-//! convention (vs. leaving uncertainty estimation to the `Bootstrap` wrapper, matching every
-//! other feature) is a design question for review.
+//! [`fit::fit`] also returns 1-sigma parameter uncertainties (Gauss-Newton `inv(JᵀJ)`, cheap
+//! since it reuses the fit's own gradient), appended to the output as `<name>_sigma` columns
+//! instead of going through the generic `Bootstrap` wrapper (which would multiply the cost via
+//! resampling). See [`RainbowFit::build_properties`] for the exact layout -- a different
+//! convention from every other feature, worth a second look on review.
 //!
 //! # Open design questions (flagged for review)
 //!
-//! - **New dependency**: this is the first pure-Rust linear-algebra dependency in the crate
-//!   (`levenberg-marquardt`, pulling in `nalgebra`), gated behind the opt-in `rainbow` Cargo
-//!   feature (see `Cargo.toml`) rather than `default`, following the `gsl`/`ceres-*` precedent
-//!   for optional heavy dependencies.
-//! - **`PassbandTrait::wavelength()`**: added as a new default (`None`) method so `RainbowFit`
-//!   can require a wavelength while still slotting into the generic `MultiColorFeature<P, T>`
-//!   registry like every other feature, at the cost of one new trait method affecting the
-//!   whole `multicolor` module.
-//! - **Output layout**: whether baking in analytic uncertainties (see above) is the right call,
-//!   or whether it should be dropped in favor of the existing `Bootstrap` convention.
+//! - **New dependency**: first pure-Rust linear-algebra dependency in the crate
+//!   (`levenberg-marquardt` + `nalgebra`), gated behind the opt-in `rainbow` Cargo feature.
+//! - **`PassbandTrait::wavelength()`**: new default (`None`) method so `RainbowFit` can require
+//!   a wavelength while still fitting into the generic `MultiColorFeature<P, T>` registry.
+//! - **Output layout**: see "Uncertainties" above.
 //!
 //! # Not yet ported from the Python reference
 //!
-//! - `bolometric = "linexp"`: Python's own docstring flags its guesses/limits as unstable,
-//!   confirmed by a seed sweep during development of this port (roughly half of random seeds
-//!   land the fit in a self-consistent-looking but wrong local optimum).
-//! - `spectral = "blanketed"`: its `lambda_scale` parameter anchors to the temperature term's own
-//!   characteristic `T` via Python's `common_temp_spec` cross-term parameter sharing, more
-//!   involved than a straight port of the other terms.
-//! - Gaussian priors on individual parameters (Python anchors e.g. `T_amplitude`, `beta` toward
-//!   0 to break known degeneracies for some spectral terms); non-detections/upper limits (Python
-//!   supports a Tobit-model likelihood term for these).
+//! - `bolometric = "linexp"`: Python's own docstring flags its guesses/limits as unstable
+//!   (confirmed here by a seed sweep -- about half land in a wrong local optimum).
+//! - `spectral = "blanketed"`: anchors to the temperature term's own `T` via Python's
+//!   `common_temp_spec` cross-term sharing, more involved than the other terms.
+//! - Gaussian priors anchoring some parameters (e.g. `T_amplitude`, `beta`) toward 0, and
+//!   non-detection/upper-limit support (Python's Tobit-model likelihood).
 
 mod constants;
 mod fit;
@@ -127,9 +101,8 @@ where
     spectral: Spectral,
     with_baseline: bool,
     passband_set: PassbandSet<P>,
-    /// Built once at construction from `passband_set`'s (sorted) iteration order; `model`'s
-    /// internal band indices correspond 1:1 to that same order, which `eval_multicolor_no_mcts_check`
-    /// relies on when flattening the input data.
+    /// Band indices match `passband_set`'s sorted order (relied on by
+    /// `eval_multicolor_no_mcts_check`).
     model: RainbowModel,
     properties: Box<EvaluatorProperties>,
     _marker: PhantomData<T>,
@@ -226,21 +199,15 @@ where
         EvaluatorProperties {
             info: EvaluatorInfo {
                 size: names.len(),
-                // A genuine per-band minimum isn't meaningful here (the fit is joint across
-                // bands, so what matters is the *total* point count vs. parameter count, not any
-                // single band's length); that check happens inside `eval_multicolor_no_mcts_check`
-                // via `fit::fit`'s own graceful "too few points" handling, converted to a proper
-                // error instead of relying on this precondition.
+                // Per-band minimums aren't meaningful for a joint multi-band fit; the real
+                // total-vs-parameter-count check happens inside `fit::fit`.
                 min_ts_length: 1,
                 t_required: true,
                 m_required: true,
                 w_required: true,
                 sorting_required: false,
-                // Not enforced per-band (see min_ts_length's comment): a single flat band
-                // shouldn't necessarily block a joint multi-band fit. A light curve that is flat
-                // in *every* band will not error here; today it produces a poorly-constrained
-                // (but not crashing) fit rather than a clean rejection -- a known gap, flagged in
-                // the module-level documentation rather than silently accepted.
+                // A light curve flat in every band isn't rejected today; it just produces a
+                // poorly-constrained fit (known gap, see module docs).
                 variability_required: false,
             },
             names,
@@ -248,10 +215,9 @@ where
         }
     }
 
-    /// Analytic bolometric peak time, if defined for the chosen [`Bolometric`] term (see each
-    /// variant's documentation). `params` must be the first `n_params` values of this feature's
-    /// output (i.e. the fitted parameters, not their `_sigma` uncertainties or `reduced_chi2`),
-    /// in [`FeatureNamesDescriptionsTrait::get_names`] order.
+    /// Analytic bolometric peak time, if defined for the chosen [`Bolometric`] term. `params`
+    /// must be just the fitted parameters (the first `n_params` values of this feature's
+    /// output, not the `_sigma`/`reduced_chi2` tail).
     pub fn peak_time(&self, params: &[T]) -> Option<T> {
         let params_f64: Vec<f64> = params.iter().map(|&x| x.value_into().unwrap()).collect();
         self.model.peak_time(&params_f64).map(|t| {
@@ -317,9 +283,8 @@ where
         'slf: 'a,
         'a: 'mcts,
     {
-        // Flatten all matched bands into flat f64 arrays, in the same band order as
-        // `self.model`'s internal band list (`self.passband_set`'s sorted iteration order, which
-        // is exactly how `model` was built in `new`).
+        // Flatten into flat f64 arrays; band order matches `self.model` (built from
+        // `passband_set`'s sorted order in `new`).
         mcts.with_mapping_mut(|_| {});
         let mapping = mcts.mapping().expect("mapping was just ensured");
 
@@ -371,9 +336,8 @@ where
     }
 }
 
-/// Serde/JsonSchema surrogate for [`RainbowFit`]: only the user-facing configuration is
-/// (de)serialized; `model`/`properties` are rebuilt from it (via [`RainbowFit::new`]) since they
-/// are derived state, not independent configuration.
+/// Serde/JsonSchema surrogate for [`RainbowFit`]: (de)serializes only the user-facing config;
+/// `model`/`properties` are derived state, rebuilt via [`RainbowFit::new`].
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(
     rename = "RainbowFit",

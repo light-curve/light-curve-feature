@@ -4,22 +4,17 @@
 //! \mathrm{flux}(t, \lambda) = \mathrm{bol}(t) \cdot \frac{B(\lambda, T(t))}{\mathrm{norm}(T(t))} \ [+ \ \mathrm{baseline}_\mathrm{band}],
 //! \quad \mathrm{norm}(T) = \frac{\sigma_{SB} T^4}{\pi\,\bar\nu},
 //! $$
-//! where $\bar\nu$ is the mean frequency across the fitted bands' wavelengths. This composition
-//! (and the `norm(T)` normalization, which always uses the Stefan-Boltzmann/Planck form
-//! regardless of which SED term is chosen -- only the SED's *shape* varies per term, not this
-//! amplitude normalization) mirrors Python's
-//! `light_curve_py.features.rainbow._base.BaseRainbowFit._lsq_model_{no_,with_}baseline`.
+//! where $\bar\nu$ is the mean frequency across the fitted bands. `norm(T)` always uses the
+//! Stefan-Boltzmann/Planck form regardless of which SED term is chosen -- only the SED's
+//! *shape* varies per term. Mirrors Python's `BaseRainbowFit._lsq_model_{no_,with_}baseline`.
 //!
-//! This module works entirely in physical `f64` units on a fixed internal [`Band`] list (name +
-//! wavelength in cm); it has no awareness of the crate's generic `T: Float` or `P: PassbandTrait`
-//! -- [RainbowFit](super::RainbowFit) converts each configured passband's name/wavelength once at
-//! construction time and is the only place those generics matter.
+//! Works entirely in physical `f64` units on a fixed [`Band`] list; has no awareness of the
+//! crate's generic `T: Float`/`P: PassbandTrait` -- [RainbowFit](super::RainbowFit) converts
+//! once at construction and is the only place those generics matter.
 //!
-//! Since different bolometric/temperature/spectral term combinations (and band counts, when
-//! `with_baseline`) have different numbers of (possibly shared, e.g. `reference_time`)
-//! parameters, the parameter vector is a runtime-sized `&[f64]` rather than a fixed struct;
-//! [`ParamLayout`] records, for each term, which global parameter index its local parameters map
-//! to.
+//! Different term combinations have different (possibly shared, e.g. `reference_time`)
+//! parameter counts, so the parameter vector is a runtime-sized `&[f64]`; [`ParamLayout`] maps
+//! each term's local parameter indices into that shared global vector.
 
 use std::collections::HashMap;
 use std::f64::consts::PI;

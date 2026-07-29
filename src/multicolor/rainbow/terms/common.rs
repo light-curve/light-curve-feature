@@ -1,13 +1,9 @@
 //! Shared initial-guess heuristics used by more than one bolometric/temperature term.
 
-/// Weighted centroid time and its spread, used as an initial guess for
-/// `reference_time` and various rise/fall/color timescales.
-///
-/// The centroid is computed only from points above the median flux (i.e. roughly the
-/// "bright half" of the light curve), weighted by `flux / flux_err`, so it approximates the
-/// peak position without needing to know the model shape in advance. The spread is the
-/// flux-weighted standard deviation of time around that centroid, used as a starting guess for
-/// timescale parameters (rise/fall/color).
+/// Weighted centroid time and its spread, used as an initial guess for `reference_time` and
+/// rise/fall/color timescales. Centroid uses only points above the median flux (the "bright
+/// half"), weighted by `flux / flux_err`, to approximate the peak position without assuming a
+/// model shape; spread is the flux-weighted time stddev around that centroid.
 pub fn t0_and_weighted_centroid_sigma(t: &[f64], flux: &[f64], flux_err: &[f64]) -> (f64, f64) {
     let min_flux = flux.iter().cloned().fold(f64::MAX, f64::min);
     let mc: Vec<f64> = flux.iter().map(|m| m - min_flux).collect();

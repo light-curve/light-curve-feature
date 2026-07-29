@@ -7,11 +7,9 @@ pub trait PassbandTrait: Debug + Clone + Send + Sync + Ord + Serialize + JsonSch
 
     /// Effective wavelength of the passband, in cm, if known.
     ///
-    /// Defaults to `None` so existing implementors (e.g. [StringPassband](super::StringPassband),
-    /// which only carries a label) are unaffected. Wavelength-aware features such as `RainbowFit`
-    /// require it and reject passbands that return `None` at evaluation time, the same way any
-    /// other feature rejects a passband it can't use. [MonochromePassband](super::MonochromePassband)
-    /// overrides this to return its wavelength.
+    /// Defaults to `None` so existing implementors (e.g. [StringPassband](super::StringPassband))
+    /// are unaffected; [MonochromePassband](super::MonochromePassband) overrides it.
+    /// Wavelength-aware features like `RainbowFit` reject passbands that return `None`.
     fn wavelength(&self) -> Option<f64> {
         None
     }

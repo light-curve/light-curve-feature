@@ -1,25 +1,17 @@
 //! Levenberg-Marquardt fitting of the [`RainbowModel`].
 //!
-//! Every physical parameter is fit through an unconstrained "internal" optimizer variable `u`,
-//! reparametrized to always land inside the parameter's `(lower, upper)` box bounds via a
-//! logistic (sigmoid) map: `external = lower + (upper - lower) / (1 + exp(-u))`. This is the same
-//! idea Python's `iminuit`/MINUIT uses internally for bounded parameters (and the same spirit as
-//! this crate's own [`nl_fit`](crate::nl_fit) module's internal/external parameter-space split),
-//! but expressed as a single transform instead of separate data-normalization and sign-only
-//! reparametrization steps: since `u`'s scale only depends on where the true value sits within
-//! its bound interval (not on the parameter's physical magnitude), no separate data-normalization
-//! ("dimensionless") layer is needed for optimizer conditioning.
+//! Parameters are optimized in an unconstrained internal space `u`, mapped into each
+//! parameter's `(lower, upper)` bounds via a logistic transform:
+//! `external = lower + (upper - lower) / (1 + exp(-u))` -- the same idea iminuit uses
+//! internally for bounded parameters.
 //!
-//! This is why Rainbow does not use [`nl_fit`](crate::nl_fit)/[`CurveFitAlgorithm`](crate::nl_fit::CurveFitAlgorithm):
-//! that machinery is built around a compile-time-fixed `const NPARAMS: usize` (fixed-size
-//! `[f64; NPARAMS]` arrays throughout), whereas Rainbow's parameter count varies with the chosen
-//! bolometric/temperature/spectral term combination. The optimizer here is `levenberg-marquardt`
-//! (a pure-Rust, `nalgebra`-based Levenberg-Marquardt implementation) working with dynamically
-//! (`Dyn`)-sized vectors/matrices instead.
+//! Uses the `levenberg-marquardt` crate (pure Rust, `nalgebra`-based, `Dyn`-sized) rather than
+//! this crate's own [`nl_fit`](crate::nl_fit), because `nl_fit` assumes a compile-time-fixed
+//! `NPARAMS`, while Rainbow's parameter count depends on the chosen term combination.
 //!
-//! Bounds themselves are physical-unit and mostly data-dependent (e.g. `rise_time`'s upper bound
-//! scales with the light curve's time span); they're computed once per fit from
-//! `super::terms::{Bolometric, Temperature, Spectral}::bounds()`.
+//! Bounds are physical-unit and data-dependent (e.g. `rise_time`'s upper bound scales with the
+//! light curve's time span); computed per fit by `super::terms::{Bolometric, Temperature,
+//! Spectral}::bounds()`.
 
 use levenberg_marquardt::{LeastSquaresProblem, LevenbergMarquardt};
 use nalgebra::{DMatrix, DVector, Dyn, OMatrix, storage::Owned};
@@ -66,23 +58,12 @@ fn external_to_internal(external: &[f64], bounds: &[(f64, f64)]) -> DVector<f64>
     )
 }
 
-/// Parameter covariance matrix from the Gauss-Newton approximation `inv(JᵀJ)` at the converged
-/// solution, where `J` is `d(residual)/d(external param)` (residuals already weighted by
-/// `1/flux_err`). Mirrors Python's `_lsq_covariance`: the same construction scipy's `curve_fit`
-/// uses with `absolute_sigma=True` -- no rescaling by `reduced_chi2`.
+/// Parameter covariance `inv(JᵀJ)` (Gauss-Newton approximation), reusing the fit's own
+/// per-point gradient -- same convention as `scipy.curve_fit`'s `absolute_sigma=True`.
 ///
-/// Cheap: this is one extra pass over the data building an `n_points x n_params` Jacobian (the
-/// same per-point gradient the fit already computes every iteration) plus inverting an
-/// `n_params x n_params` matrix (at most ~10x10 for the richest term combinations), done once
-/// after convergence.
-///
-/// Falls back to the Moore-Penrose pseudo-inverse when `JᵀJ` is singular or non-positive-definite
-/// -- that signals an unidentified parameter direction (a genuine degeneracy, e.g. two
-/// parameters that trade off perfectly given this data), not a failed fit, so a best-effort
-/// covariance is still returned. Caveat (same as Python's): the pseudo-inverse reports a
-/// *near-zero* variance for a fully unconstrained direction, which understates the true
-/// uncertainty there -- the fitted parameters and chi2 are unaffected, only that direction's
-/// error bar is unreliable.
+/// Falls back to the pseudo-inverse when `JᵀJ` is singular (a degenerate parameter direction,
+/// not a failed fit); that direction's reported error will then read as near-zero rather than
+/// its true, unconstrained uncertainty.
 fn covariance_from_jacobian(
     model: &RainbowModel,
     t: &[f64],
@@ -166,43 +147,28 @@ impl<'a> LeastSquaresProblem<f64, Dyn, Dyn> for RainbowFitProblem<'a> {
 pub(crate) struct FitResult {
     /// Fitted physical parameters, in [`RainbowModel::param_names`] order.
     pub(crate) params: Vec<f64>,
-    /// 1-sigma uncertainty on each parameter (same order as `params`), from the Gauss-Newton
-    /// covariance approximation. See [`covariance_from_jacobian`] for the method and its caveats
-    /// around genuinely degenerate parameters. (The full covariance matrix, off-diagonal
-    /// correlations included, is computed as an intermediate value but not currently surfaced
-    /// here -- a flat per-parameter matrix doesn't fit this crate's flat named-scalar feature
-    /// output convention. Easy to add later if a use for it comes up.)
+    /// 1-sigma uncertainty per parameter, same order as `params`. See
+    /// [`covariance_from_jacobian`].
     pub(crate) errors: Vec<f64>,
     pub(crate) reduced_chi2: f64,
     pub(crate) success: bool,
 }
 
-/// Jointly fits all bands' flux observations `(t, flux, flux_err, band_idx)` to `model`.
+/// Jointly fits all bands' `(t, flux, flux_err, band_idx)` to `model`.
 ///
-/// `band_idx[i]` must index into `model`'s bands. Mismatched array lengths are a caller bug and
-/// panic; too few data points to constrain the model (a normal data-quality condition, not a bug
-/// -- real light curves are sometimes too sparse) instead returns a [`FitResult`] with
-/// `success: false` and NaN-filled outputs, so callers don't need to pre-check `t.len()`
-/// themselves.
+/// Too few points to constrain the model returns `success: false` with NaN outputs rather than
+/// panicking -- sparse real light curves are a normal data-quality issue, not a bug.
 ///
-/// Uses a looser convergence tolerance than `levenberg-marquardt`'s default (`1e-8`, matching
-/// `scipy.optimize.curve_fit`/iminuit's usual convention, rather than the crate's default of
-/// `f64::EPSILON * 30 ≈ 6.7e-15`): on real, noisy light curves the default is tight enough that
-/// the optimizer routinely exhausts its evaluation budget (`LostPatience`) without ever
-/// satisfying it, even after it has already reached essentially the same point a looser
-/// tolerance would accept as converged -- i.e. the fit was fine, just mislabeled as failed. The
-/// evaluation budget (`patience`) is raised to match, so the looser tolerance actually gets a
-/// chance to be reached on harder fits rather than hitting the (now effectively unchanged)
-/// absolute evaluation cap first.
+/// Uses `tol=1e-8` (`scipy.curve_fit`/iminuit convention), looser than
+/// `levenberg-marquardt`'s default (`~6.7e-15`): the default is tight enough that real, noisy
+/// data routinely exhausts the evaluation budget (`LostPatience`) after already reaching
+/// essentially its final point -- a mislabeled success, not an actual failure. Patience is
+/// raised to match, so harder fits get a real chance to reach the looser tolerance.
 ///
-/// Deliberately does *not* retry from jittered starting points on failure: tried it (see git
-/// history), and on every real non-converging light curve tested it either reproduced the same
-/// point or landed somewhere worse, while roughly doubling worst-case runtime on exactly the
-/// hardest fits (each retry re-running up to the full evaluation budget). A light curve that's
-/// still `LostPatience` after this tolerance/budget is either genuinely too sparse to constrain
-/// the model, or (like one observed case) converging so slowly that reaching the tolerance would
-/// cost seconds for a <0.1% change in the objective -- in both cases `success: false` is the
-/// more honest answer than spending that time to relabel an unchanged result.
+/// No retry from jittered starting points on failure: tried it, and across every real
+/// non-converging light curve found, retries never beat the first attempt while roughly
+/// doubling worst-case runtime. A fit still `LostPatience` after this is genuinely
+/// underconstrained or converging too slowly for the extra time to be worth it.
 pub(crate) fn fit(
     model: &RainbowModel,
     t: &[f64],
