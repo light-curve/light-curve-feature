@@ -95,7 +95,7 @@
 //! Models implement [`FitModelTrait`](evaluator::FitModelTrait):
 //!
 //! ```text
-//! fn model(t: T, internal_params: &[U; NPARAMS]) -> U
+//! fn model(t: T, internal_params: &[U]) -> U
 //! ```
 //!
 //! The model receives **internal** parameters and typically transforms them to dimensionless

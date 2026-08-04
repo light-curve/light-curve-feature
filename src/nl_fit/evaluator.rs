@@ -3,224 +3,109 @@ use crate::float_trait::Float;
 use crate::nl_fit::{CurveFitAlgorithm, LikeFloat, LnPrior, data::NormalizedData};
 
 use schemars::JsonSchema;
-use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use std::fmt::Debug;
+use smallvec::SmallVec;
 
-pub trait FitModelTrait<T, U, const NPARAMS: usize>
+/// Inline capacity for [`FitParametersInternalDimlessTrait`]'s per-point-hot transforms: covers
+/// every current fixed-`NPARAMS` feature (Bazin=5, Linexp=4, Villar=7) without spilling to the
+/// heap. Larger parameter counts still work, just via a heap allocation past this size.
+pub const MAX_INLINE_PARAMS: usize = 8;
+
+pub trait FitModelTrait<T, U>
 where
     T: Float + Into<U>,
     U: LikeFloat,
 {
-    fn model(t: T, param: &[U; NPARAMS]) -> U
+    fn model(t: T, param: &[U]) -> U
     where
         T: Float + Into<U>,
         U: LikeFloat;
 }
 
-pub trait FitFunctionTrait<T: Float, const NPARAMS: usize>:
-    FitModelTrait<T, T, NPARAMS> + FitParametersInternalDimlessTrait<T, NPARAMS>
+pub trait FitFunctionTrait<T: Float>:
+    FitModelTrait<T, T> + FitParametersInternalDimlessTrait<T>
 {
     fn f(t: T, values: &[T]) -> T {
-        let internal = Self::dimensionless_to_internal(
-            values[..NPARAMS]
-                .try_into()
-                .expect("values slice's length is too small"),
-        );
+        let internal = Self::dimensionless_to_internal(values);
         Self::model(t, &internal)
     }
 }
 
-pub trait FitDerivalivesTrait<T: Float, const NPARAMS: usize> {
-    fn derivatives(t: T, param: &[T; NPARAMS], jac: &mut [T; NPARAMS]);
+pub trait FitDerivalivesTrait<T: Float> {
+    fn derivatives(t: T, param: &[T], jac: &mut [T]);
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
-#[serde(
-    into = "FitArraySerde<T>",
-    try_from = "FitArraySerde<T>",
-    bound = "T: Debug + Clone + Serialize + DeserializeOwned + JsonSchema"
-)]
-pub struct FitArray<T, const NPARAMS: usize>(pub [T; NPARAMS]);
-
-impl<T, const NPARAMS: usize> JsonSchema for FitArray<T, NPARAMS>
-where
-    T: schemars::JsonSchema,
-{
-    fn is_referenceable() -> bool {
-        false
-    }
-
-    fn schema_name() -> String {
-        FitArraySerde::<T>::schema_name()
-    }
-
-    fn json_schema(r#gen: &mut schemars::r#gen::SchemaGenerator) -> schemars::schema::Schema {
-        FitArraySerde::<T>::json_schema(r#gen)
-    }
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, PartialEq)]
+pub struct FitInitsBoundsArrays {
+    pub init: Vec<f64>,
+    pub lower: Vec<f64>,
+    pub upper: Vec<f64>,
 }
 
-impl<T, const NPARAMS: usize> From<[T; NPARAMS]> for FitArray<T, NPARAMS> {
-    fn from(item: [T; NPARAMS]) -> Self {
-        Self(item)
-    }
-}
-
-impl<T, const NPARAMS: usize> std::ops::Deref for FitArray<T, NPARAMS> {
-    type Target = [T; NPARAMS];
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl<T, const NPARAMS: usize> From<FitArray<T, NPARAMS>> for FitArray<Option<T>, NPARAMS>
-where
-    T: Copy,
-{
-    fn from(item: FitArray<T, NPARAMS>) -> Self {
-        let mut opt = [None; NPARAMS];
-        for (&x, y) in item.0.iter().zip(opt.iter_mut()) {
-            *y = Some(x);
-        }
-        opt.into()
-    }
-}
-
-impl<T, const NPARAMS: usize> FitArray<Option<T>, NPARAMS>
-where
-    T: Clone,
-{
-    fn unwrap_with(&self, with: &FitArray<T, NPARAMS>) -> FitArray<T, NPARAMS> {
-        let mut a = with.clone();
-        for (opt, x) in self.0.iter().zip(a.0.iter_mut()) {
-            if let Some(value) = opt {
-                *x = value.clone()
-            }
-        }
-        a
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(
-    rename = "FitArray",
-    bound = "T: Debug + Clone + Serialize + DeserializeOwned + JsonSchema"
-)]
-struct FitArraySerde<T>(Vec<T>);
-
-impl<T, const NPARAMS: usize> From<FitArray<T, NPARAMS>> for FitArraySerde<T> {
-    fn from(item: FitArray<T, NPARAMS>) -> Self {
-        Self(item.0.into())
-    }
-}
-
-impl<T, const NPARAMS: usize> TryFrom<FitArraySerde<T>> for FitArray<T, NPARAMS> {
-    type Error = &'static str;
-
-    fn try_from(item: FitArraySerde<T>) -> Result<Self, Self::Error> {
-        Ok(Self(
-            item.0
-                .try_into()
-                .map_err(|_| "wrong size of the FitArray object")?,
-        ))
+impl FitInitsBoundsArrays {
+    pub fn new(init: Vec<f64>, lower: Vec<f64>, upper: Vec<f64>) -> Self {
+        Self { init, lower, upper }
     }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, PartialEq)]
-pub struct FitInitsBoundsArrays<const NPARAMS: usize> {
-    pub init: FitArray<f64, NPARAMS>,
-    pub lower: FitArray<f64, NPARAMS>,
-    pub upper: FitArray<f64, NPARAMS>,
+pub struct OptionFitInitsBoundsArrays {
+    pub init: Vec<Option<f64>>,
+    pub lower: Vec<Option<f64>>,
+    pub upper: Vec<Option<f64>>,
 }
 
-impl<const NPARAMS: usize> FitInitsBoundsArrays<NPARAMS> {
-    pub fn new(init: [f64; NPARAMS], lower: [f64; NPARAMS], upper: [f64; NPARAMS]) -> Self {
-        Self {
-            init: init.into(),
-            lower: lower.into(),
-            upper: upper.into(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, PartialEq)]
-pub struct OptionFitInitsBoundsArrays<const NPARAMS: usize> {
-    pub init: FitArray<Option<f64>, NPARAMS>,
-    pub lower: FitArray<Option<f64>, NPARAMS>,
-    pub upper: FitArray<Option<f64>, NPARAMS>,
-}
-
-impl<const NPARAMS: usize> OptionFitInitsBoundsArrays<NPARAMS> {
-    pub fn new(
-        init: [Option<f64>; NPARAMS],
-        lower: [Option<f64>; NPARAMS],
-        upper: [Option<f64>; NPARAMS],
-    ) -> Self {
-        Self {
-            init: init.into(),
-            lower: lower.into(),
-            upper: upper.into(),
-        }
+impl OptionFitInitsBoundsArrays {
+    pub fn new(init: Vec<Option<f64>>, lower: Vec<Option<f64>>, upper: Vec<Option<f64>>) -> Self {
+        Self { init, lower, upper }
     }
 
-    pub fn unwrap_with(&self, x: &FitInitsBoundsArrays<NPARAMS>) -> FitInitsBoundsArrays<NPARAMS> {
+    pub fn unwrap_with(&self, x: &FitInitsBoundsArrays) -> FitInitsBoundsArrays {
+        let unwrap_slice = |opt: &[Option<f64>], with: &[f64]| -> Vec<f64> {
+            opt.iter().zip(with).map(|(o, &w)| o.unwrap_or(w)).collect()
+        };
         FitInitsBoundsArrays {
-            init: self.init.unwrap_with(&x.init),
-            lower: self.lower.unwrap_with(&x.lower),
-            upper: self.upper.unwrap_with(&x.upper),
+            init: unwrap_slice(&self.init, &x.init),
+            lower: unwrap_slice(&self.lower, &x.lower),
+            upper: unwrap_slice(&self.upper, &x.upper),
         }
     }
 }
 
-impl<const NPARAMS: usize> From<FitInitsBoundsArrays<NPARAMS>>
-    for OptionFitInitsBoundsArrays<NPARAMS>
-{
-    fn from(item: FitInitsBoundsArrays<NPARAMS>) -> Self {
+impl From<FitInitsBoundsArrays> for OptionFitInitsBoundsArrays {
+    fn from(item: FitInitsBoundsArrays) -> Self {
         Self {
-            init: item.init.into(),
-            lower: item.lower.into(),
-            upper: item.upper.into(),
+            init: item.init.into_iter().map(Some).collect(),
+            lower: item.lower.into_iter().map(Some).collect(),
+            upper: item.upper.into_iter().map(Some).collect(),
         }
     }
 }
 
-pub trait FitInitsBoundsTrait<T: Float, const NPARAMS: usize> {
-    fn init_and_bounds_from_ts(&self, ts: &mut TimeSeries<T>) -> FitInitsBoundsArrays<NPARAMS>;
+pub trait FitInitsBoundsTrait<T: Float> {
+    fn init_and_bounds_from_ts(&self, ts: &mut TimeSeries<T>) -> FitInitsBoundsArrays;
 }
 
-pub trait FitParametersInternalDimlessTrait<U: LikeFloat, const NPARAMS: usize> {
-    fn dimensionless_to_internal(params: &[U; NPARAMS]) -> [U; NPARAMS];
+pub trait FitParametersInternalDimlessTrait<U: LikeFloat> {
+    fn dimensionless_to_internal(params: &[U]) -> SmallVec<[U; MAX_INLINE_PARAMS]>;
 
-    fn internal_to_dimensionless(params: &[U; NPARAMS]) -> [U; NPARAMS];
+    fn internal_to_dimensionless(params: &[U]) -> SmallVec<[U; MAX_INLINE_PARAMS]>;
 }
 
-pub trait FitParametersOriginalDimLessTrait<const NPARAMS: usize> {
-    fn orig_to_dimensionless(
-        norm_data: &NormalizedData<f64>,
-        orig: &[f64; NPARAMS],
-    ) -> [f64; NPARAMS];
+pub trait FitParametersOriginalDimLessTrait {
+    fn orig_to_dimensionless(norm_data: &NormalizedData<f64>, orig: &[f64]) -> Vec<f64>;
 
-    fn dimensionless_to_orig(
-        norm_data: &NormalizedData<f64>,
-        norm: &[f64; NPARAMS],
-    ) -> [f64; NPARAMS];
+    fn dimensionless_to_orig(norm_data: &NormalizedData<f64>, norm: &[f64]) -> Vec<f64>;
 }
 
-pub trait FitParametersInternalExternalTrait<const NPARAMS: usize>:
-    FitParametersInternalDimlessTrait<f64, NPARAMS> + FitParametersOriginalDimLessTrait<NPARAMS>
+pub trait FitParametersInternalExternalTrait:
+    FitParametersInternalDimlessTrait<f64> + FitParametersOriginalDimLessTrait
 {
-    fn convert_to_internal(
-        norm_data: &NormalizedData<f64>,
-        orig: &[f64; NPARAMS],
-    ) -> [f64; NPARAMS] {
-        Self::dimensionless_to_internal(&Self::orig_to_dimensionless(norm_data, orig))
+    fn convert_to_internal(norm_data: &NormalizedData<f64>, orig: &[f64]) -> Vec<f64> {
+        Self::dimensionless_to_internal(&Self::orig_to_dimensionless(norm_data, orig)).into_vec()
     }
 
-    fn convert_to_external(
-        norm_data: &NormalizedData<f64>,
-        params: &[f64; NPARAMS],
-    ) -> [f64; NPARAMS] {
+    fn convert_to_external(norm_data: &NormalizedData<f64>, params: &[f64]) -> Vec<f64> {
         Self::dimensionless_to_orig(norm_data, &Self::internal_to_dimensionless(params))
     }
 
@@ -240,14 +125,12 @@ pub trait FitParametersInternalExternalTrait<const NPARAMS: usize>:
     /// 2. `dimensionless_to_orig`: linear scaling by `t_std`, `m_std`, etc.
     ///
     /// Since both transformations are element-wise, the full Jacobian is diagonal.
-    fn jacobian_internal_to_external(
-        norm_data: &NormalizedData<f64>,
-        internal: &[f64; NPARAMS],
-    ) -> [f64; NPARAMS];
+    fn jacobian_internal_to_external(norm_data: &NormalizedData<f64>, internal: &[f64])
+    -> Vec<f64>;
 }
 
-pub trait FitFeatureEvaluatorGettersTrait<const NPARAMS: usize> {
+pub trait FitFeatureEvaluatorGettersTrait {
     fn get_algorithm(&self) -> &CurveFitAlgorithm;
 
-    fn ln_prior_from_ts<T: Float>(&self, ts: &mut TimeSeries<T>) -> LnPrior<NPARAMS>;
+    fn ln_prior_from_ts<T: Float>(&self, ts: &mut TimeSeries<T>) -> LnPrior;
 }

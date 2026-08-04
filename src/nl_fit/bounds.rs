@@ -1,12 +1,8 @@
-pub(super) fn within_bounds<T, const NPARAMS: usize>(
-    x: &[T; NPARAMS],
-    lower: &[T; NPARAMS],
-    upper: &[T; NPARAMS],
-) -> bool
+pub(super) fn within_bounds<T>(x: &[T], lower: &[T], upper: &[T]) -> bool
 where
     T: PartialOrd,
 {
-    for i in 0..NPARAMS {
+    for i in 0..x.len() {
         if x[i] < lower[i] || x[i] > upper[i] {
             return false;
         }
