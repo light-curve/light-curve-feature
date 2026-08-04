@@ -24,6 +24,9 @@ pub enum EvaluatorError {
         "too few valid bootstrap resamples: {actual} obtained, at least {minimum} required to estimate the uncertainty"
     )]
     InsufficientResamples { actual: usize, minimum: usize },
+
+    #[error("non-linear fit did not converge")]
+    FitDidNotConverge,
 }
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]

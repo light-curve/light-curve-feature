@@ -20,3 +20,6 @@ pub use multicolor_feature::MultiColorFeature;
 
 mod passband;
 pub use passband::*;
+
+mod rainbow;
+pub use rainbow::{Bolometric, RainbowFit, RainbowFitError, Spectral, Temperature};

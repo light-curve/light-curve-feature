@@ -29,6 +29,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   counts) and `Rejection` (i.i.d. resampling with bounded rejection of resamples that fail the
   wrapped features' per-band requirements)
   https://github.com/light-curve/light-curve-feature/issues/285
+- Add `RainbowFit` multi-color feature: joint multi-band fit of a bolometric envelope times a
+  temperature-dependent spectral energy distribution ("Rainbow" model, Russeil et al. 2023,
+  https://arxiv.org/abs/2310.02916), with pluggable bolometric/temperature/spectral terms and an
+  optional per-band baseline. Runs through the existing `CurveFitAlgorithm` infrastructure
+  (Ceres/MCMC/NUTS)
 
 ### Changed
 
