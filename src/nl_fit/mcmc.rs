@@ -6,7 +6,6 @@ use crate::nl_fit::prior::ln_prior::LnPriorEvaluator;
 
 use emcee::{EnsembleSampler, Guess, Prob};
 use emcee_rand::{distributions::IndependentSample, *};
-use itertools::Itertools;
 use ndarray::Zip;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -59,22 +58,23 @@ impl Default for McmcCurveFit {
 }
 
 impl CurveFitTrait for McmcCurveFit {
-    fn curve_fit<F, DF, LP, const NPARAMS: usize>(
+    fn curve_fit<F, DF, LP>(
         &self,
         ts: Rc<Data<f64>>,
-        x0: &[f64; NPARAMS],
-        bounds: (&[f64; NPARAMS], &[f64; NPARAMS]),
+        x0: &[f64],
+        bounds: (&[f64], &[f64]),
         model: F,
         derivatives: DF,
         ln_prior: LP,
-    ) -> CurveFitResult<f64, NPARAMS>
+    ) -> CurveFitResult<f64>
     where
-        F: 'static + Clone + Fn(f64, &[f64; NPARAMS]) -> f64,
-        DF: 'static + Clone + Fn(f64, &[f64; NPARAMS], &mut [f64; NPARAMS]),
-        LP: LnPriorEvaluator<NPARAMS>,
+        F: 'static + Clone + Fn(f64, &[f64]) -> f64,
+        DF: 'static + Clone + Fn(f64, &[f64], &mut [f64]),
+        LP: LnPriorEvaluator,
     {
         const NWALKERS_PER_DIMENSION: usize = 4;
-        let nwalkers = NWALKERS_PER_DIMENSION * NPARAMS;
+        let nparams = x0.len();
+        let nwalkers = NWALKERS_PER_DIMENSION * nparams;
         let nsamples = ts.t.len();
 
         let lnlike = {
@@ -82,7 +82,7 @@ impl CurveFitTrait for McmcCurveFit {
             let model = model.clone();
             move |guess: &Guess| {
                 let mut residual = 0.0;
-                let params = slice_to_array(&guess.values);
+                let params = slice_to_vec(&guess.values);
                 Zip::from(&ts.t)
                     .and(&ts.m)
                     .and(&ts.inv_err)
@@ -95,13 +95,13 @@ impl CurveFitTrait for McmcCurveFit {
         let lnprior = {
             let ln_prior = ln_prior.clone();
             move |guess: &Guess| {
-                let params = slice_to_array(&guess.values);
+                let params = slice_to_vec(&guess.values);
                 ln_prior.ln_prior(&params, None) as f32
             }
         };
 
-        let x0_f32: [_; NPARAMS] = slice_to_array(x0);
-        let bounds_f32 = (slice_to_array(bounds.0), slice_to_array(bounds.1));
+        let x0_f32: Vec<f32> = slice_to_vec(x0);
+        let bounds_f32 = (slice_to_vec(bounds.0), slice_to_vec(bounds.1));
 
         let initial_guesses = generate_initial_guesses(
             nwalkers,
@@ -116,7 +116,7 @@ impl CurveFitTrait for McmcCurveFit {
             lower: &bounds_f32.0,
             upper: &bounds_f32.1,
         };
-        let mut sampler = EnsembleSampler::new(nwalkers, NPARAMS, &emcee_model).unwrap();
+        let mut sampler = EnsembleSampler::new(nwalkers, nparams, &emcee_model).unwrap();
         sampler.seed(&[]);
 
         let (best_x, best_lnprob) = {
@@ -139,17 +139,10 @@ impl CurveFitTrait for McmcCurveFit {
         };
 
         match self.fine_tuning_algorithm.as_ref() {
-            Some(algo) => algo.curve_fit(
-                ts,
-                &best_x.try_into().unwrap(),
-                bounds,
-                model,
-                derivatives,
-                ln_prior,
-            ),
+            Some(algo) => algo.curve_fit(ts, &best_x, bounds, model, derivatives, ln_prior),
             None => CurveFitResult {
-                x: best_x.try_into().unwrap(),
-                reduced_chi2: -best_lnprob / ((nsamples - NPARAMS) as f64),
+                x: best_x,
+                reduced_chi2: -best_lnprob / ((nsamples - nparams) as f64),
                 success: true,
             },
         }
@@ -157,23 +150,21 @@ impl CurveFitTrait for McmcCurveFit {
 }
 
 #[inline]
-fn slice_to_array<T, U, const NPARAMS: usize>(sl: &[T]) -> [U; NPARAMS]
+fn slice_to_vec<T, U>(sl: &[T]) -> Vec<U>
 where
     T: Float,
     U: Float,
 {
-    let mut array = [U::zero(); NPARAMS];
-    for (input, output) in sl.iter().zip_eq(array.iter_mut()) {
-        *output = num_traits::cast::cast(*input).unwrap();
-    }
-    array
+    sl.iter()
+        .map(|&x| num_traits::cast::cast(x).unwrap())
+        .collect()
 }
 
 #[inline]
-fn generate_initial_guesses<R, const NPARAMS: usize>(
+fn generate_initial_guesses<R>(
     nwalkers: usize,
-    x0: &[f32; NPARAMS],
-    bounds: (&[f32; NPARAMS], &[f32; NPARAMS]),
+    x0: &[f32],
+    bounds: (&[f32], &[f32]),
     rng: &mut R,
 ) -> Vec<Guess>
 where
@@ -221,14 +212,14 @@ where
         .collect()
 }
 
-struct EmceeModel<'b, F, LP, const NPARAMS: usize> {
+struct EmceeModel<'b, F, LP> {
     ln_like: F,
     ln_prior: LP,
-    lower: &'b [f32; NPARAMS],
-    upper: &'b [f32; NPARAMS],
+    lower: &'b [f32],
+    upper: &'b [f32],
 }
 
-impl<F, LP, const NPARAMS: usize> Prob for EmceeModel<'_, F, LP, NPARAMS>
+impl<F, LP> Prob for EmceeModel<'_, F, LP>
 where
     F: Fn(&Guess) -> f32,
     LP: Fn(&Guess) -> f32,
@@ -238,11 +229,7 @@ where
     }
 
     fn lnprior(&self, params: &Guess) -> f32 {
-        if !within_bounds(
-            (&params.values[..]).try_into().unwrap(),
-            self.lower,
-            self.upper,
-        ) {
+        if !within_bounds(&params.values, self.lower, self.upper) {
             return f32::NEG_INFINITY;
         }
         (self.ln_prior)(params)

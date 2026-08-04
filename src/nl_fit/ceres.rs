@@ -60,37 +60,37 @@ impl Default for CeresCurveFit {
 }
 
 impl CurveFitTrait for CeresCurveFit {
-    fn curve_fit<F, DF, LP, const NPARAMS: usize>(
+    fn curve_fit<F, DF, LP>(
         &self,
         ts: Rc<Data<f64>>,
-        x0: &[f64; NPARAMS],
-        bounds: (&[f64; NPARAMS], &[f64; NPARAMS]),
+        x0: &[f64],
+        bounds: (&[f64], &[f64]),
         model: F,
         derivatives: DF,
         _ln_prior: LP,
-    ) -> CurveFitResult<f64, NPARAMS>
+    ) -> CurveFitResult<f64>
     where
-        F: 'static + Clone + Fn(f64, &[f64; NPARAMS]) -> f64,
-        DF: 'static + Clone + Fn(f64, &[f64; NPARAMS], &mut [f64; NPARAMS]),
-        LP: LnPriorEvaluator<NPARAMS>,
+        F: 'static + Clone + Fn(f64, &[f64]) -> f64,
+        DF: 'static + Clone + Fn(f64, &[f64], &mut [f64]),
+        LP: LnPriorEvaluator,
     {
+        let nparams = x0.len();
+        // Ceres calls this closure once per data point (unlike GSL, which loops over all
+        // points inside a single call), so the derivative scratch buffer is allocated once
+        // and reused via RefCell rather than fresh on every point.
+        let der_buf = std::cell::RefCell::new(vec![0.0; nparams]);
         let func: CurveFunctionType = {
             let model = model.clone();
             Box::new(move |t, parameters, y, jacobians| {
-                let parameters = parameters.try_into().unwrap();
                 *y = model(t, parameters);
                 if !y.is_finite() {
                     *y = f64::MAX.sqrt();
                     return false;
                 }
                 if let Some(jacobians) = jacobians {
-                    let jacobians: &mut [_; NPARAMS] = jacobians.try_into().unwrap();
-                    let der = {
-                        let mut der = [0.0; NPARAMS];
-                        derivatives(t, parameters, &mut der);
-                        der
-                    };
-                    for (input, output) in der.into_iter().zip(jacobians.iter_mut()) {
+                    let mut der = der_buf.borrow_mut();
+                    derivatives(t, parameters, &mut der);
+                    for (&input, output) in der.iter().zip(jacobians.iter_mut()) {
                         if let Some(output) = output {
                             if !input.is_finite() {
                                 return false;
@@ -124,7 +124,7 @@ impl CurveFitTrait for CeresCurveFit {
             problem_builder = problem_builder.loss(LossFunction::cauchy(loss_factor.into()));
         };
         let solution = problem_builder.build().unwrap().solve(&options);
-        let x = solution.parameters.try_into().unwrap();
+        let x = solution.parameters;
         let success = solution.summary.is_solution_usable();
 
         let reduced_chi2 = Zip::from(&ts.t)
@@ -133,7 +133,7 @@ impl CurveFitTrait for CeresCurveFit {
             .fold(0.0, |acc, &t, &m, &inv_err| {
                 acc + ((model(t, &x) - m) * inv_err).powi(2)
             })
-            / (ts.t.len() - NPARAMS) as f64;
+            / (ts.t.len() - nparams) as f64;
         CurveFitResult {
             x,
             reduced_chi2,
@@ -153,11 +153,11 @@ mod tests {
     use rand::prelude::*;
     use rand_distr::StandardNormal;
 
-    fn nonlinear_func(t: f64, param: &[f64; 3]) -> f64 {
+    fn nonlinear_func(t: f64, param: &[f64]) -> f64 {
         param[1] * f64::exp(-param[0] * t) * t.powi(2) + param[2]
     }
 
-    fn nonlinear_func_derivatives(t: f64, param: &[f64; 3], derivatives: &mut [f64; 3]) {
+    fn nonlinear_func_derivatives(t: f64, param: &[f64], derivatives: &mut [f64]) {
         derivatives[0] = -param[1] * f64::exp(-param[2] * t) * t.powi(3);
         derivatives[1] = f64::exp(-param[0] * t) * t.powi(2);
         derivatives[2] = 1.0;

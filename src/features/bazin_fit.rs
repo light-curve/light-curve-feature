@@ -5,6 +5,7 @@ use crate::nl_fit::{
 };
 
 use conv::ConvUtil;
+use smallvec::{SmallVec, smallvec};
 
 const NPARAMS: usize = 5;
 
@@ -113,8 +114,8 @@ lazy_info!(
 );
 
 struct Params<'a, T> {
-    internal: &'a [T; NPARAMS],
-    external: [T; NPARAMS],
+    internal: &'a [T],
+    external: SmallVec<[T; MAX_INLINE_PARAMS]>,
 }
 
 impl<T> Params<'_, T>
@@ -162,12 +163,12 @@ where
     }
 }
 
-impl<T, U> FitModelTrait<T, U, NPARAMS> for BazinFit
+impl<T, U> FitModelTrait<T, U> for BazinFit
 where
     T: Float + Into<U>,
     U: LikeFloat,
 {
-    fn model(t: T, param: &[U; NPARAMS]) -> U
+    fn model(t: T, param: &[U]) -> U
     where
         T: Float + Into<U>,
         U: LikeFloat,
@@ -183,13 +184,13 @@ where
     }
 }
 
-impl<T> FitFunctionTrait<T, NPARAMS> for BazinFit where T: Float {}
+impl<T> FitFunctionTrait<T> for BazinFit where T: Float {}
 
-impl<T> FitDerivalivesTrait<T, NPARAMS> for BazinFit
+impl<T> FitDerivalivesTrait<T> for BazinFit
 where
     T: Float,
 {
-    fn derivatives(t: T, param: &[T; NPARAMS], jac: &mut [T; NPARAMS]) {
+    fn derivatives(t: T, param: &[T], jac: &mut [T]) {
         let x = Params {
             internal: param,
             external: Self::internal_to_dimensionless(param),
@@ -212,11 +213,11 @@ where
     }
 }
 
-impl<T> FitInitsBoundsTrait<T, NPARAMS> for BazinFit
+impl<T> FitInitsBoundsTrait<T> for BazinFit
 where
     T: Float,
 {
-    fn init_and_bounds_from_ts(&self, ts: &mut TimeSeries<T>) -> FitInitsBoundsArrays<NPARAMS> {
+    fn init_and_bounds_from_ts(&self, ts: &mut TimeSeries<T>) -> FitInitsBoundsArrays {
         match &self.inits_bounds {
             BazinInitsBounds::Default => BazinInitsBounds::default_from_ts(ts),
             BazinInitsBounds::Arrays(arrays) => arrays.as_ref().clone(),
@@ -227,12 +228,9 @@ where
     }
 }
 
-impl FitParametersOriginalDimLessTrait<NPARAMS> for BazinFit {
-    fn orig_to_dimensionless(
-        norm_data: &NormalizedData<f64>,
-        orig: &[f64; NPARAMS],
-    ) -> [f64; NPARAMS] {
-        [
+impl FitParametersOriginalDimLessTrait for BazinFit {
+    fn orig_to_dimensionless(norm_data: &NormalizedData<f64>, orig: &[f64]) -> Vec<f64> {
+        vec![
             norm_data.m_to_norm_scale(orig[0]), // A amplitude
             norm_data.m_to_norm(orig[1]),       // c baseline
             norm_data.t_to_norm(orig[2]),       // t_0 reference_time
@@ -241,11 +239,8 @@ impl FitParametersOriginalDimLessTrait<NPARAMS> for BazinFit {
         ]
     }
 
-    fn dimensionless_to_orig(
-        norm_data: &NormalizedData<f64>,
-        norm: &[f64; NPARAMS],
-    ) -> [f64; NPARAMS] {
-        [
+    fn dimensionless_to_orig(norm_data: &NormalizedData<f64>, norm: &[f64]) -> Vec<f64> {
+        vec![
             norm_data.m_to_orig_scale(norm[0]), // A amplitude
             norm_data.m_to_orig(norm[1]),       // c baseline
             norm_data.t_to_orig(norm[2]),       // t_0 reference_time
@@ -255,16 +250,16 @@ impl FitParametersOriginalDimLessTrait<NPARAMS> for BazinFit {
     }
 }
 
-impl<U> FitParametersInternalDimlessTrait<U, NPARAMS> for BazinFit
+impl<U> FitParametersInternalDimlessTrait<U> for BazinFit
 where
     U: LikeFloat,
 {
-    fn dimensionless_to_internal(params: &[U; NPARAMS]) -> [U; NPARAMS] {
-        *params
+    fn dimensionless_to_internal(params: &[U]) -> SmallVec<[U; MAX_INLINE_PARAMS]> {
+        SmallVec::from_slice(params)
     }
 
-    fn internal_to_dimensionless(params: &[U; NPARAMS]) -> [U; NPARAMS] {
-        [
+    fn internal_to_dimensionless(params: &[U]) -> SmallVec<[U; MAX_INLINE_PARAMS]> {
+        smallvec![
             params[0].abs(),
             params[1],
             params[2],
@@ -274,11 +269,11 @@ where
     }
 }
 
-impl FitParametersInternalExternalTrait<NPARAMS> for BazinFit {
+impl FitParametersInternalExternalTrait for BazinFit {
     fn jacobian_internal_to_external(
         norm_data: &NormalizedData<f64>,
-        internal: &[f64; NPARAMS],
-    ) -> [f64; NPARAMS] {
+        internal: &[f64],
+    ) -> Vec<f64> {
         // The full transformation is: external = dimensionless_to_orig(internal_to_dimensionless(internal))
         // internal_to_dimensionless applies abs() to params[0], [3], [4]
         // dimensionless_to_orig scales by m_std (params 0,1) and t_std (params 2,3,4)
@@ -286,7 +281,7 @@ impl FitParametersInternalExternalTrait<NPARAMS> for BazinFit {
         // ∂|x|/∂x = sign(x), so the Jacobian is:
         let m_std = norm_data.m_std();
         let t_std = norm_data.t_std();
-        [
+        vec![
             internal[0].signum() * m_std, // A amplitude: |internal[0]| * m_std
             m_std,                        // B baseline: internal[1] * m_std + m_mean
             t_std,                        // t0: internal[2] * t_std + t_mean
@@ -296,12 +291,12 @@ impl FitParametersInternalExternalTrait<NPARAMS> for BazinFit {
     }
 }
 
-impl FitFeatureEvaluatorGettersTrait<NPARAMS> for BazinFit {
+impl FitFeatureEvaluatorGettersTrait for BazinFit {
     fn get_algorithm(&self) -> &CurveFitAlgorithm {
         &self.algorithm
     }
 
-    fn ln_prior_from_ts<T: Float>(&self, ts: &mut TimeSeries<T>) -> LnPrior<NPARAMS> {
+    fn ln_prior_from_ts<T: Float>(&self, ts: &mut TimeSeries<T>) -> LnPrior {
         self.ln_prior.ln_prior_from_ts(ts)
     }
 }
@@ -342,13 +337,13 @@ where
 pub enum BazinInitsBounds {
     #[default]
     Default,
-    Arrays(Box<FitInitsBoundsArrays<NPARAMS>>),
-    OptionArrays(Box<OptionFitInitsBoundsArrays<NPARAMS>>),
+    Arrays(Box<FitInitsBoundsArrays>),
+    OptionArrays(Box<OptionFitInitsBoundsArrays>),
 }
 
 impl BazinInitsBounds {
     pub fn arrays(init: [f64; NPARAMS], lower: [f64; NPARAMS], upper: [f64; NPARAMS]) -> Self {
-        Self::Arrays(FitInitsBoundsArrays::new(init, lower, upper).into())
+        Self::Arrays(FitInitsBoundsArrays::new(init.into(), lower.into(), upper.into()).into())
     }
 
     pub fn option_arrays(
@@ -356,10 +351,12 @@ impl BazinInitsBounds {
         lower: [Option<f64>; NPARAMS],
         upper: [Option<f64>; NPARAMS],
     ) -> Self {
-        Self::OptionArrays(OptionFitInitsBoundsArrays::new(init, lower, upper).into())
+        Self::OptionArrays(
+            OptionFitInitsBoundsArrays::new(init.into(), lower.into(), upper.into()).into(),
+        )
     }
 
-    fn default_from_ts<T: Float>(ts: &mut TimeSeries<T>) -> FitInitsBoundsArrays<NPARAMS> {
+    fn default_from_ts<T: Float>(ts: &mut TimeSeries<T>) -> FitInitsBoundsArrays {
         let t_min: f64 = ts.t.get_min().value_into().unwrap();
         let t_max: f64 = ts.t.get_max().value_into().unwrap();
         let t_amplitude = t_max - t_min;
@@ -384,9 +381,9 @@ impl BazinInitsBounds {
         let (fall_lower, fall_upper) = (0.0, 10.0 * t_amplitude);
 
         FitInitsBoundsArrays {
-            init: [a_init, c_init, t0_init, rise_init, fall_init].into(),
-            lower: [a_lower, c_lower, t0_lower, rise_lower, fall_lower].into(),
-            upper: [a_upper, c_upper, t0_upper, rise_upper, fall_upper].into(),
+            init: vec![a_init, c_init, t0_init, rise_init, fall_init],
+            lower: vec![a_lower, c_lower, t0_lower, rise_lower, fall_lower],
+            upper: vec![a_upper, c_upper, t0_upper, rise_upper, fall_upper],
         }
     }
 }
@@ -394,23 +391,23 @@ impl BazinInitsBounds {
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum BazinLnPrior {
-    Fixed(Box<LnPrior<NPARAMS>>),
+    Fixed(Box<LnPrior>),
 }
 
 impl BazinLnPrior {
-    pub fn fixed(ln_prior: LnPrior<NPARAMS>) -> Self {
+    pub fn fixed(ln_prior: LnPrior) -> Self {
         Self::Fixed(ln_prior.into())
     }
 
-    pub fn ln_prior_from_ts<T: Float>(&self, _ts: &mut TimeSeries<T>) -> LnPrior<NPARAMS> {
+    pub fn ln_prior_from_ts<T: Float>(&self, _ts: &mut TimeSeries<T>) -> LnPrior {
         match self {
             Self::Fixed(ln_prior) => ln_prior.as_ref().clone(),
         }
     }
 }
 
-impl From<LnPrior<NPARAMS>> for BazinLnPrior {
-    fn from(item: LnPrior<NPARAMS>) -> Self {
+impl From<LnPrior> for BazinLnPrior {
+    fn from(item: LnPrior) -> Self {
         Self::fixed(item)
     }
 }
@@ -515,7 +512,7 @@ mod tests {
     //     let lmsder = CeresCurveFit::new();
     //     let mcmc = McmcCurveFit::new(512, Some(lmsder.into()));
     //     bazin_fit_noisy(BazinFit::new(
-    //         CeresCurveFit::new().into(),
+    //         mcmc.into(),
     //         LnPrior::none(),
     //         BazinInitsBounds::option_arrays(
     //             [None; 5],
@@ -614,8 +611,7 @@ mod tests {
                 let result = bazin.eval(&mut ts).unwrap();
 
                 let t_model = Array1::linspace(t[0] - 1.0, t[t.len() - 1] + 1.0, 100);
-                let flux_model =
-                    t_model.mapv(|x| BazinFit::model(x, &result[..NPARAMS].try_into().unwrap()));
+                let flux_model = t_model.mapv(|x| BazinFit::model(x, &result[..NPARAMS]));
                 flux_model.mapv(|y| -2.5 * f64::log10(y / f0))
             })
             .collect();

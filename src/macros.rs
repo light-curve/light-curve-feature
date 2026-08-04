@@ -132,9 +132,9 @@ macro_rules! fit_eval {
 
             let (x0, lower, upper) = {
                 let FitInitsBoundsArrays {
-                    init: FitArray(mut x0),
-                    lower: FitArray(mut lower),
-                    upper: FitArray(mut upper),
+                    init: mut x0,
+                    lower: mut lower,
+                    upper: mut upper,
                 } = self.init_and_bounds_from_ts(ts);
                 x0 = Self::convert_to_internal(&norm_data, &x0);
                 lower = Self::convert_to_internal(&norm_data, &lower);
@@ -154,8 +154,7 @@ macro_rules! fit_eval {
                     self.ln_prior_from_ts(ts)
                         .with_fit_parameters_transformation::<Self>(&norm_data),
                 );
-                let result =
-                    Self::convert_to_external(&norm_data, (&x as &[_]).try_into().unwrap());
+                let result = Self::convert_to_external(&norm_data, &x);
                 result
                     .into_iter()
                     .chain(std::iter::once(reduced_chi2))
