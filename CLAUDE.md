@@ -263,6 +263,16 @@ cargo test --profile=release-with-debug --no-default-features --features ceres-s
 - Include code examples where helpful
 - Cite relevant papers for feature implementations
 
+### Branding
+
+`assets/logo/` holds copies of artwork from
+[`light-curve/branding`](https://github.com/light-curve/branding). Never edit them here —
+change them upstream and copy the result across, so the two stay byte-identical.
+
+The README banner and the `html_logo_url`/`html_favicon_url` in `src/lib.rs` reference those
+copies by absolute URL. They have to: rustdoc copies nothing next to the pages it generates,
+so a repository-relative path would resolve against docs.rs and 404.
+
 ## Updating the Changelog
 
 The project maintains a `CHANGELOG.md` following the [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
