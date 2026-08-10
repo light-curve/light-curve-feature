@@ -1,3 +1,12 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)"
+            srcset="https://raw.githubusercontent.com/light-curve/light-curve-feature/main/assets/logo/wordmark-for-dark-bg.svg">
+    <img src="https://raw.githubusercontent.com/light-curve/light-curve-feature/main/assets/logo/wordmark-for-light-bg.svg"
+         alt="light-curve" width="320">
+  </picture>
+</p>
+
 # `light-curve-feature`
 
 `light-curve-feature` is a part of [`light-curve`](https://github.com/light-curve) family that
