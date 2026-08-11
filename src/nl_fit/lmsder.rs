@@ -3,6 +3,7 @@ use crate::float_trait::Float;
 use crate::nl_fit::constants::PARAMETER_TOLERANCE;
 use crate::nl_fit::curve_fit::{CurveFitResult, CurveFitTrait};
 use crate::nl_fit::data::Data;
+use crate::nl_fit::evaluator::MAX_INLINE_PARAMS;
 use crate::nl_fit::prior::ln_prior::LnPriorEvaluator;
 
 #[cfg(test)]
@@ -16,6 +17,7 @@ use rgsl::{
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use smallvec::smallvec;
 #[cfg(test)]
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -83,7 +85,8 @@ impl CurveFitTrait for LmsderCurveFit {
             let ts = ts.clone();
             move |param: VectorF64, mut jacobian: MatrixF64| {
                 let param = param.as_slice().unwrap();
-                let mut buffer = vec![0.0; nparams];
+                let mut buffer: smallvec::SmallVec<[f64; MAX_INLINE_PARAMS]> =
+                    smallvec![0.0; nparams];
                 Zip::indexed(&ts.t)
                     .and(&ts.inv_err)
                     .for_each(|i, &t, &inv_err| {

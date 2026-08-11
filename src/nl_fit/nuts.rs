@@ -1,6 +1,7 @@
 use crate::nl_fit::bounds::within_bounds;
 use crate::nl_fit::curve_fit::{CurveFitAlgorithm, CurveFitResult, CurveFitTrait};
 use crate::nl_fit::data::Data;
+use crate::nl_fit::evaluator::MAX_INLINE_PARAMS;
 use crate::nl_fit::prior::ln_prior::LnPriorEvaluator;
 
 use ndarray::Zip;
@@ -9,6 +10,7 @@ use rand::SeedableRng;
 use rand::rngs::StdRng;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use smallvec::{SmallVec, smallvec};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::rc::Rc;
@@ -93,8 +95,8 @@ struct LogpFunc<F, DF, LP> {
     model: F,
     derivatives: DF,
     ln_prior: LP,
-    lower: Vec<f64>,
-    upper: Vec<f64>,
+    lower: SmallVec<[f64; MAX_INLINE_PARAMS]>,
+    upper: SmallVec<[f64; MAX_INLINE_PARAMS]>,
 }
 
 impl<F, DF, LP> HasDims for LogpFunc<F, DF, LP> {
@@ -131,10 +133,10 @@ where
 
         // Calculate log-likelihood (negative chi-squared)
         let mut residual = 0.0;
-        let mut grad_array = vec![0.0; nparams];
+        let mut grad_array: SmallVec<[f64; MAX_INLINE_PARAMS]> = smallvec![0.0; nparams];
 
         // Compute -chi^2/2 and its gradient
-        let mut model_grad = vec![0.0; nparams];
+        let mut model_grad: SmallVec<[f64; MAX_INLINE_PARAMS]> = smallvec![0.0; nparams];
         Zip::from(&self.ts.t)
             .and(&self.ts.m)
             .and(&self.ts.inv_err)
@@ -153,7 +155,7 @@ where
         let lnlike = -0.5 * residual;
 
         // Add prior and compute its gradient
-        let mut prior_grad = vec![0.0; nparams];
+        let mut prior_grad: SmallVec<[f64; MAX_INLINE_PARAMS]> = smallvec![0.0; nparams];
         let lnprior = self.ln_prior.ln_prior(params, Some(&mut prior_grad));
 
         // Gradient is d(lnlike + lnprior)/d(params)
@@ -198,8 +200,8 @@ impl CurveFitTrait for NutsCurveFit {
             model: model.clone(),
             derivatives: derivatives.clone(),
             ln_prior: ln_prior.clone(),
-            lower: bounds.0.to_vec(),
-            upper: bounds.1.to_vec(),
+            lower: SmallVec::from_slice(bounds.0),
+            upper: SmallVec::from_slice(bounds.1),
         };
 
         let math = CpuMath::new(logp_func);
@@ -309,14 +311,20 @@ mod tests {
     }
 
     impl FitParametersOriginalDimLessTrait for SimpleConstantModel {
-        fn orig_to_dimensionless(_norm_data: &NormalizedData<f64>, orig: &[f64]) -> Vec<f64> {
+        fn orig_to_dimensionless(
+            _norm_data: &NormalizedData<f64>,
+            orig: &[f64],
+        ) -> smallvec::SmallVec<[f64; MAX_INLINE_PARAMS]> {
             // No scaling - external = dimensionless for this simple model
-            orig.to_vec()
+            smallvec::SmallVec::from_slice(orig)
         }
 
-        fn dimensionless_to_orig(_norm_data: &NormalizedData<f64>, norm: &[f64]) -> Vec<f64> {
+        fn dimensionless_to_orig(
+            _norm_data: &NormalizedData<f64>,
+            norm: &[f64],
+        ) -> smallvec::SmallVec<[f64; MAX_INLINE_PARAMS]> {
             // No scaling - external = dimensionless for this simple model
-            norm.to_vec()
+            smallvec::SmallVec::from_slice(norm)
         }
     }
 
@@ -324,10 +332,10 @@ mod tests {
         fn jacobian_internal_to_external(
             _norm_data: &NormalizedData<f64>,
             internal: &[f64],
-        ) -> Vec<f64> {
+        ) -> smallvec::SmallVec<[f64; MAX_INLINE_PARAMS]> {
             // external = |internal|
             // d(external)/d(internal) = sign(internal)
-            vec![internal[0].signum()]
+            smallvec::smallvec![internal[0].signum()]
         }
     }
 

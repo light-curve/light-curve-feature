@@ -2,6 +2,7 @@ use crate::float_trait::Float;
 use crate::nl_fit::bounds::within_bounds;
 use crate::nl_fit::curve_fit::{CurveFitAlgorithm, CurveFitResult, CurveFitTrait};
 use crate::nl_fit::data::Data;
+use crate::nl_fit::evaluator::MAX_INLINE_PARAMS;
 use crate::nl_fit::prior::ln_prior::LnPriorEvaluator;
 
 use emcee::{EnsembleSampler, Guess, Prob};
@@ -9,6 +10,7 @@ use emcee_rand::{distributions::IndependentSample, *};
 use ndarray::Zip;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use smallvec::SmallVec;
 use std::fmt::Debug;
 use std::rc::Rc;
 
@@ -100,7 +102,7 @@ impl CurveFitTrait for McmcCurveFit {
             }
         };
 
-        let x0_f32: Vec<f32> = slice_to_vec(x0);
+        let x0_f32: SmallVec<[f32; MAX_INLINE_PARAMS]> = slice_to_vec(x0);
         let bounds_f32 = (slice_to_vec(bounds.0), slice_to_vec(bounds.1));
 
         let initial_guesses = generate_initial_guesses(
@@ -150,7 +152,7 @@ impl CurveFitTrait for McmcCurveFit {
 }
 
 #[inline]
-fn slice_to_vec<T, U>(sl: &[T]) -> Vec<U>
+fn slice_to_vec<T, U>(sl: &[T]) -> SmallVec<[U; MAX_INLINE_PARAMS]>
 where
     T: Float,
     U: Float,

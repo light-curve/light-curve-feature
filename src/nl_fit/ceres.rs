@@ -1,6 +1,7 @@
 use crate::nl_fit::constants::PARAMETER_TOLERANCE;
 use crate::nl_fit::curve_fit::{CurveFitResult, CurveFitTrait};
 use crate::nl_fit::data::Data;
+use crate::nl_fit::evaluator::MAX_INLINE_PARAMS;
 use crate::nl_fit::prior::ln_prior::LnPriorEvaluator;
 
 use ceres_solver::{CurveFitProblem1D, CurveFunctionType, LossFunction, SolverOptions};
@@ -8,6 +9,7 @@ use ndarray::Zip;
 use ordered_float::NotNan;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use smallvec::{SmallVec, smallvec};
 use std::rc::Rc;
 
 /// Ceres-Solver non-linear least-squares wrapper
@@ -78,7 +80,8 @@ impl CurveFitTrait for CeresCurveFit {
         // Ceres calls this closure once per data point (unlike GSL, which loops over all
         // points inside a single call), so the derivative scratch buffer is allocated once
         // and reused via RefCell rather than fresh on every point.
-        let der_buf = std::cell::RefCell::new(vec![0.0; nparams]);
+        let der_buf: std::cell::RefCell<SmallVec<[f64; MAX_INLINE_PARAMS]>> =
+            std::cell::RefCell::new(smallvec![0.0; nparams]);
         let func: CurveFunctionType = {
             let model = model.clone();
             Box::new(move |t, parameters, y, jacobians| {
@@ -103,8 +106,10 @@ impl CurveFitTrait for CeresCurveFit {
             })
         };
 
-        let lower_bounds: Vec<_> = bounds.0.iter().map(|&v| Some(v)).collect();
-        let upper_bounds: Vec<_> = bounds.1.iter().map(|&v| Some(v)).collect();
+        let lower_bounds: SmallVec<[_; MAX_INLINE_PARAMS]> =
+            bounds.0.iter().map(|&v| Some(v)).collect();
+        let upper_bounds: SmallVec<[_; MAX_INLINE_PARAMS]> =
+            bounds.1.iter().map(|&v| Some(v)).collect();
 
         let options = SolverOptions::builder()
             .parameter_tolerance(PARAMETER_TOLERANCE)

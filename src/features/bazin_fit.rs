@@ -229,8 +229,11 @@ where
 }
 
 impl FitParametersOriginalDimLessTrait for BazinFit {
-    fn orig_to_dimensionless(norm_data: &NormalizedData<f64>, orig: &[f64]) -> Vec<f64> {
-        vec![
+    fn orig_to_dimensionless(
+        norm_data: &NormalizedData<f64>,
+        orig: &[f64],
+    ) -> SmallVec<[f64; MAX_INLINE_PARAMS]> {
+        smallvec![
             norm_data.m_to_norm_scale(orig[0]), // A amplitude
             norm_data.m_to_norm(orig[1]),       // c baseline
             norm_data.t_to_norm(orig[2]),       // t_0 reference_time
@@ -239,8 +242,11 @@ impl FitParametersOriginalDimLessTrait for BazinFit {
         ]
     }
 
-    fn dimensionless_to_orig(norm_data: &NormalizedData<f64>, norm: &[f64]) -> Vec<f64> {
-        vec![
+    fn dimensionless_to_orig(
+        norm_data: &NormalizedData<f64>,
+        norm: &[f64],
+    ) -> SmallVec<[f64; MAX_INLINE_PARAMS]> {
+        smallvec![
             norm_data.m_to_orig_scale(norm[0]), // A amplitude
             norm_data.m_to_orig(norm[1]),       // c baseline
             norm_data.t_to_orig(norm[2]),       // t_0 reference_time
@@ -273,7 +279,7 @@ impl FitParametersInternalExternalTrait for BazinFit {
     fn jacobian_internal_to_external(
         norm_data: &NormalizedData<f64>,
         internal: &[f64],
-    ) -> Vec<f64> {
+    ) -> SmallVec<[f64; MAX_INLINE_PARAMS]> {
         // The full transformation is: external = dimensionless_to_orig(internal_to_dimensionless(internal))
         // internal_to_dimensionless applies abs() to params[0], [3], [4]
         // dimensionless_to_orig scales by m_std (params 0,1) and t_std (params 2,3,4)
@@ -281,7 +287,7 @@ impl FitParametersInternalExternalTrait for BazinFit {
         // ∂|x|/∂x = sign(x), so the Jacobian is:
         let m_std = norm_data.m_std();
         let t_std = norm_data.t_std();
-        vec![
+        smallvec![
             internal[0].signum() * m_std, // A amplitude: |internal[0]| * m_std
             m_std,                        // B baseline: internal[1] * m_std + m_mean
             t_std,                        // t0: internal[2] * t_std + t_mean

@@ -93,19 +93,31 @@ pub trait FitParametersInternalDimlessTrait<U: LikeFloat> {
 }
 
 pub trait FitParametersOriginalDimLessTrait {
-    fn orig_to_dimensionless(norm_data: &NormalizedData<f64>, orig: &[f64]) -> Vec<f64>;
+    fn orig_to_dimensionless(
+        norm_data: &NormalizedData<f64>,
+        orig: &[f64],
+    ) -> SmallVec<[f64; MAX_INLINE_PARAMS]>;
 
-    fn dimensionless_to_orig(norm_data: &NormalizedData<f64>, norm: &[f64]) -> Vec<f64>;
+    fn dimensionless_to_orig(
+        norm_data: &NormalizedData<f64>,
+        norm: &[f64],
+    ) -> SmallVec<[f64; MAX_INLINE_PARAMS]>;
 }
 
 pub trait FitParametersInternalExternalTrait:
     FitParametersInternalDimlessTrait<f64> + FitParametersOriginalDimLessTrait
 {
-    fn convert_to_internal(norm_data: &NormalizedData<f64>, orig: &[f64]) -> Vec<f64> {
-        Self::dimensionless_to_internal(&Self::orig_to_dimensionless(norm_data, orig)).into_vec()
+    fn convert_to_internal(
+        norm_data: &NormalizedData<f64>,
+        orig: &[f64],
+    ) -> SmallVec<[f64; MAX_INLINE_PARAMS]> {
+        Self::dimensionless_to_internal(&Self::orig_to_dimensionless(norm_data, orig))
     }
 
-    fn convert_to_external(norm_data: &NormalizedData<f64>, params: &[f64]) -> Vec<f64> {
+    fn convert_to_external(
+        norm_data: &NormalizedData<f64>,
+        params: &[f64],
+    ) -> SmallVec<[f64; MAX_INLINE_PARAMS]> {
         Self::dimensionless_to_orig(norm_data, &Self::internal_to_dimensionless(params))
     }
 
@@ -125,8 +137,10 @@ pub trait FitParametersInternalExternalTrait:
     /// 2. `dimensionless_to_orig`: linear scaling by `t_std`, `m_std`, etc.
     ///
     /// Since both transformations are element-wise, the full Jacobian is diagonal.
-    fn jacobian_internal_to_external(norm_data: &NormalizedData<f64>, internal: &[f64])
-    -> Vec<f64>;
+    fn jacobian_internal_to_external(
+        norm_data: &NormalizedData<f64>,
+        internal: &[f64],
+    ) -> SmallVec<[f64; MAX_INLINE_PARAMS]>;
 }
 
 pub trait FitFeatureEvaluatorGettersTrait {
