@@ -46,7 +46,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libgsl-dev
       - name: Get minimum supported Rust version
-        run: echo "::set-output name=msrv::$(grep '^rust-version = ' Cargo.toml | grep -o '[0-9.]\+')"
+        run: echo "msrv=$(grep '^rust-version = ' Cargo.toml | grep -o '[0-9.]\+')" >> $GITHUB_OUTPUT
         id: get_msrv
       - uses: dtolnay/rust-toolchain@master
         with:
@@ -119,12 +119,14 @@ jobs:
       - run: cargo run --example plot_snia_curve_fits --no-default-features --features=ceres-source,fftw-source,gsl -- -n=1
 
   fmt:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
 
     steps:
       - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@master
         with:
-          submodules: true
+          toolchain: stable
+          components: rustfmt
       - run: cargo fmt -- --check
 
   clippy:
@@ -148,7 +150,7 @@ jobs:
       - run: cargo clippy --all-targets --no-default-features --features=ceres-source,fftw-source,gsl -- -D warnings
 
   fmt-test-util:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
 
     defaults:
       run:
@@ -156,8 +158,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@master
         with:
-          submodules: true
+          toolchain: stable
+          components: rustfmt
       - run: cargo fmt -- --check
 
   clippy-test-util:
