@@ -4,13 +4,13 @@ use crate::nl_fit::data::Data;
 use crate::nl_fit::evaluator::MAX_INLINE_PARAMS;
 use crate::nl_fit::prior::ln_prior::LnPriorEvaluator;
 
+use arrayvec::ArrayVec;
 use ndarray::Zip;
 use nuts_rs::{Chain, CpuLogpFunc, CpuMath, DiagNutsSettings, HasDims, LogpError, Settings};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use smallvec::{SmallVec, smallvec};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::rc::Rc;
@@ -95,8 +95,8 @@ struct LogpFunc<F, DF, LP> {
     model: F,
     derivatives: DF,
     ln_prior: LP,
-    lower: SmallVec<[f64; MAX_INLINE_PARAMS]>,
-    upper: SmallVec<[f64; MAX_INLINE_PARAMS]>,
+    lower: ArrayVec<f64, MAX_INLINE_PARAMS>,
+    upper: ArrayVec<f64, MAX_INLINE_PARAMS>,
 }
 
 impl<F, DF, LP> HasDims for LogpFunc<F, DF, LP> {
@@ -133,10 +133,10 @@ where
 
         // Calculate log-likelihood (negative chi-squared)
         let mut residual = 0.0;
-        let mut grad_array: SmallVec<[f64; MAX_INLINE_PARAMS]> = smallvec![0.0; nparams];
+        let mut grad_array: ArrayVec<f64, MAX_INLINE_PARAMS> = (0..nparams).map(|_| 0.0).collect();
 
         // Compute -chi^2/2 and its gradient
-        let mut model_grad: SmallVec<[f64; MAX_INLINE_PARAMS]> = smallvec![0.0; nparams];
+        let mut model_grad: ArrayVec<f64, MAX_INLINE_PARAMS> = (0..nparams).map(|_| 0.0).collect();
         Zip::from(&self.ts.t)
             .and(&self.ts.m)
             .and(&self.ts.inv_err)
@@ -155,7 +155,7 @@ where
         let lnlike = -0.5 * residual;
 
         // Add prior and compute its gradient
-        let mut prior_grad: SmallVec<[f64; MAX_INLINE_PARAMS]> = smallvec![0.0; nparams];
+        let mut prior_grad: ArrayVec<f64, MAX_INLINE_PARAMS> = (0..nparams).map(|_| 0.0).collect();
         let lnprior = self.ln_prior.ln_prior(params, Some(&mut prior_grad));
 
         // Gradient is d(lnlike + lnprior)/d(params)
@@ -200,8 +200,8 @@ impl CurveFitTrait for NutsCurveFit {
             model: model.clone(),
             derivatives: derivatives.clone(),
             ln_prior: ln_prior.clone(),
-            lower: SmallVec::from_slice(bounds.0),
-            upper: SmallVec::from_slice(bounds.1),
+            lower: bounds.0.iter().copied().collect(),
+            upper: bounds.1.iter().copied().collect(),
         };
 
         let math = CpuMath::new(logp_func);
@@ -297,16 +297,12 @@ mod tests {
     struct SimpleConstantModel;
 
     impl FitParametersInternalDimlessTrait<f64> for SimpleConstantModel {
-        fn dimensionless_to_internal(
-            params: &[f64],
-        ) -> smallvec::SmallVec<[f64; MAX_INLINE_PARAMS]> {
-            smallvec::SmallVec::from_slice(params)
+        fn dimensionless_to_internal(params: &[f64]) -> arrayvec::ArrayVec<f64, MAX_INLINE_PARAMS> {
+            params.iter().copied().collect()
         }
 
-        fn internal_to_dimensionless(
-            params: &[f64],
-        ) -> smallvec::SmallVec<[f64; MAX_INLINE_PARAMS]> {
-            smallvec::smallvec![params[0].abs()] // Apply abs() transformation
+        fn internal_to_dimensionless(params: &[f64]) -> arrayvec::ArrayVec<f64, MAX_INLINE_PARAMS> {
+            arrayvec::ArrayVec::from_iter([params[0].abs()]) // Apply abs() transformation
         }
     }
 
@@ -314,17 +310,17 @@ mod tests {
         fn orig_to_dimensionless(
             _norm_data: &NormalizedData<f64>,
             orig: &[f64],
-        ) -> smallvec::SmallVec<[f64; MAX_INLINE_PARAMS]> {
+        ) -> arrayvec::ArrayVec<f64, MAX_INLINE_PARAMS> {
             // No scaling - external = dimensionless for this simple model
-            smallvec::SmallVec::from_slice(orig)
+            orig.iter().copied().collect()
         }
 
         fn dimensionless_to_orig(
             _norm_data: &NormalizedData<f64>,
             norm: &[f64],
-        ) -> smallvec::SmallVec<[f64; MAX_INLINE_PARAMS]> {
+        ) -> arrayvec::ArrayVec<f64, MAX_INLINE_PARAMS> {
             // No scaling - external = dimensionless for this simple model
-            smallvec::SmallVec::from_slice(norm)
+            norm.iter().copied().collect()
         }
     }
 
@@ -332,10 +328,10 @@ mod tests {
         fn jacobian_internal_to_external(
             _norm_data: &NormalizedData<f64>,
             internal: &[f64],
-        ) -> smallvec::SmallVec<[f64; MAX_INLINE_PARAMS]> {
+        ) -> arrayvec::ArrayVec<f64, MAX_INLINE_PARAMS> {
             // external = |internal|
             // d(external)/d(internal) = sign(internal)
-            smallvec::smallvec![internal[0].signum()]
+            arrayvec::ArrayVec::from_iter([internal[0].signum()])
         }
     }
 

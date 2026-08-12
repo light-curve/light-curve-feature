@@ -4,8 +4,8 @@ use crate::nl_fit::{
     data::NormalizedData, evaluator::*,
 };
 
+use arrayvec::ArrayVec;
 use conv::ConvUtil;
-use smallvec::{SmallVec, smallvec};
 
 const NPARAMS: usize = 4;
 
@@ -113,7 +113,7 @@ lazy_info!(
 
 struct Params<'a, T> {
     internal: &'a [T],
-    external: SmallVec<[T; MAX_INLINE_PARAMS]>,
+    external: ArrayVec<T, MAX_INLINE_PARAMS>,
 }
 
 impl<T> Params<'_, T>
@@ -215,25 +215,25 @@ impl FitParametersOriginalDimLessTrait for LinexpFit {
     fn orig_to_dimensionless(
         norm_data: &NormalizedData<f64>,
         orig: &[f64],
-    ) -> SmallVec<[f64; MAX_INLINE_PARAMS]> {
-        smallvec![
+    ) -> ArrayVec<f64, MAX_INLINE_PARAMS> {
+        ArrayVec::from_iter([
             norm_data.m_to_norm_scale(orig[0]), // A amplitude
             norm_data.t_to_norm(orig[1]),       // t_0 reference_time
             norm_data.t_to_norm_scale(orig[2]), // tau fall time
             norm_data.m_to_norm(orig[3]),       // b baseline
-        ]
+        ])
     }
 
     fn dimensionless_to_orig(
         norm_data: &NormalizedData<f64>,
         norm: &[f64],
-    ) -> SmallVec<[f64; MAX_INLINE_PARAMS]> {
-        smallvec![
+    ) -> ArrayVec<f64, MAX_INLINE_PARAMS> {
+        ArrayVec::from_iter([
             norm_data.m_to_orig_scale(norm[0]), // A amplitude
             norm_data.t_to_orig(norm[1]),       // t_0 reference_time
             norm_data.t_to_orig_scale(norm[2]), // tau fall time
             norm_data.m_to_orig(norm[3]),       // b baseline
-        ]
+        ])
     }
 }
 
@@ -241,12 +241,12 @@ impl<U> FitParametersInternalDimlessTrait<U> for LinexpFit
 where
     U: LikeFloat,
 {
-    fn dimensionless_to_internal(params: &[U]) -> SmallVec<[U; MAX_INLINE_PARAMS]> {
-        SmallVec::from_slice(params)
+    fn dimensionless_to_internal(params: &[U]) -> ArrayVec<U, MAX_INLINE_PARAMS> {
+        params.iter().copied().collect()
     }
 
-    fn internal_to_dimensionless(params: &[U]) -> SmallVec<[U; MAX_INLINE_PARAMS]> {
-        smallvec![params[0].abs(), params[1], params[2].abs(), params[3]]
+    fn internal_to_dimensionless(params: &[U]) -> ArrayVec<U, MAX_INLINE_PARAMS> {
+        ArrayVec::from_iter([params[0].abs(), params[1], params[2].abs(), params[3]])
     }
 }
 
@@ -254,7 +254,7 @@ impl FitParametersInternalExternalTrait for LinexpFit {
     fn jacobian_internal_to_external(
         norm_data: &NormalizedData<f64>,
         internal: &[f64],
-    ) -> SmallVec<[f64; MAX_INLINE_PARAMS]> {
+    ) -> ArrayVec<f64, MAX_INLINE_PARAMS> {
         // The full transformation is: external = dimensionless_to_orig(internal_to_dimensionless(internal))
         // internal_to_dimensionless applies abs() to params[0], [2]
         // dimensionless_to_orig scales by m_std (params 0,3) and t_std (params 1,2)
@@ -262,12 +262,12 @@ impl FitParametersInternalExternalTrait for LinexpFit {
         // ∂|x|/∂x = sign(x), so the Jacobian is:
         let m_std = norm_data.m_std();
         let t_std = norm_data.t_std();
-        smallvec![
+        ArrayVec::from_iter([
             internal[0].signum() * m_std, // A amplitude: |internal[0]| * m_std
             t_std,                        // t0: internal[1] * t_std + t_mean
             internal[2].signum() * t_std, // tau: |internal[2]| * t_std
             m_std,                        // B baseline: internal[3] * m_std + m_mean
-        ]
+        ])
     }
 }
 

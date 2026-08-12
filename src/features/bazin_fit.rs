@@ -4,8 +4,8 @@ use crate::nl_fit::{
     data::NormalizedData, evaluator::*,
 };
 
+use arrayvec::ArrayVec;
 use conv::ConvUtil;
-use smallvec::{SmallVec, smallvec};
 
 const NPARAMS: usize = 5;
 
@@ -115,7 +115,7 @@ lazy_info!(
 
 struct Params<'a, T> {
     internal: &'a [T],
-    external: SmallVec<[T; MAX_INLINE_PARAMS]>,
+    external: ArrayVec<T, MAX_INLINE_PARAMS>,
 }
 
 impl<T> Params<'_, T>
@@ -232,27 +232,27 @@ impl FitParametersOriginalDimLessTrait for BazinFit {
     fn orig_to_dimensionless(
         norm_data: &NormalizedData<f64>,
         orig: &[f64],
-    ) -> SmallVec<[f64; MAX_INLINE_PARAMS]> {
-        smallvec![
+    ) -> ArrayVec<f64, MAX_INLINE_PARAMS> {
+        ArrayVec::from_iter([
             norm_data.m_to_norm_scale(orig[0]), // A amplitude
             norm_data.m_to_norm(orig[1]),       // c baseline
             norm_data.t_to_norm(orig[2]),       // t_0 reference_time
             norm_data.t_to_norm_scale(orig[3]), // tau_rise rise time
             norm_data.t_to_norm_scale(orig[4]), // tau_fall fall time
-        ]
+        ])
     }
 
     fn dimensionless_to_orig(
         norm_data: &NormalizedData<f64>,
         norm: &[f64],
-    ) -> SmallVec<[f64; MAX_INLINE_PARAMS]> {
-        smallvec![
+    ) -> ArrayVec<f64, MAX_INLINE_PARAMS> {
+        ArrayVec::from_iter([
             norm_data.m_to_orig_scale(norm[0]), // A amplitude
             norm_data.m_to_orig(norm[1]),       // c baseline
             norm_data.t_to_orig(norm[2]),       // t_0 reference_time
             norm_data.t_to_orig_scale(norm[3]), // tau_rise rise time
             norm_data.t_to_orig_scale(norm[4]), // tau_fall fall time
-        ]
+        ])
     }
 }
 
@@ -260,18 +260,18 @@ impl<U> FitParametersInternalDimlessTrait<U> for BazinFit
 where
     U: LikeFloat,
 {
-    fn dimensionless_to_internal(params: &[U]) -> SmallVec<[U; MAX_INLINE_PARAMS]> {
-        SmallVec::from_slice(params)
+    fn dimensionless_to_internal(params: &[U]) -> ArrayVec<U, MAX_INLINE_PARAMS> {
+        params.iter().copied().collect()
     }
 
-    fn internal_to_dimensionless(params: &[U]) -> SmallVec<[U; MAX_INLINE_PARAMS]> {
-        smallvec![
+    fn internal_to_dimensionless(params: &[U]) -> ArrayVec<U, MAX_INLINE_PARAMS> {
+        ArrayVec::from_iter([
             params[0].abs(),
             params[1],
             params[2],
             params[3].abs(),
             params[4].abs(),
-        ]
+        ])
     }
 }
 
@@ -279,7 +279,7 @@ impl FitParametersInternalExternalTrait for BazinFit {
     fn jacobian_internal_to_external(
         norm_data: &NormalizedData<f64>,
         internal: &[f64],
-    ) -> SmallVec<[f64; MAX_INLINE_PARAMS]> {
+    ) -> ArrayVec<f64, MAX_INLINE_PARAMS> {
         // The full transformation is: external = dimensionless_to_orig(internal_to_dimensionless(internal))
         // internal_to_dimensionless applies abs() to params[0], [3], [4]
         // dimensionless_to_orig scales by m_std (params 0,1) and t_std (params 2,3,4)
@@ -287,13 +287,13 @@ impl FitParametersInternalExternalTrait for BazinFit {
         // ∂|x|/∂x = sign(x), so the Jacobian is:
         let m_std = norm_data.m_std();
         let t_std = norm_data.t_std();
-        smallvec![
+        ArrayVec::from_iter([
             internal[0].signum() * m_std, // A amplitude: |internal[0]| * m_std
             m_std,                        // B baseline: internal[1] * m_std + m_mean
             t_std,                        // t0: internal[2] * t_std + t_mean
             internal[3].signum() * t_std, // tau_rise: |internal[3]| * t_std
             internal[4].signum() * t_std, // tau_fall: |internal[4]| * t_std
-        ]
+        ])
     }
 }
 

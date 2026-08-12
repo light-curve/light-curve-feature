@@ -4,9 +4,9 @@ use crate::nl_fit::{
     data::NormalizedData, evaluator::*,
 };
 
+use arrayvec::ArrayVec;
 use conv::ConvUtil;
 use ordered_float::NotNan;
-use smallvec::{SmallVec, smallvec};
 
 const NPARAMS: usize = 7;
 
@@ -226,8 +226,8 @@ impl FitParametersOriginalDimLessTrait for VillarFit {
     fn orig_to_dimensionless(
         norm_data: &NormalizedData<f64>,
         orig: &[f64],
-    ) -> SmallVec<[f64; MAX_INLINE_PARAMS]> {
-        smallvec![
+    ) -> ArrayVec<f64, MAX_INLINE_PARAMS> {
+        ArrayVec::from_iter([
             norm_data.m_to_norm_scale(orig[0]), // A amplitude
             norm_data.m_to_norm(orig[1]),       // c baseline
             norm_data.t_to_norm(orig[2]),       // t_0 reference time
@@ -235,14 +235,14 @@ impl FitParametersOriginalDimLessTrait for VillarFit {
             norm_data.t_to_norm_scale(orig[4]), // tau_fall fall time
             orig[5],                            // nu = (beta gamma / A), dimensionless
             norm_data.t_to_norm_scale(orig[6]), // gamma plateau duration
-        ]
+        ])
     }
 
     fn dimensionless_to_orig(
         norm_data: &NormalizedData<f64>,
         norm: &[f64],
-    ) -> SmallVec<[f64; MAX_INLINE_PARAMS]> {
-        smallvec![
+    ) -> ArrayVec<f64, MAX_INLINE_PARAMS> {
+        ArrayVec::from_iter([
             norm_data.m_to_orig_scale(norm[0]), // A amplitude
             norm_data.m_to_orig(norm[1]),       // c baseline
             norm_data.t_to_orig(norm[2]),       // t_0 reference time
@@ -250,7 +250,7 @@ impl FitParametersOriginalDimLessTrait for VillarFit {
             norm_data.t_to_orig_scale(norm[4]), // tau_fall fall time
             norm[5], // nu = (beta gamma / A) relative plateau amplitude, dimensionless
             norm_data.t_to_orig_scale(norm[6]), // gamma plateau duration
-        ]
+        ])
     }
 }
 
@@ -258,8 +258,8 @@ impl<U> FitParametersInternalDimlessTrait<U> for VillarFit
 where
     U: LikeFloat,
 {
-    fn dimensionless_to_internal(params: &[U]) -> SmallVec<[U; MAX_INLINE_PARAMS]> {
-        smallvec![
+    fn dimensionless_to_internal(params: &[U]) -> ArrayVec<U, MAX_INLINE_PARAMS> {
+        ArrayVec::from_iter([
             params[0],
             params[1],
             params[2],
@@ -267,11 +267,11 @@ where
             params[4],
             Self::nu_to_b(params[5]),
             params[6],
-        ]
+        ])
     }
 
-    fn internal_to_dimensionless(params: &[U]) -> SmallVec<[U; MAX_INLINE_PARAMS]> {
-        smallvec![
+    fn internal_to_dimensionless(params: &[U]) -> ArrayVec<U, MAX_INLINE_PARAMS> {
+        ArrayVec::from_iter([
             params[0].abs(),
             params[1],
             params[2],
@@ -279,7 +279,7 @@ where
             params[4].abs(),
             Self::b_to_nu(params[5]),
             params[6].abs(),
-        ]
+        ])
     }
 }
 
@@ -287,7 +287,7 @@ impl FitParametersInternalExternalTrait for VillarFit {
     fn jacobian_internal_to_external(
         norm_data: &NormalizedData<f64>,
         internal: &[f64],
-    ) -> SmallVec<[f64; MAX_INLINE_PARAMS]> {
+    ) -> ArrayVec<f64, MAX_INLINE_PARAMS> {
         // The full transformation is: external = dimensionless_to_orig(internal_to_dimensionless(internal))
         //
         // internal_to_dimensionless:
@@ -306,7 +306,7 @@ impl FitParametersInternalExternalTrait for VillarFit {
         let nu = Self::b_to_nu(internal[5]);
         let d_nu_d_b = (1.0 - nu.powi(2)) * internal[5].signum();
 
-        smallvec![
+        ArrayVec::from_iter([
             internal[0].signum() * m_std, // A amplitude: |internal[0]| * m_std
             m_std,                        // c baseline: internal[1] * m_std + m_mean
             t_std,                        // t0: internal[2] * t_std + t_mean
@@ -314,7 +314,7 @@ impl FitParametersInternalExternalTrait for VillarFit {
             internal[4].signum() * t_std, // tau_fall: |internal[4]| * t_std
             d_nu_d_b,                     // nu: b_to_nu(internal[5]), dimensionless
             internal[6].signum() * t_std, // gamma: |internal[6]| * t_std
-        ]
+        ])
     }
 }
 
@@ -365,7 +365,7 @@ where
 
 struct Params<'a, T> {
     internal: &'a [T],
-    external: SmallVec<[T; MAX_INLINE_PARAMS]>,
+    external: ArrayVec<T, MAX_INLINE_PARAMS>,
 }
 
 impl<T> Params<'_, T>

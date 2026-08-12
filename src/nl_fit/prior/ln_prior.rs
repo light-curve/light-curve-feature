@@ -317,14 +317,14 @@ mod tests {
     impl crate::nl_fit::evaluator::FitParametersInternalDimlessTrait<f64> for MockFitParameters {
         fn dimensionless_to_internal(
             params: &[f64],
-        ) -> smallvec::SmallVec<[f64; crate::nl_fit::evaluator::MAX_INLINE_PARAMS]> {
-            smallvec::SmallVec::from_slice(params)
+        ) -> arrayvec::ArrayVec<f64, { crate::nl_fit::evaluator::MAX_INLINE_PARAMS }> {
+            params.iter().copied().collect()
         }
 
         fn internal_to_dimensionless(
             params: &[f64],
-        ) -> smallvec::SmallVec<[f64; crate::nl_fit::evaluator::MAX_INLINE_PARAMS]> {
-            smallvec::SmallVec::from_slice(params)
+        ) -> arrayvec::ArrayVec<f64, { crate::nl_fit::evaluator::MAX_INLINE_PARAMS }> {
+            params.iter().copied().collect()
         }
     }
 
@@ -332,14 +332,14 @@ mod tests {
         fn orig_to_dimensionless(
             _norm_data: &NormalizedData<f64>,
             orig: &[f64],
-        ) -> smallvec::SmallVec<[f64; crate::nl_fit::evaluator::MAX_INLINE_PARAMS]> {
-            smallvec::SmallVec::from_slice(orig)
+        ) -> arrayvec::ArrayVec<f64, { crate::nl_fit::evaluator::MAX_INLINE_PARAMS }> {
+            orig.iter().copied().collect()
         }
 
         fn dimensionless_to_orig(
             _norm_data: &NormalizedData<f64>,
             norm: &[f64],
-        ) -> smallvec::SmallVec<[f64; crate::nl_fit::evaluator::MAX_INLINE_PARAMS]> {
+        ) -> arrayvec::ArrayVec<f64, { crate::nl_fit::evaluator::MAX_INLINE_PARAMS }> {
             // Simple transformation: multiply by 2
             norm.iter().map(|&x| x * 2.0).collect()
         }
@@ -349,12 +349,12 @@ mod tests {
         fn jacobian_internal_to_external(
             _norm_data: &NormalizedData<f64>,
             internal: &[f64],
-        ) -> smallvec::SmallVec<[f64; crate::nl_fit::evaluator::MAX_INLINE_PARAMS]> {
+        ) -> arrayvec::ArrayVec<f64, { crate::nl_fit::evaluator::MAX_INLINE_PARAMS }> {
             // For MockFitParameters:
             // - internal_to_dimensionless is identity, so derivative is 1
             // - dimensionless_to_orig multiplies by 2, so derivative is 2
             // Combined: 1 * 2 = 2 for each component
-            smallvec::smallvec![2.0; internal.len()]
+            (0..internal.len()).map(|_| 2.0).collect()
         }
     }
 

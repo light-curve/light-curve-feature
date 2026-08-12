@@ -2,9 +2,9 @@ use crate::data::TimeSeries;
 use crate::float_trait::Float;
 use crate::nl_fit::{CurveFitAlgorithm, LikeFloat, LnPrior, data::NormalizedData};
 
+use arrayvec::ArrayVec;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use smallvec::SmallVec;
 
 /// Inline capacity for [`FitParametersInternalDimlessTrait`]'s per-point-hot transforms: covers
 /// every current fixed-`NPARAMS` feature (Bazin=5, Linexp=4, Villar=7) without spilling to the
@@ -87,21 +87,21 @@ pub trait FitInitsBoundsTrait<T: Float> {
 }
 
 pub trait FitParametersInternalDimlessTrait<U: LikeFloat> {
-    fn dimensionless_to_internal(params: &[U]) -> SmallVec<[U; MAX_INLINE_PARAMS]>;
+    fn dimensionless_to_internal(params: &[U]) -> ArrayVec<U, MAX_INLINE_PARAMS>;
 
-    fn internal_to_dimensionless(params: &[U]) -> SmallVec<[U; MAX_INLINE_PARAMS]>;
+    fn internal_to_dimensionless(params: &[U]) -> ArrayVec<U, MAX_INLINE_PARAMS>;
 }
 
 pub trait FitParametersOriginalDimLessTrait {
     fn orig_to_dimensionless(
         norm_data: &NormalizedData<f64>,
         orig: &[f64],
-    ) -> SmallVec<[f64; MAX_INLINE_PARAMS]>;
+    ) -> ArrayVec<f64, MAX_INLINE_PARAMS>;
 
     fn dimensionless_to_orig(
         norm_data: &NormalizedData<f64>,
         norm: &[f64],
-    ) -> SmallVec<[f64; MAX_INLINE_PARAMS]>;
+    ) -> ArrayVec<f64, MAX_INLINE_PARAMS>;
 }
 
 pub trait FitParametersInternalExternalTrait:
@@ -110,14 +110,14 @@ pub trait FitParametersInternalExternalTrait:
     fn convert_to_internal(
         norm_data: &NormalizedData<f64>,
         orig: &[f64],
-    ) -> SmallVec<[f64; MAX_INLINE_PARAMS]> {
+    ) -> ArrayVec<f64, MAX_INLINE_PARAMS> {
         Self::dimensionless_to_internal(&Self::orig_to_dimensionless(norm_data, orig))
     }
 
     fn convert_to_external(
         norm_data: &NormalizedData<f64>,
         params: &[f64],
-    ) -> SmallVec<[f64; MAX_INLINE_PARAMS]> {
+    ) -> ArrayVec<f64, MAX_INLINE_PARAMS> {
         Self::dimensionless_to_orig(norm_data, &Self::internal_to_dimensionless(params))
     }
 
@@ -140,7 +140,7 @@ pub trait FitParametersInternalExternalTrait:
     fn jacobian_internal_to_external(
         norm_data: &NormalizedData<f64>,
         internal: &[f64],
-    ) -> SmallVec<[f64; MAX_INLINE_PARAMS]>;
+    ) -> ArrayVec<f64, MAX_INLINE_PARAMS>;
 }
 
 pub trait FitFeatureEvaluatorGettersTrait {
