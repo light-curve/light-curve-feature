@@ -6,6 +6,7 @@ use crate::nl_fit::{
 
 use conv::ConvUtil;
 use ordered_float::NotNan;
+use tinyvec::array_vec;
 
 const NPARAMS: usize = 7;
 
@@ -38,10 +39,10 @@ Villar et al. 2019 [DOI:10.3847/1538-4357/ab418c](https://doi.org/10.3847/1538-4
 
 #[doc = DOC!()]
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
-pub struct VillarFit {
+pub struct VillarFit<const MAX_NPARAMS: usize = NPARAMS> {
     algorithm: CurveFitAlgorithm,
-    ln_prior: VillarLnPrior,
-    inits_bounds: VillarInitsBounds,
+    ln_prior: VillarLnPrior<MAX_NPARAMS>,
+    inits_bounds: VillarInitsBounds<MAX_NPARAMS>,
 }
 
 impl VillarFit {
@@ -226,7 +227,7 @@ impl FitParametersOriginalDimLessTrait<NPARAMS> for VillarFit {
         norm_data: &NormalizedData<f64>,
         orig: &[f64; NPARAMS],
     ) -> [f64; NPARAMS] {
-        [
+        array_vec!([f64; NPARAMS] =>
             norm_data.m_to_norm_scale(orig[0]), // A amplitude
             norm_data.m_to_norm(orig[1]),       // c baseline
             norm_data.t_to_norm(orig[2]),       // t_0 reference time
@@ -234,14 +235,15 @@ impl FitParametersOriginalDimLessTrait<NPARAMS> for VillarFit {
             norm_data.t_to_norm_scale(orig[4]), // tau_fall fall time
             orig[5],                            // nu = (beta gamma / A), dimensionless
             norm_data.t_to_norm_scale(orig[6]), // gamma plateau duration
-        ]
+        )
+        .into_inner()
     }
 
     fn dimensionless_to_orig(
         norm_data: &NormalizedData<f64>,
         norm: &[f64; NPARAMS],
     ) -> [f64; NPARAMS] {
-        [
+        array_vec!([f64; NPARAMS] =>
             norm_data.m_to_orig_scale(norm[0]), // A amplitude
             norm_data.m_to_orig(norm[1]),       // c baseline
             norm_data.t_to_orig(norm[2]),       // t_0 reference time
@@ -249,7 +251,8 @@ impl FitParametersOriginalDimLessTrait<NPARAMS> for VillarFit {
             norm_data.t_to_orig_scale(norm[4]), // tau_fall fall time
             norm[5], // nu = (beta gamma / A) relative plateau amplitude, dimensionless
             norm_data.t_to_orig_scale(norm[6]), // gamma plateau duration
-        ]
+        )
+        .into_inner()
     }
 }
 
@@ -305,7 +308,7 @@ impl FitParametersInternalExternalTrait<NPARAMS> for VillarFit {
         let nu = Self::b_to_nu(internal[5]);
         let d_nu_d_b = (1.0 - nu.powi(2)) * internal[5].signum();
 
-        [
+        array_vec!([f64; NPARAMS] =>
             internal[0].signum() * m_std, // A amplitude: |internal[0]| * m_std
             m_std,                        // c baseline: internal[1] * m_std + m_mean
             t_std,                        // t0: internal[2] * t_std + t_mean
@@ -313,7 +316,8 @@ impl FitParametersInternalExternalTrait<NPARAMS> for VillarFit {
             internal[4].signum() * t_std, // tau_fall: |internal[4]| * t_std
             d_nu_d_b,                     // nu: b_to_nu(internal[5]), dimensionless
             internal[6].signum() * t_std, // gamma: |internal[6]| * t_std
-        ]
+        )
+        .into_inner()
     }
 }
 
@@ -469,11 +473,11 @@ where
 
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, Default, PartialEq)]
 #[non_exhaustive]
-pub enum VillarInitsBounds {
+pub enum VillarInitsBounds<const MAX_NPARAMS: usize = NPARAMS> {
     #[default]
     Default,
-    Arrays(Box<FitInitsBoundsArrays<NPARAMS>>),
-    OptionArrays(Box<OptionFitInitsBoundsArrays<NPARAMS>>),
+    Arrays(Box<FitInitsBoundsArrays<MAX_NPARAMS>>),
+    OptionArrays(Box<OptionFitInitsBoundsArrays<MAX_NPARAMS>>),
 }
 
 impl VillarInitsBounds {
@@ -521,35 +525,20 @@ impl VillarInitsBounds {
         let (gamma_lower, gamma_upper) = (0.0, 10.0 * t_amplitude);
 
         FitInitsBoundsArrays {
-            init: [
-                a_init,
-                c_init,
-                t0_init,
-                tau_rise_init,
-                tau_fall_init,
-                nu_init,
-                gamma_init,
-            ]
+            init: array_vec!([f64; NPARAMS] =>
+                a_init, c_init, t0_init, tau_rise_init, tau_fall_init, nu_init, gamma_init,
+            )
+            .into_inner()
             .into(),
-            lower: [
-                a_lower,
-                c_lower,
-                t0_lower,
-                tau_rise_lower,
-                tau_fall_lower,
-                nu_lower,
-                gamma_lower,
-            ]
+            lower: array_vec!([f64; NPARAMS] =>
+                a_lower, c_lower, t0_lower, tau_rise_lower, tau_fall_lower, nu_lower, gamma_lower,
+            )
+            .into_inner()
             .into(),
-            upper: [
-                a_upper,
-                c_upper,
-                t0_upper,
-                tau_rise_upper,
-                tau_fall_upper,
-                nu_upper,
-                gamma_upper,
-            ]
+            upper: array_vec!([f64; NPARAMS] =>
+                a_upper, c_upper, t0_upper, tau_rise_upper, tau_fall_upper, nu_upper, gamma_upper,
+            )
+            .into_inner()
             .into(),
         }
     }
@@ -558,8 +547,8 @@ impl VillarInitsBounds {
 /// Logarithm of priors for [VillarFit] parameters
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[non_exhaustive]
-pub enum VillarLnPrior {
-    Fixed(Box<LnPrior<NPARAMS>>),
+pub enum VillarLnPrior<const MAX_NPARAMS: usize = NPARAMS> {
+    Fixed(Box<LnPrior<MAX_NPARAMS>>),
     /// Adopted from Hosseinzadeh, et al. 2020, table 2
     ///
     /// `time_units_in_day` specifies the units of time you use in yout `TimeSeries` object, it
