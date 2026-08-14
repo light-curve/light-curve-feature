@@ -212,11 +212,11 @@ where
     }
 }
 
-impl<T> FitInitsBoundsTrait<T, NPARAMS> for BazinFit
+impl<T> FitInitsBoundsTrait<T> for BazinFit
 where
     T: Float,
 {
-    fn init_and_bounds_from_ts(&self, ts: &mut TimeSeries<T>) -> FitInitsBoundsArrays<NPARAMS> {
+    fn init_and_bounds_from_ts(&self, ts: &mut TimeSeries<T>) -> FitInitsBoundsArrays {
         match &self.inits_bounds {
             BazinInitsBounds::Default => BazinInitsBounds::default_from_ts(ts),
             BazinInitsBounds::Arrays(arrays) => arrays.as_ref().clone(),
@@ -296,12 +296,12 @@ impl FitParametersInternalExternalTrait<NPARAMS> for BazinFit {
     }
 }
 
-impl FitFeatureEvaluatorGettersTrait<NPARAMS> for BazinFit {
+impl FitFeatureEvaluatorGettersTrait for BazinFit {
     fn get_algorithm(&self) -> &CurveFitAlgorithm {
         &self.algorithm
     }
 
-    fn ln_prior_from_ts<T: Float>(&self, ts: &mut TimeSeries<T>) -> LnPrior<NPARAMS> {
+    fn ln_prior_from_ts<T: Float>(&self, ts: &mut TimeSeries<T>) -> LnPrior {
         self.ln_prior.ln_prior_from_ts(ts)
     }
 }
@@ -334,7 +334,7 @@ impl<T> FeatureEvaluator<T> for BazinFit
 where
     T: Float,
 {
-    fit_eval!();
+    fit_eval!(NPARAMS);
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, Default, PartialEq)]
@@ -342,13 +342,13 @@ where
 pub enum BazinInitsBounds {
     #[default]
     Default,
-    Arrays(Box<FitInitsBoundsArrays<NPARAMS>>),
-    OptionArrays(Box<OptionFitInitsBoundsArrays<NPARAMS>>),
+    Arrays(Box<FitInitsBoundsArrays>),
+    OptionArrays(Box<OptionFitInitsBoundsArrays>),
 }
 
 impl BazinInitsBounds {
     pub fn arrays(init: [f64; NPARAMS], lower: [f64; NPARAMS], upper: [f64; NPARAMS]) -> Self {
-        Self::Arrays(FitInitsBoundsArrays::new(init, lower, upper).into())
+        Self::Arrays(FitInitsBoundsArrays::new(init.into(), lower.into(), upper.into()).into())
     }
 
     pub fn option_arrays(
@@ -356,10 +356,12 @@ impl BazinInitsBounds {
         lower: [Option<f64>; NPARAMS],
         upper: [Option<f64>; NPARAMS],
     ) -> Self {
-        Self::OptionArrays(OptionFitInitsBoundsArrays::new(init, lower, upper).into())
+        Self::OptionArrays(
+            OptionFitInitsBoundsArrays::new(init.into(), lower.into(), upper.into()).into(),
+        )
     }
 
-    fn default_from_ts<T: Float>(ts: &mut TimeSeries<T>) -> FitInitsBoundsArrays<NPARAMS> {
+    fn default_from_ts<T: Float>(ts: &mut TimeSeries<T>) -> FitInitsBoundsArrays {
         let t_min: f64 = ts.t.get_min().value_into().unwrap();
         let t_max: f64 = ts.t.get_max().value_into().unwrap();
         let t_amplitude = t_max - t_min;
@@ -384,9 +386,9 @@ impl BazinInitsBounds {
         let (fall_lower, fall_upper) = (0.0, 10.0 * t_amplitude);
 
         FitInitsBoundsArrays {
-            init: [a_init, c_init, t0_init, rise_init, fall_init].into(),
-            lower: [a_lower, c_lower, t0_lower, rise_lower, fall_lower].into(),
-            upper: [a_upper, c_upper, t0_upper, rise_upper, fall_upper].into(),
+            init: vec![a_init, c_init, t0_init, rise_init, fall_init],
+            lower: vec![a_lower, c_lower, t0_lower, rise_lower, fall_lower],
+            upper: vec![a_upper, c_upper, t0_upper, rise_upper, fall_upper],
         }
     }
 }
@@ -394,23 +396,23 @@ impl BazinInitsBounds {
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum BazinLnPrior {
-    Fixed(Box<LnPrior<NPARAMS>>),
+    Fixed(Box<LnPrior>),
 }
 
 impl BazinLnPrior {
-    pub fn fixed(ln_prior: LnPrior<NPARAMS>) -> Self {
+    pub fn fixed(ln_prior: LnPrior) -> Self {
         Self::Fixed(ln_prior.into())
     }
 
-    pub fn ln_prior_from_ts<T: Float>(&self, _ts: &mut TimeSeries<T>) -> LnPrior<NPARAMS> {
+    pub fn ln_prior_from_ts<T: Float>(&self, _ts: &mut TimeSeries<T>) -> LnPrior {
         match self {
             Self::Fixed(ln_prior) => ln_prior.as_ref().clone(),
         }
     }
 }
 
-impl From<LnPrior<NPARAMS>> for BazinLnPrior {
-    fn from(item: LnPrior<NPARAMS>) -> Self {
+impl From<LnPrior> for BazinLnPrior {
+    fn from(item: LnPrior) -> Self {
         Self::fixed(item)
     }
 }
@@ -515,7 +517,7 @@ mod tests {
     //     let lmsder = CeresCurveFit::new();
     //     let mcmc = McmcCurveFit::new(512, Some(lmsder.into()));
     //     bazin_fit_noisy(BazinFit::new(
-    //         CeresCurveFit::new().into(),
+    //         mcmc.into(),
     //         LnPrior::none(),
     //         BazinInitsBounds::option_arrays(
     //             [None; 5],
@@ -613,9 +615,9 @@ mod tests {
                 );
                 let result = bazin.eval(&mut ts).unwrap();
 
+                let result_arr: [f64; NPARAMS] = result[..NPARAMS].try_into().unwrap();
                 let t_model = Array1::linspace(t[0] - 1.0, t[t.len() - 1] + 1.0, 100);
-                let flux_model =
-                    t_model.mapv(|x| BazinFit::model(x, &result[..NPARAMS].try_into().unwrap()));
+                let flux_model = t_model.mapv(|x| BazinFit::model(x, &result_arr));
                 flux_model.mapv(|y| -2.5 * f64::log10(y / f0))
             })
             .collect();
@@ -673,4 +675,16 @@ mod tests {
     }
 
     check_fit_jacobian!(BazinFit);
+
+    /// A wrong-length parameter slice must panic loudly (via `try_into`'s `.expect`) rather than
+    /// silently truncating or padding -- this is the boundary between the solver's runtime-length
+    /// `&[f64]` and the feature's fixed-size `[f64; NPARAMS]` math.
+    #[test]
+    #[should_panic(expected = "orig must have exactly MAX_NPARAMS elements")]
+    fn bazin_fit_convert_to_internal_wrong_length_panics() {
+        let mut ts = TimeSeries::new_without_weight(vec![1.0, 2.0, 3.0], vec![1.0, 2.0, 3.0]);
+        let norm_data = NormalizedData::<f64>::from_ts(&mut ts);
+        let wrong_length = vec![1.0; NPARAMS + 1];
+        let _ = BazinFit::convert_to_internal(&norm_data, &wrong_length);
+    }
 }

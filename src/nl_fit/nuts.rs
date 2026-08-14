@@ -68,16 +68,15 @@ impl Default for NutsCurveFit {
     }
 }
 
+/// `logp` no longer has a fallible conversion step (it now takes `params: &[f64]` directly,
+/// rather than converting to a fixed-size array first), so this error can never actually be
+/// constructed -- kept as an uninhabited type only because `CpuLogpFunc::LogpError` requires one.
 #[derive(Debug)]
-enum NutsLogpError {
-    NonRecoverable,
-}
+enum NutsLogpError {}
 
 impl std::fmt::Display for NutsLogpError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            NutsLogpError::NonRecoverable => write!(f, "Non-recoverable error in logp calculation"),
-        }
+    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match *self {}
     }
 }
 
@@ -85,69 +84,68 @@ impl std::error::Error for NutsLogpError {}
 
 impl LogpError for NutsLogpError {
     fn is_recoverable(&self) -> bool {
-        false
+        match *self {}
     }
 }
 
-struct LogpFunc<F, DF, LP, const NPARAMS: usize> {
+struct LogpFunc<F, DF, LP> {
     ts: Rc<Data<f64>>,
     model: F,
     derivatives: DF,
     ln_prior: LP,
-    lower: [f64; NPARAMS],
-    upper: [f64; NPARAMS],
+    lower: Vec<f64>,
+    upper: Vec<f64>,
 }
 
-impl<F, DF, LP, const NPARAMS: usize> HasDims for LogpFunc<F, DF, LP, NPARAMS> {
+impl<F, DF, LP> HasDims for LogpFunc<F, DF, LP> {
     fn dim_sizes(&self) -> HashMap<String, u64> {
+        let nparams = self.lower.len() as u64;
         HashMap::from([
-            ("unconstrained_parameter".to_string(), NPARAMS as u64),
-            ("dim".to_string(), NPARAMS as u64),
+            ("unconstrained_parameter".to_string(), nparams),
+            ("dim".to_string(), nparams),
         ])
     }
 }
 
-impl<F, DF, LP, const NPARAMS: usize> CpuLogpFunc for LogpFunc<F, DF, LP, NPARAMS>
+impl<F, DF, LP> CpuLogpFunc for LogpFunc<F, DF, LP>
 where
-    F: Clone + Fn(f64, &[f64; NPARAMS]) -> f64,
-    DF: Clone + Fn(f64, &[f64; NPARAMS], &mut [f64; NPARAMS]),
-    LP: LnPriorEvaluator<NPARAMS>,
+    F: Clone + Fn(f64, &[f64]) -> f64,
+    DF: Clone + Fn(f64, &[f64], &mut [f64]),
+    LP: LnPriorEvaluator,
 {
     type LogpError = NutsLogpError;
     type FlowParameters = ();
     type ExpandedVector = Vec<f64>;
 
     fn dim(&self) -> usize {
-        NPARAMS
+        self.lower.len()
     }
 
     fn logp(&mut self, params: &[f64], grad: &mut [f64]) -> Result<f64, Self::LogpError> {
-        // Check boundaries
-        let params_array: [f64; NPARAMS] = params
-            .try_into()
-            .map_err(|_| NutsLogpError::NonRecoverable)?;
+        let nparams = self.lower.len();
 
-        if !within_bounds(&params_array, &self.lower, &self.upper) {
+        // Check boundaries
+        if !within_bounds(params, &self.lower, &self.upper) {
             return Ok(f64::NEG_INFINITY);
         }
 
         // Calculate log-likelihood (negative chi-squared)
         let mut residual = 0.0;
-        let mut grad_array = [0.0; NPARAMS];
+        let mut grad_array = vec![0.0; nparams];
 
         // Compute -chi^2/2 and its gradient
+        let mut model_grad = vec![0.0; nparams];
         Zip::from(&self.ts.t)
             .and(&self.ts.m)
             .and(&self.ts.inv_err)
             .for_each(|&t, &m, &inv_err| {
-                let model_val = (self.model)(t, &params_array);
+                let model_val = (self.model)(t, params);
                 let diff = model_val - m;
                 residual += (inv_err * diff).powi(2);
 
                 // Gradient of chi^2 with respect to parameters
-                let mut model_grad = [0.0; NPARAMS];
-                (self.derivatives)(t, &params_array, &mut model_grad);
-                for i in 0..NPARAMS {
+                (self.derivatives)(t, params, &mut model_grad);
+                for i in 0..nparams {
                     grad_array[i] += 2.0 * inv_err.powi(2) * diff * model_grad[i];
                 }
             });
@@ -155,13 +153,13 @@ where
         let lnlike = -0.5 * residual;
 
         // Add prior and compute its gradient
-        let mut prior_grad = [0.0; NPARAMS];
-        let lnprior = self.ln_prior.ln_prior(&params_array, Some(&mut prior_grad));
+        let mut prior_grad = vec![0.0; nparams];
+        let lnprior = self.ln_prior.ln_prior(params, Some(&mut prior_grad));
 
         // Gradient is d(lnlike + lnprior)/d(params)
         // = d(lnlike)/d(params) + d(lnprior)/d(params)
         // = -0.5 * d(chi^2)/d(params) + d(lnprior)/d(params)
-        for i in 0..NPARAMS {
+        for i in 0..nparams {
             grad[i] = -0.5 * grad_array[i] + prior_grad[i];
         }
 
@@ -178,20 +176,21 @@ where
 }
 
 impl CurveFitTrait for NutsCurveFit {
-    fn curve_fit<F, DF, LP, const NPARAMS: usize>(
+    fn curve_fit<F, DF, LP>(
         &self,
         ts: Rc<Data<f64>>,
-        x0: &[f64; NPARAMS],
-        bounds: (&[f64; NPARAMS], &[f64; NPARAMS]),
+        x0: &[f64],
+        bounds: (&[f64], &[f64]),
         model: F,
         derivatives: DF,
         ln_prior: LP,
-    ) -> CurveFitResult<f64, NPARAMS>
+    ) -> CurveFitResult<f64>
     where
-        F: 'static + Clone + Fn(f64, &[f64; NPARAMS]) -> f64,
-        DF: 'static + Clone + Fn(f64, &[f64; NPARAMS], &mut [f64; NPARAMS]),
-        LP: LnPriorEvaluator<NPARAMS>,
+        F: 'static + Clone + Fn(f64, &[f64]) -> f64,
+        DF: 'static + Clone + Fn(f64, &[f64], &mut [f64]),
+        LP: LnPriorEvaluator,
     {
+        let nparams = x0.len();
         let nsamples = ts.t.len();
 
         let logp_func = LogpFunc {
@@ -199,8 +198,8 @@ impl CurveFitTrait for NutsCurveFit {
             model: model.clone(),
             derivatives: derivatives.clone(),
             ln_prior: ln_prior.clone(),
-            lower: *bounds.0,
-            upper: *bounds.1,
+            lower: bounds.0.to_vec(),
+            upper: bounds.1.to_vec(),
         };
 
         let math = CpuMath::new(logp_func);
@@ -215,7 +214,7 @@ impl CurveFitTrait for NutsCurveFit {
         let mut sampler = settings.new_chain(0, math, &mut rng);
 
         // Set initial position
-        sampler.set_position(&x0[..]).unwrap_or_else(|e| {
+        sampler.set_position(x0).unwrap_or_else(|e| {
             panic!(
                 "Failed to set initial position for NUTS sampler. \
                      This may be due to invalid parameters or boundary violations. \
@@ -225,16 +224,13 @@ impl CurveFitTrait for NutsCurveFit {
         });
 
         // Collect samples
-        let mut best_x = *x0;
+        let mut best_x = x0.to_vec();
         let mut best_lnprob = f64::NEG_INFINITY;
 
         for _ in 0..(self.num_tune + self.num_draws) {
             match sampler.expanded_draw() {
                 Ok((draw, _expanded, stats, _progress)) => {
-                    // Convert draw to array
-                    let params: [f64; NPARAMS] = Vec::from(draw)
-                        .try_into()
-                        .expect("Failed to convert draw to array");
+                    let params = Vec::from(draw);
 
                     // Use the log probability from the sampler stats
                     let lnprob = stats.point.logp;
@@ -262,7 +258,7 @@ impl CurveFitTrait for NutsCurveFit {
                     .for_each(|&t, &m, &inv_err| {
                         residual += (inv_err * (model(t, &best_x) - m)).powi(2);
                     });
-                let reduced_chi2 = residual / ((nsamples - NPARAMS) as f64);
+                let reduced_chi2 = residual / ((nsamples - nparams) as f64);
 
                 CurveFitResult {
                     x: best_x,
@@ -380,17 +376,18 @@ mod tests {
             posterior_var * ((N as f64) * y_target / obs_var + prior_mean / prior_var);
 
         // Create prior in external space
-        let prior: LnPrior<1> = LnPrior::ind_components([LnPrior1D::normal(prior_mean, prior_std)]);
+        let prior: LnPrior =
+            LnPrior::ind_components(vec![LnPrior1D::normal(prior_mean, prior_std)]);
 
         // Transform prior to work with internal parameters
         let transformed_prior =
-            prior.with_fit_parameters_transformation::<SimpleConstantModel>(&norm_data);
+            prior.with_fit_parameters_transformation::<SimpleConstantModel, _>(&norm_data);
 
         // Model: f(t) = |internal[0]|
-        let model = |_t: f64, params: &[f64; 1]| -> f64 { params[0].abs() };
+        let model = |_t: f64, params: &[f64]| -> f64 { params[0].abs() };
 
         // Derivatives: d(|x|)/dx = sign(x)
-        let derivatives = |_t: f64, params: &[f64; 1], jac: &mut [f64; 1]| {
+        let derivatives = |_t: f64, params: &[f64], jac: &mut [f64]| {
             jac[0] = params[0].signum();
         };
 
@@ -457,9 +454,9 @@ mod tests {
         let norm_data = NormalizedData::<f64>::from_ts(&mut ts);
 
         // Prior in external space: N(1.0, 0.5²)
-        let prior: LnPrior<1> = LnPrior::ind_components([LnPrior1D::normal(1.0, 0.5)]);
+        let prior: LnPrior = LnPrior::ind_components(vec![LnPrior1D::normal(1.0, 0.5)]);
         let transformed_prior =
-            prior.with_fit_parameters_transformation::<SimpleConstantModel>(&norm_data);
+            prior.with_fit_parameters_transformation::<SimpleConstantModel, _>(&norm_data);
 
         // Test with both positive and negative internal parameters
         // The key insight: for external = |internal|, the gradient should flip sign
@@ -530,9 +527,9 @@ mod tests {
         let mut ts = TimeSeries::new(&t_vec, &m_vec, &w_vec);
         let norm_data = NormalizedData::<f64>::from_ts(&mut ts);
 
-        let prior: LnPrior<1> = LnPrior::ind_components([LnPrior1D::normal(1.0, 0.5)]);
+        let prior: LnPrior = LnPrior::ind_components(vec![LnPrior1D::normal(1.0, 0.5)]);
         let transformed_prior =
-            prior.with_fit_parameters_transformation::<SimpleConstantModel>(&norm_data);
+            prior.with_fit_parameters_transformation::<SimpleConstantModel, _>(&norm_data);
 
         // Test that ln_prior(+x) == ln_prior(-x) for the same |x|
         for &x in &[0.5, 1.0, 1.5, 2.0] {

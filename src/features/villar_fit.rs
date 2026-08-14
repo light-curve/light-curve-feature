@@ -206,11 +206,11 @@ where
     }
 }
 
-impl<T> FitInitsBoundsTrait<T, NPARAMS> for VillarFit
+impl<T> FitInitsBoundsTrait<T> for VillarFit
 where
     T: Float,
 {
-    fn init_and_bounds_from_ts(&self, ts: &mut TimeSeries<T>) -> FitInitsBoundsArrays<NPARAMS> {
+    fn init_and_bounds_from_ts(&self, ts: &mut TimeSeries<T>) -> FitInitsBoundsArrays {
         match &self.inits_bounds {
             VillarInitsBounds::Default => VillarInitsBounds::default_from_ts(ts),
             VillarInitsBounds::Arrays(arrays) => arrays.as_ref().clone(),
@@ -317,12 +317,12 @@ impl FitParametersInternalExternalTrait<NPARAMS> for VillarFit {
     }
 }
 
-impl FitFeatureEvaluatorGettersTrait<NPARAMS> for VillarFit {
+impl FitFeatureEvaluatorGettersTrait for VillarFit {
     fn get_algorithm(&self) -> &CurveFitAlgorithm {
         &self.algorithm
     }
 
-    fn ln_prior_from_ts<T: Float>(&self, ts: &mut TimeSeries<T>) -> LnPrior<NPARAMS> {
+    fn ln_prior_from_ts<T: Float>(&self, ts: &mut TimeSeries<T>) -> LnPrior {
         self.ln_prior.ln_prior_from_ts(ts)
     }
 }
@@ -359,7 +359,7 @@ impl<T> FeatureEvaluator<T> for VillarFit
 where
     T: Float,
 {
-    fit_eval!();
+    fit_eval!(NPARAMS);
 }
 
 struct Params<'a, T> {
@@ -472,13 +472,13 @@ where
 pub enum VillarInitsBounds {
     #[default]
     Default,
-    Arrays(Box<FitInitsBoundsArrays<NPARAMS>>),
-    OptionArrays(Box<OptionFitInitsBoundsArrays<NPARAMS>>),
+    Arrays(Box<FitInitsBoundsArrays>),
+    OptionArrays(Box<OptionFitInitsBoundsArrays>),
 }
 
 impl VillarInitsBounds {
     pub fn arrays(init: [f64; NPARAMS], lower: [f64; NPARAMS], upper: [f64; NPARAMS]) -> Self {
-        Self::Arrays(FitInitsBoundsArrays::new(init, lower, upper).into())
+        Self::Arrays(FitInitsBoundsArrays::new(init.into(), lower.into(), upper.into()).into())
     }
 
     pub fn option_arrays(
@@ -486,10 +486,12 @@ impl VillarInitsBounds {
         lower: [Option<f64>; NPARAMS],
         upper: [Option<f64>; NPARAMS],
     ) -> Self {
-        Self::OptionArrays(OptionFitInitsBoundsArrays::new(init, lower, upper).into())
+        Self::OptionArrays(
+            OptionFitInitsBoundsArrays::new(init.into(), lower.into(), upper.into()).into(),
+        )
     }
 
-    fn default_from_ts<T: Float>(ts: &mut TimeSeries<T>) -> FitInitsBoundsArrays<NPARAMS> {
+    fn default_from_ts<T: Float>(ts: &mut TimeSeries<T>) -> FitInitsBoundsArrays {
         let t_min: f64 = ts.t.get_min().value_into().unwrap();
         let t_max: f64 = ts.t.get_max().value_into().unwrap();
         let t_amplitude = t_max - t_min;
@@ -521,7 +523,7 @@ impl VillarInitsBounds {
         let (gamma_lower, gamma_upper) = (0.0, 10.0 * t_amplitude);
 
         FitInitsBoundsArrays {
-            init: [
+            init: vec![
                 a_init,
                 c_init,
                 t0_init,
@@ -529,9 +531,8 @@ impl VillarInitsBounds {
                 tau_fall_init,
                 nu_init,
                 gamma_init,
-            ]
-            .into(),
-            lower: [
+            ],
+            lower: vec![
                 a_lower,
                 c_lower,
                 t0_lower,
@@ -539,9 +540,8 @@ impl VillarInitsBounds {
                 tau_fall_lower,
                 nu_lower,
                 gamma_lower,
-            ]
-            .into(),
-            upper: [
+            ],
+            upper: vec![
                 a_upper,
                 c_upper,
                 t0_upper,
@@ -549,8 +549,7 @@ impl VillarInitsBounds {
                 tau_fall_upper,
                 nu_upper,
                 gamma_upper,
-            ]
-            .into(),
+            ],
         }
     }
 }
@@ -559,7 +558,7 @@ impl VillarInitsBounds {
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[non_exhaustive]
 pub enum VillarLnPrior {
-    Fixed(Box<LnPrior<NPARAMS>>),
+    Fixed(Box<LnPrior>),
     /// Adopted from Hosseinzadeh, et al. 2020, table 2
     ///
     /// `time_units_in_day` specifies the units of time you use in yout `TimeSeries` object, it
@@ -572,7 +571,7 @@ pub enum VillarLnPrior {
 }
 
 impl VillarLnPrior {
-    pub fn fixed(ln_prior: LnPrior<NPARAMS>) -> Self {
+    pub fn fixed(ln_prior: LnPrior) -> Self {
         Self::Fixed(ln_prior.into())
     }
 
@@ -584,7 +583,7 @@ impl VillarLnPrior {
         }
     }
 
-    pub fn ln_prior_from_ts<T: Float>(&self, ts: &mut TimeSeries<T>) -> LnPrior<NPARAMS> {
+    pub fn ln_prior_from_ts<T: Float>(&self, ts: &mut TimeSeries<T>) -> LnPrior {
         match self {
             Self::Fixed(ln_prior) => ln_prior.as_ref().clone(),
             Self::Hosseinzadeh2020 {
@@ -598,7 +597,7 @@ impl VillarLnPrior {
                 let day = day.into_inner();
                 let min_amplitude = min_amplitude.into_inner();
 
-                LnPrior::ind_components([
+                LnPrior::ind_components(vec![
                     LnPrior1D::log_uniform(min_amplitude, 100.0 * m_amplitude), // amplitude
                     LnPrior1D::none(), // offset, not used in the original paper
                     LnPrior1D::uniform(t_peak - 50.0 * day, t_peak + 300.0 * day), // reference time
@@ -615,8 +614,8 @@ impl VillarLnPrior {
     }
 }
 
-impl From<LnPrior<NPARAMS>> for VillarLnPrior {
-    fn from(item: LnPrior<NPARAMS>) -> Self {
+impl From<LnPrior> for VillarLnPrior {
+    fn from(item: LnPrior) -> Self {
         Self::fixed(item)
     }
 }

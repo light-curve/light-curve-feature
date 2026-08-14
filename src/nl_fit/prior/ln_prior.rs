@@ -12,11 +12,12 @@ use std::fmt::Debug;
 /// This trait is implemented by types that can evaluate ln(prior) for a given set of parameters.
 /// Unlike [LnPriorTrait], this trait does not require serialization, making it suitable for
 /// use with closures and other non-serializable types.
-pub trait LnPriorEvaluator<const NPARAMS: usize>: Clone {
+pub trait LnPriorEvaluator: Clone {
     /// Evaluate the natural logarithm of the prior at params
     ///
     /// If `jac` is `Some`, the jacobian (gradient) d(ln_prior)/d(params) is also computed and stored in it.
-    fn ln_prior(&self, params: &[f64; NPARAMS], jac: Option<&mut [f64; NPARAMS]>) -> f64;
+    /// `jac`, when given, must be the same length as `params`.
+    fn ln_prior(&self, params: &[f64], jac: Option<&mut [f64]>) -> f64;
 }
 
 /// Trait for serializable prior evaluators
@@ -28,22 +29,19 @@ pub trait LnPriorEvaluator<const NPARAMS: usize>: Clone {
 /// or temporary prior objects). Use this trait when you need to serialize the prior
 /// configuration.
 #[enum_dispatch]
-pub trait LnPriorTrait<const NPARAMS: usize>:
-    LnPriorEvaluator<NPARAMS> + Debug + Serialize + DeserializeOwned
-{
-}
+pub trait LnPriorTrait: LnPriorEvaluator + Debug + Serialize + DeserializeOwned {}
 
 /// Natural logarithm of prior for non-linear curve-fit problem
-#[enum_dispatch(LnPriorTrait<NPARAMS>)]
+#[enum_dispatch(LnPriorTrait)]
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash)]
 #[non_exhaustive]
-pub enum LnPrior<const NPARAMS: usize> {
+pub enum LnPrior {
     None(NoneLnPrior),
-    IndComponents(IndComponentsLnPrior<NPARAMS>),
+    IndComponents(IndComponentsLnPrior),
 }
 
-impl<const NPARAMS: usize> LnPriorEvaluator<NPARAMS> for LnPrior<NPARAMS> {
-    fn ln_prior(&self, params: &[f64; NPARAMS], jac: Option<&mut [f64; NPARAMS]>) -> f64 {
+impl LnPriorEvaluator for LnPrior {
+    fn ln_prior(&self, params: &[f64], jac: Option<&mut [f64]>) -> f64 {
         match self {
             LnPrior::None(p) => p.ln_prior(params, jac),
             LnPrior::IndComponents(p) => p.ln_prior(params, jac),
@@ -51,39 +49,42 @@ impl<const NPARAMS: usize> LnPriorEvaluator<NPARAMS> for LnPrior<NPARAMS> {
     }
 }
 
-impl<const NPARAMS: usize> LnPrior<NPARAMS> {
+impl LnPrior {
     pub fn none() -> Self {
         NoneLnPrior {}.into()
     }
 
-    pub fn ind_components(components: [LnPrior1D; NPARAMS]) -> Self {
-        IndComponentsLnPrior { components }.into()
+    pub fn ind_components(components: impl Into<Vec<LnPrior1D>>) -> Self {
+        IndComponentsLnPrior {
+            components: components.into(),
+        }
+        .into()
     }
 
-    pub fn into_func(self) -> impl 'static + Clone + Fn(&[f64; NPARAMS]) -> f64 {
+    pub fn into_func(self) -> impl 'static + Clone + Fn(&[f64]) -> f64 {
         move |params| self.ln_prior(params, None)
     }
 
     pub fn into_func_with_transformation<'a, F>(
         self,
         transform: F,
-    ) -> impl 'a + Clone + Fn(&[f64; NPARAMS]) -> f64
+    ) -> impl 'a + Clone + Fn(&[f64]) -> f64
     where
-        F: 'a + Clone + Fn(&[f64; NPARAMS]) -> [f64; NPARAMS],
+        F: 'a + Clone + Fn(&[f64]) -> Vec<f64>,
     {
         move |params| self.ln_prior(&transform(params), None)
     }
 
-    pub fn as_func(&self) -> impl '_ + Fn(&[f64; NPARAMS]) -> f64 {
+    pub fn as_func(&self) -> impl '_ + Fn(&[f64]) -> f64 {
         |params| self.ln_prior(params, None)
     }
 
     pub fn as_func_with_transformation<'a, F>(
         &'a self,
         transform: F,
-    ) -> impl 'a + Clone + Fn(&[f64; NPARAMS]) -> f64
+    ) -> impl 'a + Clone + Fn(&[f64]) -> f64
     where
-        F: 'a + Clone + Fn(&[f64; NPARAMS]) -> [f64; NPARAMS],
+        F: 'a + Clone + Fn(&[f64]) -> Vec<f64>,
     {
         move |params| self.ln_prior(&transform(params), None)
     }
@@ -93,12 +94,12 @@ impl<const NPARAMS: usize> LnPrior<NPARAMS> {
     /// This method creates a wrapper that stores references to the prior and normalization data,
     /// allowing it to be fully debuggable. The transformation is applied using the trait's
     /// `convert_to_external` method from the `FitParametersInternalExternalTrait` trait.
-    pub fn with_fit_parameters_transformation<'a, T>(
+    pub fn with_fit_parameters_transformation<'a, T, const MAX_NPARAMS: usize>(
         &'a self,
         norm_data: &'a NormalizedData<f64>,
-    ) -> TransformedLnPrior<'a, T, NPARAMS>
+    ) -> TransformedLnPrior<'a, T, MAX_NPARAMS>
     where
-        T: crate::nl_fit::evaluator::FitParametersInternalExternalTrait<NPARAMS>,
+        T: crate::nl_fit::evaluator::FitParametersInternalExternalTrait<MAX_NPARAMS>,
     {
         TransformedLnPrior {
             prior: self.clone(),
@@ -111,8 +112,8 @@ impl<const NPARAMS: usize> LnPrior<NPARAMS> {
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash)]
 pub struct NoneLnPrior {}
 
-impl<const NPARAMS: usize> LnPriorEvaluator<NPARAMS> for NoneLnPrior {
-    fn ln_prior(&self, _params: &[f64; NPARAMS], jac: Option<&mut [f64; NPARAMS]>) -> f64 {
+impl LnPriorEvaluator for NoneLnPrior {
+    fn ln_prior(&self, _params: &[f64], jac: Option<&mut [f64]>) -> f64 {
         if let Some(j) = jac {
             j.iter_mut().for_each(|x| *x = 0.0);
         }
@@ -120,19 +121,16 @@ impl<const NPARAMS: usize> LnPriorEvaluator<NPARAMS> for NoneLnPrior {
     }
 }
 
-impl<const NPARAMS: usize> LnPriorTrait<NPARAMS> for NoneLnPrior {}
+impl LnPriorTrait for NoneLnPrior {}
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
-#[serde(
-    into = "IndComponentsLnPriorSerde",
-    try_from = "IndComponentsLnPriorSerde"
-)]
-pub struct IndComponentsLnPrior<const NPARAMS: usize> {
-    pub components: [LnPrior1D; NPARAMS],
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash)]
+#[serde(rename = "IndComponentsLnPrior")]
+pub struct IndComponentsLnPrior {
+    pub components: Vec<LnPrior1D>,
 }
 
-impl<const NPARAMS: usize> LnPriorEvaluator<NPARAMS> for IndComponentsLnPrior<NPARAMS> {
-    fn ln_prior(&self, params: &[f64; NPARAMS], jac: Option<&mut [f64; NPARAMS]>) -> f64 {
+impl LnPriorEvaluator for IndComponentsLnPrior {
+    fn ln_prior(&self, params: &[f64], jac: Option<&mut [f64]>) -> f64 {
         let mut total_ln_prior = 0.0;
 
         if let Some(jac) = jac {
@@ -156,48 +154,7 @@ impl<const NPARAMS: usize> LnPriorEvaluator<NPARAMS> for IndComponentsLnPrior<NP
     }
 }
 
-impl<const NPARAMS: usize> LnPriorTrait<NPARAMS> for IndComponentsLnPrior<NPARAMS> {}
-
-impl<const NPARAMS: usize> JsonSchema for IndComponentsLnPrior<NPARAMS> {
-    fn is_referenceable() -> bool {
-        false
-    }
-
-    fn schema_name() -> String {
-        IndComponentsLnPriorSerde::schema_name()
-    }
-
-    fn json_schema(r#gen: &mut schemars::r#gen::SchemaGenerator) -> schemars::schema::Schema {
-        IndComponentsLnPriorSerde::json_schema(r#gen)
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(rename = "IndComponentsLnPrior")]
-struct IndComponentsLnPriorSerde {
-    components: Vec<LnPrior1D>,
-}
-
-impl<const NPARAMS: usize> From<IndComponentsLnPrior<NPARAMS>> for IndComponentsLnPriorSerde {
-    fn from(value: IndComponentsLnPrior<NPARAMS>) -> Self {
-        Self {
-            components: value.components.into(),
-        }
-    }
-}
-
-impl<const NPARAMS: usize> TryFrom<IndComponentsLnPriorSerde> for IndComponentsLnPrior<NPARAMS> {
-    type Error = &'static str;
-
-    fn try_from(value: IndComponentsLnPriorSerde) -> Result<Self, Self::Error> {
-        Ok(Self {
-            components: value
-                .components
-                .try_into()
-                .map_err(|_| "wrong size of the IndComponentsLnPrior.components")?,
-        })
-    }
-}
+impl LnPriorTrait for IndComponentsLnPrior {}
 
 /// A prior with parameter transformation using FitParametersInternalExternalTrait
 ///
@@ -209,18 +166,18 @@ impl<const NPARAMS: usize> TryFrom<IndComponentsLnPriorSerde> for IndComponentsL
 /// Note: This type stores a reference to `NormalizedData` which is runtime data, so it cannot
 /// be serialized. However, the prior itself can be serialized separately.
 #[derive(Debug)]
-pub struct TransformedLnPrior<'a, T, const NPARAMS: usize>
+pub struct TransformedLnPrior<'a, T, const MAX_NPARAMS: usize>
 where
-    T: crate::nl_fit::evaluator::FitParametersInternalExternalTrait<NPARAMS>,
+    T: crate::nl_fit::evaluator::FitParametersInternalExternalTrait<MAX_NPARAMS>,
 {
-    prior: LnPrior<NPARAMS>,
+    prior: LnPrior,
     norm_data: &'a NormalizedData<f64>,
     _phantom: std::marker::PhantomData<T>,
 }
 
-impl<'a, T, const NPARAMS: usize> Clone for TransformedLnPrior<'a, T, NPARAMS>
+impl<'a, T, const MAX_NPARAMS: usize> Clone for TransformedLnPrior<'a, T, MAX_NPARAMS>
 where
-    T: crate::nl_fit::evaluator::FitParametersInternalExternalTrait<NPARAMS>,
+    T: crate::nl_fit::evaluator::FitParametersInternalExternalTrait<MAX_NPARAMS>,
 {
     fn clone(&self) -> Self {
         Self {
@@ -231,11 +188,11 @@ where
     }
 }
 
-impl<'a, T, const NPARAMS: usize> LnPriorEvaluator<NPARAMS> for TransformedLnPrior<'a, T, NPARAMS>
+impl<'a, T, const MAX_NPARAMS: usize> LnPriorEvaluator for TransformedLnPrior<'a, T, MAX_NPARAMS>
 where
-    T: crate::nl_fit::evaluator::FitParametersInternalExternalTrait<NPARAMS>,
+    T: crate::nl_fit::evaluator::FitParametersInternalExternalTrait<MAX_NPARAMS>,
 {
-    fn ln_prior(&self, params: &[f64; NPARAMS], jac: Option<&mut [f64; NPARAMS]>) -> f64 {
+    fn ln_prior(&self, params: &[f64], jac: Option<&mut [f64]>) -> f64 {
         let transformed = T::convert_to_external(self.norm_data, params);
 
         match jac {
@@ -245,7 +202,10 @@ where
 
                 // Apply the chain rule to transform the gradient from external to internal space:
                 // ∂(ln_prior)/∂(internal_i) = ∂(ln_prior)/∂(external_i) × ∂(external_i)/∂(internal_i)
-                let jacobian = T::jacobian_internal_to_external(self.norm_data, params);
+                let params_arr: &[f64; MAX_NPARAMS] = params
+                    .try_into()
+                    .expect("params must have exactly MAX_NPARAMS elements");
+                let jacobian = T::jacobian_internal_to_external(self.norm_data, params_arr);
                 for (grad, jac_elem) in jac.iter_mut().zip(jacobian.iter()) {
                     *grad *= jac_elem;
                 }
@@ -264,19 +224,19 @@ mod tests {
 
     #[test]
     fn test_ln_prior_evaluator_trait_none() {
-        let prior: LnPrior<3> = LnPrior::none();
+        let prior: LnPrior = LnPrior::none();
         let params = [1.0, 2.0, 3.0];
         assert_eq!(prior.ln_prior(&params, None), 0.0);
     }
 
     #[test]
     fn test_ln_prior_evaluator_trait_ind_components() {
-        let components = [
+        let components = vec![
             LnPrior1D::uniform(0.0, 10.0),
             LnPrior1D::uniform(0.0, 10.0),
             LnPrior1D::uniform(0.0, 10.0),
         ];
-        let prior: LnPrior<3> = LnPrior::ind_components(components);
+        let prior: LnPrior = LnPrior::ind_components(components);
 
         // Test with valid parameters
         let params_valid = [5.0, 5.0, 5.0];
@@ -297,7 +257,7 @@ mod tests {
 
     #[test]
     fn test_ind_components_ln_prior() {
-        let components = [LnPrior1D::uniform(0.0, 1.0), LnPrior1D::uniform(0.0, 2.0)];
+        let components = vec![LnPrior1D::uniform(0.0, 1.0), LnPrior1D::uniform(0.0, 2.0)];
         let prior = IndComponentsLnPrior { components };
 
         // Both within bounds
@@ -311,7 +271,7 @@ mod tests {
 
     #[test]
     fn test_ln_prior_clone() {
-        let prior: LnPrior<2> = LnPrior::none();
+        let prior: LnPrior = LnPrior::none();
         let cloned = prior.clone();
         let params = [1.0, 2.0];
         assert_eq!(
@@ -322,14 +282,14 @@ mod tests {
 
     #[test]
     fn test_ln_prior_debug() {
-        let prior: LnPrior<2> = LnPrior::none();
+        let prior: LnPrior = LnPrior::none();
         let debug_str = format!("{:?}", prior);
         assert!(debug_str.contains("None"));
     }
 
     #[test]
     fn test_ln_prior_into_func() {
-        let prior: LnPrior<2> = LnPrior::none();
+        let prior: LnPrior = LnPrior::none();
         let func = prior.into_func();
         let params = [1.0, 2.0];
         assert_eq!(func(&params), 0.0);
@@ -337,8 +297,8 @@ mod tests {
 
     #[test]
     fn test_ln_prior_into_func_with_transformation() {
-        let prior: LnPrior<2> = LnPrior::none();
-        let transform = |params: &[f64; 2]| [params[0] * 2.0, params[1] * 2.0];
+        let prior: LnPrior = LnPrior::none();
+        let transform = |params: &[f64]| vec![params[0] * 2.0, params[1] * 2.0];
         let func = prior.into_func_with_transformation(transform);
         let params = [1.0, 2.0];
         // Since NoneLnPrior always returns 0, transformation doesn't affect result
@@ -347,7 +307,7 @@ mod tests {
 
     #[test]
     fn test_ln_prior_as_func() {
-        let prior: LnPrior<2> = LnPrior::none();
+        let prior: LnPrior = LnPrior::none();
         let func = prior.as_func();
         let params = [1.0, 2.0];
         assert_eq!(func(&params), 0.0);
@@ -398,12 +358,12 @@ mod tests {
         let norm_data = NormalizedData::<f64>::from_ts(&mut ts);
 
         // Create a prior with bounds [0, 2] for each parameter
-        let components = [LnPrior1D::uniform(0.0, 2.0), LnPrior1D::uniform(0.0, 2.0)];
-        let prior: LnPrior<2> = LnPrior::ind_components(components);
+        let components = vec![LnPrior1D::uniform(0.0, 2.0), LnPrior1D::uniform(0.0, 2.0)];
+        let prior: LnPrior = LnPrior::ind_components(components);
 
         // Create transformed prior
         let transformed_prior =
-            prior.with_fit_parameters_transformation::<MockFitParameters>(&norm_data);
+            prior.with_fit_parameters_transformation::<MockFitParameters, _>(&norm_data);
 
         // Test with internal parameters [0.5, 0.5]
         // After transformation: [1.0, 1.0] which is within bounds
@@ -424,9 +384,9 @@ mod tests {
         let mut ts = TimeSeries::new_without_weight(vec![1.0, 2.0, 3.0], vec![1.0, 2.0, 3.0]);
         let norm_data = NormalizedData::<f64>::from_ts(&mut ts);
 
-        let prior: LnPrior<2> = LnPrior::none();
+        let prior: LnPrior = LnPrior::none();
         let transformed_prior =
-            prior.with_fit_parameters_transformation::<MockFitParameters>(&norm_data);
+            prior.with_fit_parameters_transformation::<MockFitParameters, _>(&norm_data);
         let cloned = transformed_prior.clone();
 
         let params = [1.0, 2.0];
@@ -441,9 +401,9 @@ mod tests {
         let mut ts = TimeSeries::new_without_weight(vec![1.0, 2.0, 3.0], vec![1.0, 2.0, 3.0]);
         let norm_data = NormalizedData::<f64>::from_ts(&mut ts);
 
-        let prior: LnPrior<2> = LnPrior::none();
+        let prior: LnPrior = LnPrior::none();
         let transformed_prior =
-            prior.with_fit_parameters_transformation::<MockFitParameters>(&norm_data);
+            prior.with_fit_parameters_transformation::<MockFitParameters, _>(&norm_data);
 
         let debug_str = format!("{:?}", transformed_prior);
         assert!(debug_str.contains("TransformedLnPrior"));
@@ -451,9 +411,9 @@ mod tests {
 
     #[test]
     fn test_ln_prior_serialization() {
-        let prior: LnPrior<2> = LnPrior::none();
+        let prior: LnPrior = LnPrior::none();
         let serialized = serde_json::to_string(&prior).unwrap();
-        let deserialized: LnPrior<2> = serde_json::from_str(&serialized).unwrap();
+        let deserialized: LnPrior = serde_json::from_str(&serialized).unwrap();
 
         let params = [1.0, 2.0];
         assert_eq!(
@@ -464,11 +424,11 @@ mod tests {
 
     #[test]
     fn test_ind_components_serialization() {
-        let components = [LnPrior1D::uniform(0.0, 10.0), LnPrior1D::uniform(-5.0, 5.0)];
-        let prior: LnPrior<2> = LnPrior::ind_components(components);
+        let components = vec![LnPrior1D::uniform(0.0, 10.0), LnPrior1D::uniform(-5.0, 5.0)];
+        let prior: LnPrior = LnPrior::ind_components(components);
 
         let serialized = serde_json::to_string(&prior).unwrap();
-        let deserialized: LnPrior<2> = serde_json::from_str(&serialized).unwrap();
+        let deserialized: LnPrior = serde_json::from_str(&serialized).unwrap();
 
         let params = [5.0, 0.0];
         assert_eq!(
@@ -481,8 +441,8 @@ mod tests {
     fn test_ind_components_gradient() {
         use approx::assert_relative_eq;
 
-        let components = [LnPrior1D::normal(5.0, 2.0), LnPrior1D::normal(10.0, 3.0)];
-        let prior: LnPrior<2> = LnPrior::ind_components(components.clone());
+        let components = vec![LnPrior1D::normal(5.0, 2.0), LnPrior1D::normal(10.0, 3.0)];
+        let prior: LnPrior = LnPrior::ind_components(components.clone());
 
         let params = [6.0, 11.0];
         let mut jac = [0.0; 2];
@@ -506,7 +466,7 @@ mod tests {
 
     #[test]
     fn test_none_ln_prior_gradient() {
-        let prior: LnPrior<3> = LnPrior::none();
+        let prior: LnPrior = LnPrior::none();
         let params = [1.0, 2.0, 3.0];
         let mut jac = [0.0; 3];
         let ln_p = prior.ln_prior(&params, Some(&mut jac));
@@ -524,12 +484,12 @@ mod tests {
         let norm_data = NormalizedData::<f64>::from_ts(&mut ts);
 
         // Create a prior with normal distribution in external space
-        let components = [LnPrior1D::normal(1.0, 0.5), LnPrior1D::normal(2.0, 0.5)];
-        let prior: LnPrior<2> = LnPrior::ind_components(components);
+        let components = vec![LnPrior1D::normal(1.0, 0.5), LnPrior1D::normal(2.0, 0.5)];
+        let prior: LnPrior = LnPrior::ind_components(components);
 
         // Create transformed prior
         let transformed_prior =
-            prior.with_fit_parameters_transformation::<MockFitParameters>(&norm_data);
+            prior.with_fit_parameters_transformation::<MockFitParameters, _>(&norm_data);
 
         // Test at internal params [0.5, 1.0]
         // MockFitParameters transforms: external = internal * 2

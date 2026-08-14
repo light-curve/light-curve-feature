@@ -204,9 +204,15 @@ fn fitted_model(
     let values = feature.eval(ts).expect("Feature cannot be extracted");
     let reduced_chi2 = values[values.len() - 1];
     let model: BoxedModel = match feature {
-        Feature::BazinFit(..) => Box::new(BazinFit::f),
-        Feature::LinexpFit(..) => Box::new(LinexpFit::f),
-        Feature::VillarFit(..) => Box::new(VillarFit::f),
+        Feature::BazinFit(..) => {
+            Box::new(|t: f64, values: &[f64]| BazinFit::f(t, values[..5].try_into().unwrap()))
+        }
+        Feature::LinexpFit(..) => {
+            Box::new(|t: f64, values: &[f64]| LinexpFit::f(t, values[..4].try_into().unwrap()))
+        }
+        Feature::VillarFit(..) => {
+            Box::new(|t: f64, values: &[f64]| VillarFit::f(t, values[..7].try_into().unwrap()))
+        }
         _ => panic!("Unknown *Fit variant"),
     };
     let flux = t.mapv(|t| model(t, &values));

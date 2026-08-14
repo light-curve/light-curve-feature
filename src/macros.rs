@@ -125,21 +125,39 @@ macro_rules! json_schema {
 /// - implement all traits of [nl_fit::evaluator]
 /// - satisfy all [FeatureEvaluator] trait constraints
 /// - declare `const NPARAMS: usize` in your code
+///
+/// `$n` must be that same `NPARAMS` value: `curve_fit`'s solver-facing API is generic over
+/// `Fn(f64, &[f64]) -> f64`-shaped closures (GSL/Ceres/emcee/nuts-rs don't know about
+/// `MAX_NPARAMS`), while `Self::model`/`Self::derivatives` take fixed-size `&[T; $n]` so their
+/// own indexing is bounds-check-free. This macro is the one place that bridges the two: it
+/// builds thin wrapper closures that convert the solver's runtime slice to a fixed array before
+/// calling into the feature's own math.
 macro_rules! fit_eval {
-    () => {
+    ($n: expr) => {
         fn eval_no_ts_check(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
             let norm_data = NormalizedData::<f64>::from_ts(ts);
 
             let (x0, lower, upper) = {
-                let FitInitsBoundsArrays {
-                    init: FitArray(mut x0),
-                    lower: FitArray(mut lower),
-                    upper: FitArray(mut upper),
-                } = self.init_and_bounds_from_ts(ts);
-                x0 = Self::convert_to_internal(&norm_data, &x0);
-                lower = Self::convert_to_internal(&norm_data, &lower);
-                upper = Self::convert_to_internal(&norm_data, &upper);
+                let FitInitsBoundsArrays { init, lower, upper } = self.init_and_bounds_from_ts(ts);
+                let x0 = Self::convert_to_internal(&norm_data, &init);
+                let lower = Self::convert_to_internal(&norm_data, &lower);
+                let upper = Self::convert_to_internal(&norm_data, &upper);
                 (x0, lower, upper)
+            };
+
+            let model_closure = |t: f64, param: &[f64]| -> f64 {
+                let arr: &[f64; $n] = param
+                    .try_into()
+                    .expect("curve_fit always calls model with exactly NPARAMS values");
+                Self::model(t, arr)
+            };
+            let derivatives_closure = |t: f64, param: &[f64], jac: &mut [f64]| {
+                let arr: &[f64; $n] = param
+                    .try_into()
+                    .expect("curve_fit always calls derivatives with exactly NPARAMS values");
+                let mut jac_arr = [0.0_f64; $n];
+                Self::derivatives(t, arr, &mut jac_arr);
+                jac.copy_from_slice(&jac_arr);
             };
 
             let result = {
@@ -149,13 +167,12 @@ macro_rules! fit_eval {
                     norm_data.data.clone(),
                     &x0,
                     (&lower, &upper),
-                    Self::model,
-                    Self::derivatives,
+                    model_closure,
+                    derivatives_closure,
                     self.ln_prior_from_ts(ts)
-                        .with_fit_parameters_transformation::<Self>(&norm_data),
+                        .with_fit_parameters_transformation::<Self, $n>(&norm_data),
                 );
-                let result =
-                    Self::convert_to_external(&norm_data, (&x as &[_]).try_into().unwrap());
+                let result = Self::convert_to_external(&norm_data, &x);
                 result
                     .into_iter()
                     .chain(std::iter::once(reduced_chi2))

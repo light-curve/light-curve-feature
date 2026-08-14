@@ -50,24 +50,25 @@ impl Default for LmsderCurveFit {
 }
 
 impl CurveFitTrait for LmsderCurveFit {
-    fn curve_fit<F, DF, LP, const NPARAMS: usize>(
+    fn curve_fit<F, DF, LP>(
         &self,
         ts: Rc<Data<f64>>,
-        x0: &[f64; NPARAMS],
-        _bounds: (&[f64; NPARAMS], &[f64; NPARAMS]),
+        x0: &[f64],
+        _bounds: (&[f64], &[f64]),
         model: F,
         derivatives: DF,
         _ln_prior: LP,
-    ) -> CurveFitResult<f64, NPARAMS>
+    ) -> CurveFitResult<f64>
     where
-        F: 'static + Clone + Fn(f64, &[f64; NPARAMS]) -> f64,
-        DF: 'static + Clone + Fn(f64, &[f64; NPARAMS], &mut [f64; NPARAMS]),
-        LP: LnPriorEvaluator<NPARAMS>,
+        F: 'static + Clone + Fn(f64, &[f64]) -> f64,
+        DF: 'static + Clone + Fn(f64, &[f64], &mut [f64]),
+        LP: LnPriorEvaluator,
     {
+        let nparams = x0.len();
         let f = {
             let ts = ts.clone();
             move |param: VectorF64, mut residual: VectorF64| {
-                let param = param.as_slice().unwrap().try_into().unwrap();
+                let param = param.as_slice().unwrap();
                 Zip::from(&ts.t)
                     .and(&ts.m)
                     .and(&ts.inv_err)
@@ -81,8 +82,8 @@ impl CurveFitTrait for LmsderCurveFit {
         let df = {
             let ts = ts.clone();
             move |param: VectorF64, mut jacobian: MatrixF64| {
-                let param = param.as_slice().unwrap().try_into().unwrap();
-                let mut buffer = [0.0; NPARAMS];
+                let param = param.as_slice().unwrap();
+                let mut buffer = vec![0.0; nparams];
                 Zip::indexed(&ts.t)
                     .and(&ts.inv_err)
                     .for_each(|i, &t, &inv_err| {
@@ -95,18 +96,14 @@ impl CurveFitTrait for LmsderCurveFit {
             }
         };
 
-        let mut problem = NlsProblem::from_f_df(ts.t.len(), NPARAMS, f, df);
+        let mut problem = NlsProblem::from_f_df(ts.t.len(), nparams, f, df);
         problem.max_iter = self.niterations;
         let result = problem.solve(VectorF64::from_slice(x0).unwrap());
-        let x = {
-            let x = result.x();
-            let x: &[_; NPARAMS] = x.as_slice().unwrap().try_into().unwrap();
-            *x
-        };
+        let x = result.x().as_slice().unwrap().to_vec();
 
         CurveFitResult {
             x,
-            reduced_chi2: result.loss() / ((ts.t.len() - NPARAMS) as f64),
+            reduced_chi2: result.loss() / ((ts.t.len() - nparams) as f64),
             success: result.status == Value::Success,
         }
     }

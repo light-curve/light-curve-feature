@@ -195,11 +195,11 @@ where
     }
 }
 
-impl<T> FitInitsBoundsTrait<T, NPARAMS> for LinexpFit
+impl<T> FitInitsBoundsTrait<T> for LinexpFit
 where
     T: Float,
 {
-    fn init_and_bounds_from_ts(&self, ts: &mut TimeSeries<T>) -> FitInitsBoundsArrays<NPARAMS> {
+    fn init_and_bounds_from_ts(&self, ts: &mut TimeSeries<T>) -> FitInitsBoundsArrays {
         match &self.inits_bounds {
             LinexpInitsBounds::Default => LinexpInitsBounds::default_from_ts(ts),
             LinexpInitsBounds::Arrays(arrays) => arrays.as_ref().clone(),
@@ -270,12 +270,12 @@ impl FitParametersInternalExternalTrait<NPARAMS> for LinexpFit {
     }
 }
 
-impl FitFeatureEvaluatorGettersTrait<NPARAMS> for LinexpFit {
+impl FitFeatureEvaluatorGettersTrait for LinexpFit {
     fn get_algorithm(&self) -> &CurveFitAlgorithm {
         &self.algorithm
     }
 
-    fn ln_prior_from_ts<T: Float>(&self, ts: &mut TimeSeries<T>) -> LnPrior<NPARAMS> {
+    fn ln_prior_from_ts<T: Float>(&self, ts: &mut TimeSeries<T>) -> LnPrior {
         self.ln_prior.ln_prior_from_ts(ts)
     }
 }
@@ -306,7 +306,7 @@ impl<T> FeatureEvaluator<T> for LinexpFit
 where
     T: Float,
 {
-    fit_eval!();
+    fit_eval!(NPARAMS);
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, Default, PartialEq)]
@@ -314,13 +314,13 @@ where
 pub enum LinexpInitsBounds {
     #[default]
     Default,
-    Arrays(Box<FitInitsBoundsArrays<NPARAMS>>),
-    OptionArrays(Box<OptionFitInitsBoundsArrays<NPARAMS>>),
+    Arrays(Box<FitInitsBoundsArrays>),
+    OptionArrays(Box<OptionFitInitsBoundsArrays>),
 }
 
 impl LinexpInitsBounds {
     pub fn arrays(init: [f64; NPARAMS], lower: [f64; NPARAMS], upper: [f64; NPARAMS]) -> Self {
-        Self::Arrays(FitInitsBoundsArrays::new(init, lower, upper).into())
+        Self::Arrays(FitInitsBoundsArrays::new(init.into(), lower.into(), upper.into()).into())
     }
 
     pub fn option_arrays(
@@ -328,10 +328,12 @@ impl LinexpInitsBounds {
         lower: [Option<f64>; NPARAMS],
         upper: [Option<f64>; NPARAMS],
     ) -> Self {
-        Self::OptionArrays(OptionFitInitsBoundsArrays::new(init, lower, upper).into())
+        Self::OptionArrays(
+            OptionFitInitsBoundsArrays::new(init.into(), lower.into(), upper.into()).into(),
+        )
     }
 
-    fn default_from_ts<T: Float>(ts: &mut TimeSeries<T>) -> FitInitsBoundsArrays<NPARAMS> {
+    fn default_from_ts<T: Float>(ts: &mut TimeSeries<T>) -> FitInitsBoundsArrays {
         let t_min: f64 = ts.t.get_min().value_into().unwrap();
         let t_max: f64 = ts.t.get_max().value_into().unwrap();
         let t_amplitude = t_max - t_min;
@@ -358,9 +360,9 @@ impl LinexpInitsBounds {
         let (b_lower, b_upper) = (m_min - 100.0 * m_amplitude, m_max + 100.0 * m_amplitude);
 
         FitInitsBoundsArrays {
-            init: [a_init, t0_init, tau_init, b_init].into(),
-            lower: [a_lower, t0_lower, tau_lower, b_lower].into(),
-            upper: [a_upper, t0_upper, tau_upper, b_upper].into(),
+            init: vec![a_init, t0_init, tau_init, b_init],
+            lower: vec![a_lower, t0_lower, tau_lower, b_lower],
+            upper: vec![a_upper, t0_upper, tau_upper, b_upper],
         }
     }
 }
@@ -368,23 +370,23 @@ impl LinexpInitsBounds {
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[non_exhaustive]
 pub enum LinexpLnPrior {
-    Fixed(Box<LnPrior<NPARAMS>>),
+    Fixed(Box<LnPrior>),
 }
 
 impl LinexpLnPrior {
-    pub fn fixed(ln_prior: LnPrior<NPARAMS>) -> Self {
+    pub fn fixed(ln_prior: LnPrior) -> Self {
         Self::Fixed(ln_prior.into())
     }
 
-    pub fn ln_prior_from_ts<T: Float>(&self, _ts: &mut TimeSeries<T>) -> LnPrior<NPARAMS> {
+    pub fn ln_prior_from_ts<T: Float>(&self, _ts: &mut TimeSeries<T>) -> LnPrior {
         match self {
             Self::Fixed(ln_prior) => ln_prior.as_ref().clone(),
         }
     }
 }
 
-impl From<LnPrior<NPARAMS>> for LinexpLnPrior {
-    fn from(item: LnPrior<NPARAMS>) -> Self {
+impl From<LnPrior> for LinexpLnPrior {
+    fn from(item: LnPrior) -> Self {
         Self::fixed(item)
     }
 }
