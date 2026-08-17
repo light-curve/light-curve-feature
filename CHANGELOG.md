@@ -44,7 +44,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
---
+- Fix `eval_or_fill_multicolor` of `PerBandFeature` and `MultiColorBins` filling all passbands
+  when a single passband is absent or unusable
 
 ### Security
 
