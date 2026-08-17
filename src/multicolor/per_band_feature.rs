@@ -216,6 +216,31 @@ where
                 .collect()
         })
     }
+
+    /// Fills per passband instead of per feature: passbands presented in the data are still
+    /// evaluated when another passband is absent or its time series is not suitable for the
+    /// underlying monochrome feature.
+    fn eval_or_fill_multicolor<'slf, 'a, 'mcts>(
+        &'slf self,
+        mcts: &'mcts mut MultiColorTimeSeries<'a, P, T>,
+        fill_value: T,
+    ) -> Result<Vec<T>, MultiColorEvaluatorError>
+    where
+        'slf: 'a,
+        'a: 'mcts,
+    {
+        let feature_size = self.feature.size_hint();
+        Ok(mcts.with_mapping_mut(|mapping| {
+            let mut result = Vec::with_capacity(self.size_hint());
+            for passband in &self.passband_order {
+                match mapping.get_mut(passband) {
+                    Some(ts) => result.extend(self.feature.eval_or_fill(ts, fill_value)),
+                    None => result.extend(vec![fill_value; feature_size]),
+                }
+            }
+            result
+        }))
+    }
 }
 
 #[cfg(test)]
@@ -328,6 +353,115 @@ mod tests {
         assert!((result[0] - 1.5).abs() < 1e-10);
         assert!((result[1] - 4.5).abs() < 1e-10);
         assert_eq!(result.len(), 2);
+    }
+
+    #[test]
+    fn test_per_band_feature_fills_absent_band_only() {
+        // Data has g only, feature asks for g and r: g must still be evaluated.
+        let t = vec![0.0_f64, 1.0, 2.0];
+        let m = vec![1.0_f64, 2.0, 3.0];
+        let w = vec![1.0_f64; 3];
+        let bands: Vec<StringPassband> = ["g", "g", "g"]
+            .iter()
+            .map(|&s| StringPassband::from(s))
+            .collect();
+
+        let feature: PerBandFeature<StringPassband, f64, Feature<f64>> = PerBandFeature::new(
+            Mean::default().into(),
+            vec![StringPassband::from("g"), StringPassband::from("r")],
+        );
+        let mut mcts = MultiColorTimeSeries::from_flat(t, m, w, bands);
+
+        // All-or-nothing evaluation still fails, "r" is required
+        assert!(feature.eval_multicolor(&mut mcts).is_err());
+
+        let result = feature
+            .eval_or_fill_multicolor(&mut mcts, f64::NAN)
+            .unwrap();
+        assert_eq!(result.len(), 2);
+        assert!((result[0] - 2.0).abs() < 1e-10, "mean_g must be evaluated");
+        assert!(result[1].is_nan(), "absent band r must be filled");
+    }
+
+    #[test]
+    fn test_per_band_feature_fills_invalid_band_only() {
+        // Both bands are present, but "r" is a plateau, which OtsuSplit cannot handle.
+        use crate::data::TimeSeries;
+        use crate::features::OtsuSplit;
+        use std::collections::BTreeMap;
+
+        let passband_g = StringPassband::from("g");
+        let passband_r = StringPassband::from("r");
+
+        let t = vec![0.0_f64, 1.0, 2.0, 3.0];
+        let m_g = vec![1.0_f64, 1.0, 5.0, 5.0];
+        let m_r = vec![3.0_f64; 4];
+
+        let feature: PerBandFeature<StringPassband, f64, Feature<f64>> = PerBandFeature::new(
+            OtsuSplit::new().into(),
+            vec![passband_g.clone(), passband_r.clone()],
+        );
+        let size = OtsuSplit::new().size_hint();
+
+        let mut mcts = {
+            let mut map = BTreeMap::new();
+            map.insert(passband_g, TimeSeries::new_without_weight(&t, &m_g));
+            map.insert(passband_r, TimeSeries::new_without_weight(&t, &m_r));
+            MultiColorTimeSeries::from_map(map)
+        };
+
+        let result = feature
+            .eval_or_fill_multicolor(&mut mcts, f64::NAN)
+            .unwrap();
+        assert_eq!(result.len(), 2 * size);
+        assert!(
+            result[..size].iter().all(|v| v.is_finite()),
+            "g band must be evaluated, got {:?}",
+            &result[..size]
+        );
+        assert!(
+            result[size..].iter().all(|v| v.is_nan()),
+            "flat r band must be filled"
+        );
+    }
+
+    #[test]
+    fn test_per_band_extractor_fills_per_feature_and_band() {
+        // Monochrome extractor evaluated per band: a two-point g band is enough for Amplitude
+        // but not for LinearTrend, and the r band is absent altogether.
+        use crate::LinearTrend;
+        use crate::extractor::FeatureExtractor;
+        use crate::features::Amplitude;
+
+        let t = vec![0.0_f64, 1.0];
+        let m = vec![1.0_f64, 3.0];
+        let w = vec![1.0_f64; 2];
+        let bands: Vec<StringPassband> = ["g", "g"]
+            .iter()
+            .map(|&s| StringPassband::from(s))
+            .collect();
+
+        let extractor: FeatureExtractor<f64, Feature<f64>> = FeatureExtractor::new(vec![
+            Amplitude::new().into(),   // size 1, needs 1 point
+            LinearTrend::new().into(), // size 3, needs 3 points
+        ]);
+        let feature: PerBandFeature<StringPassband, f64, Feature<f64>> = PerBandFeature::new(
+            extractor.into(),
+            vec![StringPassband::from("g"), StringPassband::from("r")],
+        );
+        assert_eq!(feature.size_hint(), 8);
+
+        let mut mcts = MultiColorTimeSeries::from_flat(t, m, w, bands);
+        let result = feature
+            .eval_or_fill_multicolor(&mut mcts, f64::NAN)
+            .unwrap();
+
+        assert_eq!(result.len(), 8);
+        // g band: amplitude = (3 - 1) / 2 = 1.0, linear trend is filled
+        assert!((result[0] - 1.0).abs() < 1e-10);
+        assert!(result[1..4].iter().all(|v| v.is_nan()));
+        // r band: absent, everything is filled
+        assert!(result[4..].iter().all(|v| v.is_nan()));
     }
 
     #[test]

@@ -2,7 +2,6 @@ use crate::data::{MultiColorTimeSeries, TimeSeries};
 use crate::error::MultiColorEvaluatorError;
 use crate::evaluator::{
     EvaluatorInfo, EvaluatorInfoTrait, EvaluatorProperties, FeatureNamesDescriptionsTrait,
-    TmwArrays,
 };
 use crate::features::bins::bin_time_series;
 use crate::float_trait::Float;
@@ -109,6 +108,70 @@ where
     pub fn default_offset() -> f64 {
         0.0
     }
+
+    /// Bin the passbands required by the wrapped features into a new [MultiColorTimeSeries].
+    ///
+    /// `policy` tells what to do with a passband which is absent from `mcts` or which time series
+    /// cannot be binned, see [PassbandPolicy].
+    /// The binned time series own their data, so the output lifetime `'binned` is unconstrained
+    /// and the caller picks it, `P: 'binned` is the only requirement.
+    fn binned_mcts<'binned>(
+        &self,
+        mcts: &mut MultiColorTimeSeries<'_, P, T>,
+        policy: PassbandPolicy,
+    ) -> Result<MultiColorTimeSeries<'binned, P, T>, MultiColorEvaluatorError>
+    where
+        P: 'binned,
+    {
+        let window: T = self.window.approx_as::<T>().unwrap();
+        let offset: T = self.offset.approx_as::<T>().unwrap();
+
+        let PassbandSet(set) = self.feature_extractor.get_passband_set();
+
+        // Passbands are cloned once, and the binned arrays are consumed directly into TimeSeries
+        // with owned Array1 data.
+        let binned_map: BTreeMap<P, TimeSeries<'binned, T>> = mcts.with_mapping_mut(|mapping| {
+            mapping
+                .iter_matched_passbands_mut(set.iter())
+                .filter_map(|(passband, maybe_ts)| {
+                    let ts = match (maybe_ts, policy) {
+                        (Some(ts), _) => ts,
+                        (None, PassbandPolicy::SkipFailed) => return None,
+                        (None, PassbandPolicy::RequireAll) => {
+                            panic!("passband checked before eval_multicolor_no_mcts_check")
+                        }
+                    };
+                    match (bin_time_series(ts, window, offset), policy) {
+                        (Ok(tmw), _) => {
+                            Some(Ok((passband.clone(), TimeSeries::new(tmw.t, tmw.m, tmw.w))))
+                        }
+                        (Err(_), PassbandPolicy::SkipFailed) => None,
+                        (Err(error), PassbandPolicy::RequireAll) => {
+                            Some(Err(MultiColorEvaluatorError::MonochromeEvaluatorError {
+                                passband: passband.name().into(),
+                                error,
+                            }))
+                        }
+                    }
+                })
+                .collect::<Result<_, _>>()
+        })?;
+
+        Ok(MultiColorTimeSeries::from_map(binned_map))
+    }
+}
+
+/// What [MultiColorBins] does with a passband it cannot deliver binned to the wrapped evaluator,
+/// either because the input data has no such passband, or because its time series cannot be
+/// binned, e.g. it is too short.
+#[derive(Clone, Copy, Debug)]
+enum PassbandPolicy {
+    /// Give up and return an error. Used by the all-or-nothing evaluation, where an absent
+    /// passband is impossible, because `check_mcts` rejects such input beforehand.
+    RequireAll,
+    /// Drop the passband from the binned data, so that the wrapped evaluator sees it as absent
+    /// and fills the features of this passband only.
+    SkipFailed,
 }
 
 impl<P, T> EvaluatorInfoTrait for MultiColorBins<P, T>
@@ -162,40 +225,25 @@ where
         'slf: 'a,
         'a: 'mcts,
     {
-        let window: T = self.window.approx_as::<T>().unwrap();
-        let offset: T = self.offset.approx_as::<T>().unwrap();
-
-        let PassbandSet(set) = self.feature_extractor.get_passband_set();
-
-        let binned_arrays: BTreeMap<P, TmwArrays<T>> = mcts.with_mapping_mut(
-            |mapping| -> Result<BTreeMap<P, TmwArrays<T>>, MultiColorEvaluatorError> {
-                mapping
-                    .iter_matched_passbands_mut(set.iter())
-                    .map(|(passband, maybe_ts)| {
-                        let ts = maybe_ts
-                            .expect("passband checked before eval_multicolor_no_mcts_check");
-                        let tmw = bin_time_series(ts, window, offset).map_err(|error| {
-                            MultiColorEvaluatorError::MonochromeEvaluatorError {
-                                passband: passband.name().into(),
-                                error,
-                            }
-                        })?;
-                        Ok((passband.clone(), tmw))
-                    })
-                    .collect()
-            },
-        )?;
-
-        // Consume binned_arrays with into_iter() so passbands are moved (not cloned again)
-        // and TmwArrays are consumed directly into TimeSeries with owned Array1 data.
-        let binned_map: BTreeMap<P, TimeSeries<'_, T>> = binned_arrays
-            .into_iter()
-            .map(|(p, tmw)| (p, TimeSeries::new(tmw.t, tmw.m, tmw.w)))
-            .collect();
-
-        let mut binned_mcts = MultiColorTimeSeries::from_map(binned_map);
+        let mut binned_mcts = self.binned_mcts(mcts, PassbandPolicy::RequireAll)?;
         self.feature_extractor
             .eval_multicolor_no_mcts_check(&mut binned_mcts)
+    }
+
+    /// Bins whatever passbands are available and delegates the filling to the underlying
+    /// evaluator, so absent or unbinnable passbands don't spoil the other ones.
+    fn eval_or_fill_multicolor<'slf, 'a, 'mcts>(
+        &'slf self,
+        mcts: &'mcts mut MultiColorTimeSeries<'a, P, T>,
+        fill_value: T,
+    ) -> Result<Vec<T>, MultiColorEvaluatorError>
+    where
+        'slf: 'a,
+        'a: 'mcts,
+    {
+        let mut binned_mcts = self.binned_mcts(mcts, PassbandPolicy::SkipFailed)?;
+        self.feature_extractor
+            .eval_or_fill_multicolor(&mut binned_mcts, fill_value)
     }
 }
 
@@ -313,6 +361,46 @@ mod tests {
             eval.get_names(),
             vec!["bins_window1.0_offset0.0_color_max_g_r"]
         );
+    }
+
+    // Same binning as above, but only the g-band is in the data. `PerBandFeature` still gets
+    // its g value, while `ColorOfMaximum`, which needs both bands, is filled.
+    #[test]
+    fn multicolor_bins_eval_or_fill_keeps_present_band() {
+        use crate::Feature;
+        use crate::features::Mean;
+        use crate::multicolor::PerBandFeature;
+
+        let t = [0.0_f64, 0.1, 1.0, 1.1, 2.0];
+        let m_g = [1.0_f64, 3.0, 5.0, 7.0, 9.0];
+        let w = [1.0_f64; 5];
+
+        let passbands = [StringPassband::from("g"), StringPassband::from("r")];
+        let mut eval = MultiColorBins::new(1.0, 0.0);
+        eval.add_feature(
+            PerBandFeature::<_, f64, Feature<f64>>::new(Mean::default().into(), passbands.to_vec())
+                .into(),
+        );
+        eval.add_feature(ColorOfMaximum::new(passbands).into());
+
+        let mut mcts = {
+            let mut map = BTreeMap::new();
+            map.insert(StringPassband::from("g"), TimeSeries::new(&t, &m_g, &w));
+            MultiColorTimeSeries::from_map(map)
+        };
+
+        assert!(eval.eval_multicolor(&mut mcts).is_err());
+
+        let result = eval.eval_or_fill_multicolor(&mut mcts, f64::NAN).unwrap();
+        assert_eq!(result.len(), 3);
+        // mean of binned g-band = mean(2, 6, 9)
+        assert!(
+            (result[0] - (2.0 + 6.0 + 9.0) / 3.0).abs() < 1e-10,
+            "got {}",
+            result[0]
+        );
+        assert!(result[1].is_nan(), "mean of absent r-band must be filled");
+        assert!(result[2].is_nan(), "color needs both bands, must be filled");
     }
 
     #[test]
