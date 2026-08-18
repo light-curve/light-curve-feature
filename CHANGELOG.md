@@ -2,33 +2,14 @@
 
 All notable changes to `light-curve-feature` will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres
+to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
 ### Added
 
-- Add `BiweightScale` feature: Tukey's biweight robust scale estimator of the magnitude
-  (Beers, Flynn & Gebhardt 1990), a robust alternative to the standard deviation
-  https://github.com/light-curve/light-curve-feature/issues/170
-- Add `QnScale` feature: the Qn robust scale estimator of Rousseeuw & Croux (1993), a robust
-  alternative to the standard deviation based on pairwise differences
-  https://github.com/light-curve/light-curve-feature/issues/170
-  https://github.com/light-curve/light-curve-feature/pull/304
-- Add `ParabolaFit` feature: curvature, extremum value, and reduced $\chi^2$ of a
-  weighted parabolic (quadratic) least-squares fit
-  https://github.com/light-curve/light-curve-feature/issues/166
-  https://github.com/light-curve/light-curve-feature/pull/302
-- Add `Bootstrap` meta-feature: estimates feature uncertainties by bagging (resampling the light
-  curve with replacement) and returns each wrapped feature value plus its bootstrap standard
-  deviation or quantiles. Rejects sub-features that require both time and sorting, or variability
-  https://github.com/light-curve/light-curve-feature/issues/285
-- Add `MultiColorBootstrap` multi-color meta-feature: the multi-band counterpart of `Bootstrap`,
-  with a `BandStrategy` choosing between `Stratified` (per-band resampling, preserves per-band
-  counts) and `Rejection` (i.i.d. resampling with bounded rejection of resamples that fail the
-  wrapped features' per-band requirements)
-  https://github.com/light-curve/light-curve-feature/issues/285
+--
 
 ### Changed
 
@@ -44,12 +25,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fix `eval_or_fill_multicolor` of `PerBandFeature` and `MultiColorBins` filling all passbands
-  when a single passband is absent or unusable
+--
 
 ### Security
 
 --
+
+# [0.19.0] 2026 August 18
+
+### Added
+
+- Add `BiweightScale` feature: Tukey's biweight robust scale estimator of the magnitude (Beers, Flynn & Gebhardt 1990),
+  a robust alternative to the standard deviation
+  https://github.com/light-curve/light-curve-feature/issues/170
+  https://github.com/light-curve/light-curve-feature/pull/303
+- Add `QnScale` feature: the Qn robust scale estimator of Rousseeuw & Croux (1993), a robust alternative to the standard
+  deviation based on pairwise differences
+  https://github.com/light-curve/light-curve-feature/issues/170
+  https://github.com/light-curve/light-curve-feature/pull/304
+- Add `ParabolaFit` feature: curvature, extremum value, and reduced $\chi^2$ of a weighted parabolic (quadratic)
+  least-squares fit
+  https://github.com/light-curve/light-curve-feature/issues/166
+  https://github.com/light-curve/light-curve-feature/pull/302
+- Add `Bootstrap` meta-feature: estimates feature uncertainties by bagging (resampling the light curve with replacement)
+  and returns each wrapped feature value plus its bootstrap standard deviation or quantiles. Rejects sub-features that
+  require both time and sorting, or variability
+  https://github.com/light-curve/light-curve-feature/issues/285
+  https://github.com/light-curve/light-curve-feature/pull/305
+- Add `MultiColorBootstrap` multi-color meta-feature: the multi-band counterpart of `Bootstrap`, with a `BandStrategy`
+  choosing between `Stratified` (per-band resampling, preserves per-band counts) and `Rejection` (i.i.d. resampling with
+  bounded rejection of resamples that fail the wrapped features' per-band requirements)
+  https://github.com/light-curve/light-curve-feature/issues/285
+  https://github.com/light-curve/light-curve-feature/pull/305
+
+### Changed
+
+- Bump `itertools` from 0.14 to 0.15
+  https://github.com/light-curve/light-curve-feature/pull/310
+- Bump `special` from 0.13 to 0.14
+  https://github.com/light-curve/light-curve-feature/pull/315
+
+### Fixed
+
+- Fix `eval_or_fill_multicolor` of `PerBandFeature` and `MultiColorBins` filling all passbands when a single passband is
+  absent or unusable
+  https://github.com/light-curve/light-curve-feature/pull/324
 
 # [0.18.1] 2026 June 11
 
@@ -58,8 +78,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix `Periodogram::add_phase_feature` not propagating `w_required` and `variability_required`
   from phase features to the top-level `EvaluatorInfo`
   https://github.com/light-curve/light-curve-feature/pull/300
-- Fix `MultiColorPeriodogram` reporting `is_w_required() = false` for `Chi2` normalization and
-  not propagating `w_required` / `variability_required` from phase features
+- Fix `MultiColorPeriodogram` reporting `is_w_required() = false` for `Chi2` normalization and not propagating
+  `w_required` / `variability_required` from phase features
   https://github.com/light-curve/light-curve-feature/pull/300
 
 # [0.18.0] 2026 June 11
@@ -69,8 +89,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Breaking** `MappedMultiColorTimeSeries` is now a named struct with `map` and
   `uniq_passbands` fields instead of a newtype tuple; `Deref`/`DerefMut` still target
   `BTreeMap<&P, TimeSeries<T>>` https://github.com/light-curve/light-curve-feature/pull/298
-- Significant speedup for `from_flat`, `from_flat_borrowed`, and all `MultiColor` feature
-  evaluations, especially for interleaved passband orderings
+- Significant speedup for `from_flat`, `from_flat_borrowed`, and all `MultiColor` feature evaluations, especially for
+  interleaved passband orderings
   https://github.com/light-curve/light-curve-feature/issues/296
   https://github.com/light-curve/light-curve-feature/issues/297
   https://github.com/light-curve/light-curve-feature/pull/298
@@ -79,50 +99,79 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Breaking** `PerBandFeature::new` and `MultiColorFeature::from_per_band_feature` now accept `Vec<P>` instead of `BTreeSet<P>`, giving the user control over passband output order https://github.com/light-curve/light-curve-feature/pull/294
+- **Breaking** `PerBandFeature::new` and `MultiColorFeature::from_per_band_feature` now accept `Vec<P>` instead of
+  `BTreeSet<P>`, giving the user control over passband output
+  order https://github.com/light-curve/light-curve-feature/pull/294
 
 ### Fixed
 
-- `ColorOfMedian`, `ColorOfMinimum`, `ColorOfMaximum` evaluation now correctly respects the user-specified `[P; 2]` passband order; previously results were silently wrong when passbands were provided in non-sorted order https://github.com/light-curve/light-curve-feature/pull/294
+- `ColorOfMedian`, `ColorOfMinimum`, `ColorOfMaximum` evaluation now correctly respects the user-specified `[P; 2]`
+  passband order; previously results were silently wrong when passbands were provided in non-sorted
+  order https://github.com/light-curve/light-curve-feature/pull/294
 
 # [0.16.0] 2026 May 29
 
 ### Added
 
-- `MultiColorTimeSeries::from_flat_with_passband_vec` constructor accepting a pre-built owned sorted unique passband vec https://github.com/light-curve/light-curve-feature/pull/291
-- `MultiColorTimeSeries::from_flat_borrowed` constructor accepting a borrowed sorted unique passband slice (`&'a [P]`) https://github.com/light-curve/light-curve-feature/pull/291
+- `MultiColorTimeSeries::from_flat_with_passband_vec` constructor accepting a pre-built owned sorted unique passband
+  vec https://github.com/light-curve/light-curve-feature/pull/291
+- `MultiColorTimeSeries::from_flat_borrowed` constructor accepting a borrowed sorted unique passband slice
+  (`&'a [P]`) https://github.com/light-curve/light-curve-feature/pull/291
 - `LabeledPassband<N>` generic passband type for any label implementing [`Display`]
 
 ### Changed
 
-- **Breaking** `MultiColorTimeSeries` now owns unique passbands once in a `Vec<P>`; all internal representations hold `&P` references into it, reducing passband clone cost from O(N) to O(K) https://github.com/light-curve/light-curve-feature/pull/291
-- **Breaking** `MappedMultiColorTimeSeries` key type changed from `P` to `&P` (`Deref` target is now `BTreeMap<&P, TimeSeries<'_, T>>`) https://github.com/light-curve/light-curve-feature/pull/291
-- **Breaking** `MultiColorTimeSeries::mapping_mut()` removed; replaced by `with_mapping_mut(f: FnOnce(&mut MappedMultiColorTimeSeries) -> R) -> R` closure API https://github.com/light-curve/light-curve-feature/pull/291
-- **Breaking** `MultiColorTimeSeries::passbands()` now returns `impl Iterator<Item = &P>` instead of `Either<btree_map::Keys<P, _>, btree_set::Iter<P>>` https://github.com/light-curve/light-curve-feature/pull/291
-- `passbands` parameter renamed to `passband` (plural → singular) in `from_flat` and `from_flat_with_passband_vec` https://github.com/light-curve/light-curve-feature/pull/291
+- **Breaking** `MultiColorTimeSeries` now owns unique passbands once in a `Vec<P>`; all internal representations hold
+  `&P` references into it, reducing passband clone cost from O (N) to O
+  (K) https://github.com/light-curve/light-curve-feature/pull/291
+- **Breaking** `MappedMultiColorTimeSeries` key type changed from `P` to `&P` (`Deref` target is now
+  `BTreeMap<&P, TimeSeries<'_, T>>`) https://github.com/light-curve/light-curve-feature/pull/291
+- **Breaking** `MultiColorTimeSeries::mapping_mut()` removed; replaced by
+  `with_mapping_mut(f: FnOnce(&mut MappedMultiColorTimeSeries) -> R) -> R` closure
+  API https://github.com/light-curve/light-curve-feature/pull/291
+- **Breaking** `MultiColorTimeSeries::passbands()` now returns `impl Iterator<Item = &P>` instead of
+  `Either<btree_map::Keys<P, _>, btree_set::Iter<P>>` https://github.com/light-curve/light-curve-feature/pull/291
+- `passbands` parameter renamed to `passband` (plural → singular) in `from_flat` and
+  `from_flat_with_passband_vec` https://github.com/light-curve/light-curve-feature/pull/291
 
 # [0.15.1] 2026 May 16
 
 ### Added
 
-- `MultiColorBins<P, T>` — multi-color meta-feature that bins each passband's time series independently (same weighted-mean binning as `Bins`) then evaluates inner multi-color features on the collection of binned per-band series; mirrors the `Bins` API with `new(window, offset)` + `add_feature(MultiColorFeature<P, T>)`
+- `MultiColorBins<P, T>` — multi-color meta-feature that bins each passband's time series independently (same
+  weighted-mean binning as `Bins`) then evaluates inner multi-color features on the collection of binned per-band
+  series; mirrors the `Bins` API with `new(window, offset)` + `add_feature(MultiColorFeature<P, T>)`
 - `MultiColorExtractor::add_feature` and `MultiColorExtractor::get_features` for incremental extractor construction
 
 # [0.15.0] 2026 May 14
 
 ### Added
 
-- Add `Chi2Pvar` feature: probability of variability $p_{\rm var} = Q((N-1)/2, \chi^2/2)$ where $Q$ is the regularized upper incomplete gamma function https://github.com/light-curve/light-curve-feature/pull/268
-- Add `LaflerKinmanStringLength` evaluator for the Lafler–Kinman string-length statistic https://github.com/light-curve/light-curve-feature/issues/278
+- Add `Chi2Pvar` feature: probability of variability $p_{\rm var} = Q ((N-1)/2, \chi^2/2)$ where $Q$ is the regularized
+  upper incomplete gamma function https://github.com/light-curve/light-curve-feature/pull/268
+- Add `LaflerKinmanStringLength` evaluator for the Lafler–Kinman string-length
+  statistic https://github.com/light-curve/light-curve-feature/issues/278
 
 ### Changed
 
-- **Breaking** Bump `nuts-rs` from `^0.17` to `^0.18` and `nuts-storable` from `^0.2` to `^0.3`: `NutsCurveFit` results will differ numerically due to nuts-rs 0.18 switching its internal RNG to ChaCha8 https://github.com/light-curve/light-curve-feature/pull/270
-- `MultiColorExtractor` no longer performs an upfront union-passband check; each constituent feature validates its own required passbands independently, so features with different passband sets can coexist in one extractor. `eval_or_fill_multicolor` fills only the outputs of features whose passbands are absent, leaving the rest unaffected https://github.com/light-curve/light-curve-feature/pull/269
-- **Breaking** `MonochromeFeature<P, T, F>` renamed to `PerBandFeature<P, T, F>`; `MultiColorFeature::from_monochrome_feature` renamed to `from_per_band_feature` https://github.com/light-curve/light-curve-feature/pull/269
-- **Breaking** `ColorSpread` is now generic over passband type `P` and requires a passband set at construction via `ColorSpread::new(passbands)`. Input data is subsampled to the specified bands https://github.com/light-curve/light-curve-feature/pull/269
-- **Breaking** `MultiColorPeriodogram<T, F>` is now `MultiColorPeriodogram<P, T, F>` and requires a passband set at construction via `MultiColorPeriodogram::new(peaks, normalization, passbands)`. Input data is subsampled to the specified bands. `Default` impl removed https://github.com/light-curve/light-curve-feature/pull/269
-- **Breaking** `PassbandSet::AllAvailable` variant removed; all multicolor features must now declare their required passbands upfront https://github.com/light-curve/light-curve-feature/pull/269
+- **Breaking** Bump `nuts-rs` from `^0.17` to `^0.18` and `nuts-storable` from `^0.2` to `^0.3`: `NutsCurveFit` results
+  will differ numerically due to nuts-rs 0.18 switching its internal RNG to
+  ChaCha8 https://github.com/light-curve/light-curve-feature/pull/270
+- `MultiColorExtractor` no longer performs an upfront union-passband check; each constituent feature validates its own
+  required passbands independently, so features with different passband sets can coexist in one extractor.
+  `eval_or_fill_multicolor` fills only the outputs of features whose passbands are absent, leaving the rest
+  unaffected https://github.com/light-curve/light-curve-feature/pull/269
+- **Breaking** `MonochromeFeature<P, T, F>` renamed to `PerBandFeature<P, T, F>`;
+  `MultiColorFeature::from_monochrome_feature` renamed to
+  `from_per_band_feature` https://github.com/light-curve/light-curve-feature/pull/269
+- **Breaking** `ColorSpread` is now generic over passband type `P` and requires a passband set at construction via
+  `ColorSpread::new(passbands)`. Input data is subsampled to the specified
+  bands https://github.com/light-curve/light-curve-feature/pull/269
+- **Breaking** `MultiColorPeriodogram<T, F>` is now `MultiColorPeriodogram<P, T, F>` and requires a passband set at
+  construction via `MultiColorPeriodogram::new(peaks, normalization, passbands)`. Input data is subsampled to the
+  specified bands. `Default` impl removed https://github.com/light-curve/light-curve-feature/pull/269
+- **Breaking** `PassbandSet::AllAvailable` variant removed; all multicolor features must now declare their required
+  passbands upfront https://github.com/light-curve/light-curve-feature/pull/269
 
 # [0.14.0] 2026 April 11
 
@@ -130,40 +179,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `m_chi2` attribute and `get_m_chi2` method for `TimeSeries`
 - `take_mut` dependency
-- New `multicolor` module for multi-passband light curve feature extraction https://github.com/light-curve/light-curve-feature/pull/202:
-  - `MultiColorTimeSeries<P, T>` — multi-passband time series storing per-band observations,
-    with efficient lazy conversion between flat and mapped representations
-  - `PassbandTrait` — trait for defining custom passband types
-  - Built-in passband types: `StringPassband` (label-based), `MonochromePassband` (wavelength-based),
-    `DumpPassband` (no-op placeholder)
-  - `PassbandSet<P>` — selects either a fixed set of passbands or all available ones
-  - `MultiColorEvaluator<P, T>` — core evaluation trait for multi-color features
-  - `MultiColorExtractor<P, T>` — bulk evaluator combining multiple `MultiColorFeature`s
-  - `MultiColorFeature<P, T>` — enum over all built-in multi-color feature evaluators
-  - `MonochromeFeature<P, T, F>` — adaptor that applies any monochrome `FeatureEvaluator` independently to each passband
-  - `MultiColorEvaluatorError` — error type for multi-color evaluation failures
-  - Color features (two-band, fixed passbands): `ColorOfMaximum`, `ColorOfMedian`, `ColorOfMinimum`
-  - `ColorSpread` — population standard deviation of per-band weighted mean magnitudes across all available passbands
-  - `MultiColorPeriodogram<T, F>` — Lomb-Scargle periodogram combined across all passbands,
-    with `MultiColorPeriodogramNormalisation` supporting `Count` (observation-count-weighted) and
-    `Chi2` (variability-weighted) strategies
+- New `multicolor` module for multi-passband light curve feature
+  extraction https://github.com/light-curve/light-curve-feature/pull/202:
+    - `MultiColorTimeSeries<P, T>` — multi-passband time series storing per-band observations, with efficient lazy
+      conversion between flat and mapped representations
+    - `PassbandTrait` — trait for defining custom passband types
+    - Built-in passband types: `StringPassband` (label-based), `MonochromePassband` (wavelength-based),
+      `DumpPassband` (no-op placeholder)
+    - `PassbandSet<P>` — selects either a fixed set of passbands or all available ones
+    - `MultiColorEvaluator<P, T>` — core evaluation trait for multi-color features
+    - `MultiColorExtractor<P, T>` — bulk evaluator combining multiple `MultiColorFeature`s
+    - `MultiColorFeature<P, T>` — enum over all built-in multi-color feature evaluators
+    - `MonochromeFeature<P, T, F>` — adaptor that applies any monochrome `FeatureEvaluator` independently to each
+      passband
+    - `MultiColorEvaluatorError` — error type for multi-color evaluation failures
+    - Color features (two-band, fixed passbands): `ColorOfMaximum`, `ColorOfMedian`, `ColorOfMinimum`
+    - `ColorSpread` — population standard deviation of per-band weighted mean magnitudes across all available passbands
+    - `MultiColorPeriodogram<T, F>` — Lomb-Scargle periodogram combined across all passbands, with
+      `MultiColorPeriodogramNormalisation` supporting `Count` (observation-count-weighted) and
+      `Chi2` (variability-weighted) strategies
 - `variability_required` field in `EvaluatorInfo` and `is_variability_required()` method in `EvaluatorInfoTrait`
-
 
 ### Changed
 
-- **Breaking** `FeatureEvaluator::eval()` is now a provided method with a default implementation;
-  trait implementors must instead implement `eval_no_ts_check()`, which skips the pre-evaluation
-  time-series validation that `eval()` now performs automatically https://github.com/light-curve/light-curve-feature/pull/202
-- **Breaking** `EvaluatorInfo` gained a new `variability_required: bool` field;
-  callers constructing `EvaluatorInfo` directly must supply it (use the `lazy_info!` macro to avoid this) https://github.com/light-curve/light-curve-feature/pull/202
+- **Breaking** `FeatureEvaluator::eval()` is now a provided method with a default implementation; trait implementors
+  must instead implement `eval_no_ts_check()`, which skips the pre-evaluation time-series validation that `eval()` now
+  performs automatically https://github.com/light-curve/light-curve-feature/pull/202
+- **Breaking** `EvaluatorInfo` gained a new `variability_required: bool` field; callers constructing `EvaluatorInfo`
+  directly must supply it (use the `lazy_info!` macro to avoid
+  this) https://github.com/light-curve/light-curve-feature/pull/202
 - **Breaking** Removed `get_nonzero_m_std`, `get_nonzero_m_std2`, and `get_nonzero_reduced_chi2`
   free functions from the `evaluator` module https://github.com/light-curve/light-curve-feature/pull/202
 
-
 ### Fixed
 
-- **Breaking:** {Bazin,Villar,Linexp}Fit requires variability now and do not accept flat time series anymore https://github.com/light-curve/light-curve-feature/issues/112 https://github.com/light-curve/light-curve-feature/pull/113
+- **Breaking:** {Bazin,Villar,Linexp}Fit requires variability now and do not accept flat time series
+  anymore https://github.com/light-curve/light-curve-feature/issues/112 https://github.com/light-curve/light-curve-feature/pull/113
 
 ### Security
 
@@ -173,55 +224,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `ceres-solver` from `0.5.0` to `0.5.1` (adds Windows support) https://github.com/light-curve/light-curve-feature/pull/263
-- Add Windows CI job: vcpkg-installed ceres and GSL, vcpkg artifact caching https://github.com/light-curve/light-curve-feature/pull/263
-
+- Bump `ceres-solver` from `0.5.0` to `0.5.1` (adds Windows
+  support) https://github.com/light-curve/light-curve-feature/pull/263
+- Add Windows CI job: vcpkg-installed ceres and GSL, vcpkg artifact
+  caching https://github.com/light-curve/light-curve-feature/pull/263
 
 # [0.13.0] 2026 March 3
 
 ### Changed
 
-- **Build breaking**: bump minimum supported Rust version (MSRV) from 1.85 to 1.88 due to `nuts-derive` dependency requiring `let_chains` (stabilized in Rust 1.88) https://github.com/light-curve/light-curve-feature/pull/262
+- **Build breaking**: bump minimum supported Rust version (MSRV) from 1.85 to 1.88 due to `nuts-derive` dependency
+  requiring `let_chains` (stabilized in Rust 1.88) https://github.com/light-curve/light-curve-feature/pull/262
 - Bump `rand` from 0.9 to 0.10, `rand_distr` from 0.5 to 0.6 https://github.com/light-curve/light-curve-feature/pull/260
 
 ### Removed
 
-- Remove `nuts` cargo feature, `NutsCurveFit` is now always available https://github.com/light-curve/light-curve-feature/pull/262
+- Remove `nuts` cargo feature, `NutsCurveFit` is now always
+  available https://github.com/light-curve/light-curve-feature/pull/262
 
 ### Fixed
 
-- Fix non-deterministic `NutsCurveFit` results by seeding the RNG with a fixed value (`StdRng::seed_from_u64(0)`), matching the reproducibility guarantee of `McmcCurveFit` https://github.com/light-curve/light-curve-feature/pull/262
-
+- Fix non-deterministic `NutsCurveFit` results by seeding the RNG with a fixed value (`StdRng::seed_from_u64(0)`),
+  matching the reproducibility guarantee of `McmcCurveFit` https://github.com/light-curve/light-curve-feature/pull/262
 
 # [0.12.0] 2026 February 11
 
 ### Added
 
 - **Breaking** Add configurable `PeriodogramNormalization` to the feature-level `Periodogram`, allowing users to select
-  normalization strategy (Psd, Standard, Model, Log) at the feature extraction level https://github.com/light-curve/light-curve-feature/pull/257
+  normalization strategy (Psd, Standard, Model, Log) at the feature extraction
+  level https://github.com/light-curve/light-curve-feature/pull/257
 
 ### Changed
 
 - **Breaking** `periodogram::Periodogram::from_t` now requires an additional `PeriodogramNormalization`
-  parameter. `set_normalization` and `normalization` methods have been removed from the low-level
-  periodogram in favor of constructor-based configuration https://github.com/light-curve/light-curve-feature/pull/257
-- **Breaking** make default Cargo feature set empty, now RustFFT is the default FFT back-end for the fast periodogram calculation https://github.com/light-curve/light-curve-feature/pull/258
+  parameter. `set_normalization` and `normalization` methods have been removed from the low-level periodogram in favor
+  of constructor-based configuration https://github.com/light-curve/light-curve-feature/pull/257
+- **Breaking** make default Cargo feature set empty, now RustFFT is the default FFT back-end for the fast periodogram
+  calculation https://github.com/light-curve/light-curve-feature/pull/258
 
 # [0.11.0] 2026 February 9
 
 ### Added
 
-- **Breaking** Add RustFFT as the default pure Rust FFT backend for periodogram computation,
-  with abstract `Fft<T>` trait enabling pluggable backends. RustFFT is now always used by default
-  via `PeriodogramPower::Fft` variant. When FFTW is enabled, `PeriodogramPower::FftFftw` variant
-  allows explicit selection of the FFTW backend https://github.com/light-curve/light-curve-feature/issues/180 https://github.com/light-curve/light-curve-feature/pull/255
+- **Breaking** Add RustFFT as the default pure Rust FFT backend for periodogram computation, with abstract `Fft<T>`
+  trait enabling pluggable backends. RustFFT is now always used by default via `PeriodogramPower::Fft` variant. When
+  FFTW is enabled, `PeriodogramPower::FftFftw` variant allows explicit selection of the FFTW
+  backend https://github.com/light-curve/light-curve-feature/issues/180 https://github.com/light-curve/light-curve-feature/pull/255
 - Implement `PartialEq` for `Feature` enum and all constituent types, enabling equality comparisons between feature
   instances https://github.com/light-curve/light-curve-feature/issues/228
-- Add NUTS (No-U-Turn Sampler) as an alternative fitting algorithm via `NutsCurveFit`, providing gradient-based Hamiltonian Monte Carlo optimization, gated behind the `nuts` cargo feature https://github.com/light-curve/light-curve-feature/pull/245
-- **Breaking** Add `LnPriorEvaluator` trait for evaluating ln(prior) without serialization requirements, enabling more flexible prior handling in curve fitting https://github.com/light-curve/light-curve-feature/pull/248
-- **Breaking** Add gradient support to `LnPrior` traits, enabling NUTS sampler to use prior gradients for improved sampling efficiency https://github.com/light-curve/light-curve-feature/pull/250
-- **Breaking** Add FitParametersInternalExternalTrait::jacobian_internal_to_external to help with prior gradients https://github.com/light-curve/light-curve-feature/pull/253
-- Add `PeriodogramNormalization` enum for configuring periodogram power normalization with support for Standard, Model, Log, and Psd (default) normalizations following astropy conventions https://github.com/light-curve/light-curve-feature/issues/212
+- Add NUTS (No-U-Turn Sampler) as an alternative fitting algorithm via `NutsCurveFit`, providing gradient-based
+  Hamiltonian Monte Carlo optimization, gated behind the `nuts` cargo
+  feature https://github.com/light-curve/light-curve-feature/pull/245
+- **Breaking** Add `LnPriorEvaluator` trait for evaluating ln (prior) without serialization requirements, enabling more
+  flexible prior handling in curve fitting https://github.com/light-curve/light-curve-feature/pull/248
+- **Breaking** Add gradient support to `LnPrior` traits, enabling NUTS sampler to use prior gradients for improved
+  sampling efficiency https://github.com/light-curve/light-curve-feature/pull/250
+- **Breaking** Add FitParametersInternalExternalTrait::jacobian_internal_to_external to help with prior
+  gradients https://github.com/light-curve/light-curve-feature/pull/253
+- Add `PeriodogramNormalization` enum for configuring periodogram power normalization with support for Standard, Model,
+  Log, and Psd (default) normalizations following astropy
+  conventions https://github.com/light-curve/light-curve-feature/issues/212
 
 ### Changed
 
@@ -229,14 +292,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `peak_indices_reverse_sorted`, and `FreqGrid::from_array` now accept
   `&ArrayRef1<T>` https://github.com/light-curve/light-curve-feature/issues/239
 - **Breaking** Float parameters in many places now use `ordered_float::NotNan` type, enabling `Eq` and `Hash` trait
-  derivation and
-  ensuring parameters cannot be
+  derivation and ensuring parameters cannot be
   NaN https://github.com/light-curve/light-curve-feature/issues/233 https://github.com/light-curve/light-curve-feature/pull/242
 - **Breaking** `MixLnPrior1D::new` signature changed from accepting `Vec` to
   slice. https://github.com/light-curve/light-curve-feature/pull/242
-- **Breaking** `CurveFitTrait::curve_fit` now accepts priors implementing `LnPriorEvaluator` trait instead of bare `Fn` closures, providing better type safety and extensibility https://github.com/light-curve/light-curve-feature/pull/248
+- **Breaking** `CurveFitTrait::curve_fit` now accepts priors implementing `LnPriorEvaluator` trait instead of bare `Fn`
+  closures, providing better type safety and extensibility https://github.com/light-curve/light-curve-feature/pull/248
 - Bump `ceres-solver` from 0.4.0 to 0.5.0 https://github.com/light-curve/light-curve-feature/pull/246
-- Refactored prior transformation to use trait-based `TransformedLnPrior` wrapper instead of closures, improving debuggability and avoiding function wrapping https://github.com/light-curve/light-curve-feature/pull/248
+- Refactored prior transformation to use trait-based `TransformedLnPrior` wrapper instead of closures, improving
+  debuggability and avoiding function wrapping https://github.com/light-curve/light-curve-feature/pull/248
 
 # [0.10.0] 2025 June 4
 
