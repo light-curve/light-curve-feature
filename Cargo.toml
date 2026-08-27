@@ -8,16 +8,17 @@ repository = "https://github.com/light-curve/light-curve-feature"
 readme = "README.md"
 authors = ["Konstantin Malanchev <hombit@gmail.com>"]
 license = "GPL-3.0-or-later"
-rust-version = "1.88"
+rust-version = "1.98"
 edition = "2024"
 
 [lib]
 bench = false
 
 [features]
-default = []
+default = ["fast-math"]
 ceres-system = ["ceres-solver/system"]
 ceres-source = ["ceres-solver/source"]
+fast-math = ["dep:reassoc"]
 # Base feature indicating FFTW is available (used for conditional compilation)
 fftw = ["dep:fftw"]
 fftw-system = ["fftw", "fftw/system"]
@@ -65,6 +66,7 @@ take_mut = "0.2.2"
 thiserror = "2"
 thread_local = "1.1"
 unzip3 = "1"
+reassoc = { version = "0.14", optional = true }
 
 [dev-dependencies]
 light-curve-feature-test-util = { path = "test-util" }

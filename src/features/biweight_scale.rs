@@ -131,6 +131,7 @@ impl<T> FeatureEvaluator<T> for BiweightScale<T>
 where
     T: Float,
 {
+    #[cfg_attr(feature = "fast-math", reassoc::algebraic)]
     fn eval_no_ts_check(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
         let m_median = ts.m.get_median();
 

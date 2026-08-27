@@ -132,6 +132,7 @@ pub struct IndComponentsLnPrior<const NPARAMS: usize> {
 }
 
 impl<const NPARAMS: usize> LnPriorEvaluator<NPARAMS> for IndComponentsLnPrior<NPARAMS> {
+    #[cfg_attr(feature = "fast-math", reassoc::algebraic)]
     fn ln_prior(&self, params: &[f64; NPARAMS], jac: Option<&mut [f64; NPARAMS]>) -> f64 {
         let mut total_ln_prior = 0.0;
 

@@ -9,11 +9,13 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
---
+- "fast-math" Cargo feature (default feature), which significantly speeds up multiple Features.
 
 ### Changed
 
---
+- **Nreaking**: "algebraic" operators ("fast-math" Cargo feature) are used by default by many features, The returned
+  results now may very between OSs, Rust compiler versions, etc.
+- **Build breaking**: bump MSRV from 1.88 to 1.98
 
 ### Deprecated
 

@@ -9,6 +9,7 @@ use ndarray::Zip;
 ///
 /// It considers both known and unknown observation error cases
 #[allow(clippy::many_single_char_names)]
+#[cfg_attr(feature = "fast-math", reassoc::algebraic)]
 pub fn fit_straight_line<T: Float>(
     ts: &TimeSeries<T>,
     known_errors: bool,

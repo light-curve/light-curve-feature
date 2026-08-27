@@ -1,5 +1,5 @@
 use conv::ConvUtil;
-use criterion::Criterion;
+use criterion::{BatchSize, Criterion};
 use light_curve_feature::*;
 use light_curve_feature_test_util::iter_sn1a_flux_ts;
 use ndarray::Array1;
@@ -89,17 +89,71 @@ where
             "VillarFit",
             FeatureExtractor::new(vec![VillarFit::default().into()]),
         )))
+        .chain(std::iter::once((
+            "LinearFit",
+            FeatureExtractor::new(vec![LinearFit::default().into()]),
+        )))
+        .chain(std::iter::once((
+            "AndersonDarlingNormal",
+            FeatureExtractor::new(vec![AndersonDarlingNormal::default().into()]),
+        )))
+        .chain(std::iter::once((
+            "BiweightScale",
+            FeatureExtractor::new(vec![BiweightScale::default().into()]),
+        )))
+        .chain(std::iter::once((
+            "Eta",
+            FeatureExtractor::new(vec![Eta::default().into()]),
+        )))
+        .chain(std::iter::once((
+            "EtaE",
+            FeatureExtractor::new(vec![EtaE::default().into()]),
+        )))
+        .chain(std::iter::once((
+            "ExcessVariance",
+            FeatureExtractor::new(vec![ExcessVariance::default().into()]),
+        )))
+        .chain(std::iter::once((
+            "Kurtosis",
+            FeatureExtractor::new(vec![Kurtosis::default().into()]),
+        )))
+        .chain(std::iter::once((
+            "LaflerKinmanStringLength",
+            FeatureExtractor::new(vec![LaflerKinmanStringLength::default().into()]),
+        )))
+        .chain(std::iter::once((
+            "ReducedChi2",
+            FeatureExtractor::new(vec![ReducedChi2::default().into()]),
+        )))
+        .chain(std::iter::once((
+            "Roms",
+            FeatureExtractor::new(vec![Roms::default().into()]),
+        )))
+        .chain(std::iter::once((
+            "Skew",
+            FeatureExtractor::new(vec![Skew::default().into()]),
+        )))
+        .chain(std::iter::once((
+            "StetsonK",
+            FeatureExtractor::new(vec![StetsonK::default().into()]),
+        )))
         .collect();
 
     for &n in N.iter() {
-        let mut ts = randts(n);
+        // Pristine, never-evaluated time series: `TimeSeries` memoizes derived statistics, so
+        // it must not be reused across iterations or all but the first would time a cache hit.
+        let ts = randts(n);
         for (name, fe) in names_fes.iter() {
             c.bench_function(
                 format!("FeatureExtractor {}: [{}; {}]", name, n, type_name::<T>()).as_str(),
                 |b| {
-                    b.iter(|| {
-                        let _v = fe.eval(black_box(&mut ts)).unwrap();
-                    });
+                    b.iter_batched_ref(
+                        || ts.clone(),
+                        |ts| {
+                            let _v = fe.eval(black_box(ts)).unwrap();
+                        },
+                        BatchSize::SmallInput,
+                    );
                 },
             );
         }
@@ -107,20 +161,24 @@ where
 
     {
         let n = 10;
-        let mut ts = randts(n);
+        let ts = randts(n);
         let fe = FeatureExtractor::new(observation_count_vec);
         c.bench_function(
             format!("Multiple ObservationCount {}", type_name::<T>()).as_str(),
             |b| {
-                b.iter(|| {
-                    let _v = fe.eval(black_box(&mut ts)).unwrap();
-                });
+                b.iter_batched_ref(
+                    || ts.clone(),
+                    |ts| {
+                        let _v = fe.eval(black_box(ts)).unwrap();
+                    },
+                    BatchSize::SmallInput,
+                );
             },
         );
     }
 
     {
-        let mut real_data: Vec<_> = iter_sn1a_flux_ts::<T>(Some("g"))
+        let real_data: Vec<_> = iter_sn1a_flux_ts::<T>(Some("g"))
             .map(|(_ztf_id, ts)| ts)
             .collect();
         #[allow(clippy::vec_init_then_push)]
@@ -161,11 +219,15 @@ where
                 c.bench_function(
                     format!("SN Ia {:?} {}", f, type_name::<T>()).as_str(),
                     |b| {
-                        b.iter(|| {
-                            real_data.iter_mut().for_each(|ts| {
-                                let _v = f.eval(black_box(ts)).unwrap();
-                            });
-                        });
+                        b.iter_batched_ref(
+                            || real_data.clone(),
+                            |real_data| {
+                                real_data.iter_mut().for_each(|ts| {
+                                    let _v = f.eval(black_box(ts)).unwrap();
+                                });
+                            },
+                            BatchSize::SmallInput,
+                        );
                     },
                 );
             }

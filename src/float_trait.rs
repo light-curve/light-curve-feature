@@ -29,6 +29,7 @@ lazy_static! {
 
 /// Floating number trait, it is implemented for [f32] and [f64] only
 #[cfg(feature = "fftw")]
+#[cfg_attr(feature = "fast-math", reassoc::algebraic_float)]
 pub trait Float:
     'static
     + Sized
@@ -75,6 +76,7 @@ pub trait Float:
 }
 
 /// Floating number trait, it is implemented for [f32] and [f64] only
+#[cfg_attr(feature = "fast-math", reassoc::algebraic_float)]
 #[cfg(not(feature = "fftw"))]
 pub trait Float:
     'static

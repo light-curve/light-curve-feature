@@ -2,7 +2,7 @@ use crate::data::{DataSample, TimeSeries};
 use crate::float_trait::Float;
 
 use conv::ConvUtil;
-use ndarray::Array1;
+use ndarray::{Array1, Zip};
 use std::rc::Rc;
 
 #[derive(Clone, Debug)]
@@ -141,5 +141,26 @@ where
     /// Get the magnitude/flux standard deviation (scale factor)
     pub fn m_std(&self) -> T {
         self.m_std
+    }
+}
+
+impl<T> Data<T>
+where
+    T: Float,
+{
+    /// Sum of squared inverse-error-weighted residuals of `model` over all points.
+    ///
+    /// This is meant for the post-fit chi2 of an already-converged solution: it is a plain
+    /// reduction over the whole sample, so reassociating it only perturbs the reported value
+    /// and never feeds a convergence test, an acceptance decision, or a NaN guard. Do not use
+    /// it inside a fitting loop.
+    #[cfg_attr(feature = "fast-math", reassoc::algebraic)]
+    pub fn model_chi2(&self, model: impl Fn(T) -> T) -> T {
+        Zip::from(&self.t)
+            .and(&self.m)
+            .and(&self.inv_err)
+            .fold(T::zero(), |acc, &t, &m, &inv_err| {
+                acc + ((model(t) - m) * inv_err).powi(2)
+            })
     }
 }

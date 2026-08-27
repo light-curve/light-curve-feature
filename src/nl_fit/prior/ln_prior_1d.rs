@@ -450,6 +450,7 @@ impl MixLnPrior1D {
 }
 
 impl LnPrior1DTrait for MixLnPrior1D {
+    #[cfg_attr(feature = "fast-math", reassoc::algebraic)]
     fn ln_prior_1d(&self, x: f64, grad: Option<&mut f64>) -> f64 {
         let mut total_prob = 0.0;
         let mut total_grad_weighted = 0.0;
