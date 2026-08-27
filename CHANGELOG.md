@@ -33,6 +33,19 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 --
 
+# [0.20.0] 2026 August 27
+
+### Added
+
+- "fast-math" Cargo feature (default feature), which significantly speeds up multiple Features. https://github.com/light-curve/light-curve-feature/pull/327
+
+### Changed
+
+- **Breaking**: "algebraic" operators ("fast-math" Cargo feature) are used by default by many features, The returned
+  results now may very between OSs, Rust compiler versions, etc. https://github.com/light-curve/light-curve-feature/pull/327
+- **Build breaking**: bump MSRV from 1.88 to 1.98 https://github.com/light-curve/light-curve-feature/pull/327
+
+
 # [0.19.0] 2026 August 18
 
 ### Added
