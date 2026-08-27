@@ -1,5 +1,6 @@
 use crate::data::data_sample::DataSample;
 use crate::float_trait::Float;
+use crate::types::CowArray1;
 
 use conv::prelude::*;
 use itertools::Itertools;
@@ -7,6 +8,14 @@ use itertools::Itertools;
 use ndarray::Array1;
 use ndarray::Zip;
 use ndarray_stats::SummaryStatisticsExt;
+
+/// Weighted chi-squared sum: $\sum_i w_i (m_i - \bar{m})^2$
+#[cfg_attr(feature = "fast-math", reassoc::algebraic)]
+fn weighted_chi2_sum<T: Float>(m: &CowArray1<T>, w: &CowArray1<T>, m_mean: T) -> T {
+    Zip::from(m)
+        .and(w)
+        .fold(T::zero(), |chi2, &m, &w| chi2 + (m - m_mean).powi(2) * w)
+}
 
 /// Time series object to be put into [Feature](crate::Feature)
 ///
@@ -154,11 +163,7 @@ where
 
     time_series_getter!(m_chi2, get_m_chi2, |ts: &mut TimeSeries<T>| {
         let m_weighed_mean = ts.get_m_weighted_mean();
-        let m_chi2 = Zip::from(&ts.m.sample)
-            .and(&ts.w.sample)
-            .fold(T::zero(), |chi2, &m, &w| {
-                chi2 + (m - m_weighed_mean).powi(2) * w
-            });
+        let m_chi2 = weighted_chi2_sum(&ts.m.sample, &ts.w.sample, m_weighed_mean);
         if m_chi2.is_zero() {
             ts.plateau = Some(true);
         }

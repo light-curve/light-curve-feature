@@ -254,15 +254,9 @@ impl CurveFitTrait for NutsCurveFit {
         match self.fine_tuning_algorithm.as_ref() {
             Some(algo) => algo.curve_fit(ts, &best_x, bounds, model, derivatives, ln_prior),
             None => {
-                // Calculate chi-squared for the best parameters
-                let mut residual = 0.0;
-                Zip::from(&ts.t)
-                    .and(&ts.m)
-                    .and(&ts.inv_err)
-                    .for_each(|&t, &m, &inv_err| {
-                        residual += (inv_err * (model(t, &best_x) - m)).powi(2);
-                    });
-                let reduced_chi2 = residual / ((nsamples - NPARAMS) as f64);
+                // Calculate chi-squared for the best parameters, after sampling has finished.
+                let reduced_chi2 =
+                    ts.model_chi2(|t| model(t, &best_x)) / ((nsamples - NPARAMS) as f64);
 
                 CurveFitResult {
                     x: best_x,

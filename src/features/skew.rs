@@ -59,6 +59,7 @@ impl<T> FeatureEvaluator<T> for Skew
 where
     T: Float,
 {
+    #[cfg_attr(feature = "fast-math", reassoc::algebraic)]
     fn eval_no_ts_check(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
         let m_mean = ts.m.get_mean();
         let m_std = ts.m.get_std();

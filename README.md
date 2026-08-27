@@ -72,6 +72,10 @@ println!("{:?}", result);
 ### Cargo features
 
 The crate is configured with the following Cargo features:
+- `fast-math` (enabled by default) - use reassociated ("algebraic") floating-point operations in several features via
+  the [`reassoc` crate](https://github.com/light-curve/reassoc), which significantly speeds them up. Since these
+  operations are no longer strictly IEEE-754 order-of-evaluation, results may vary slightly between OSs, Rust
+  compiler versions, etc. Disable with `--no-default-features` if bit-for-bit reproducibility is required.
 - `ceres-system` and `ceres-source` - enable [Ceres Solver](http://ceres-solver.org) support for non-linear fitting. The former
   uses system-wide installation of Ceres, the latter builds Ceres from source and links it statically. The latter overrides the former. See [`ceres-solver-rs` crate](https://github.com/light-curve/ceres-solver-rs) for details
 - `fftw-system`, `fftw-source`, and `fftw-mkl` - enable [FFTW](http://www.fftw.org) as the FFT backend for `Periodogram`.
@@ -79,7 +83,7 @@ The crate is configured with the following Cargo features:
   the last downloads and links Intel MKL instead. When none of these are enabled (the default), the pure-Rust
   [RustFFT](https://github.com/ejmahler/RustFFT) backend is used — no system libraries required.
 - `gsl` - enables [GNU Scientific Library](https://www.gnu.org/software/gsl/) support for LMSDER non-linear fitting.
-- `default` - empty; RustFFT is always available without any feature flag.
+- `default` - `fast-math` only; RustFFT is always available without any feature flag.
 
 ### Development
 

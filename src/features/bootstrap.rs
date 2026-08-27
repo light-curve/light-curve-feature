@@ -246,6 +246,7 @@ where
 
 /// Sample standard deviation (`ddof = 1`). Requires at least two values; the callers guarantee
 /// this (a feature with too few resamples returns an error instead of calling this).
+#[cfg_attr(feature = "fast-math", reassoc::algebraic)]
 fn sample_std<T: Float>(values: &[T]) -> T {
     debug_assert!(values.len() >= 2, "sample_std requires at least two values");
     let nf = values.len().approx_as::<T>().unwrap();

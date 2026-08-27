@@ -4,7 +4,6 @@ use crate::nl_fit::data::Data;
 use crate::nl_fit::prior::ln_prior::LnPriorEvaluator;
 
 use ceres_solver::{CurveFitProblem1D, CurveFunctionType, LossFunction, SolverOptions};
-use ndarray::Zip;
 use ordered_float::NotNan;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -127,13 +126,7 @@ impl CurveFitTrait for CeresCurveFit {
         let x = solution.parameters.try_into().unwrap();
         let success = solution.summary.is_solution_usable();
 
-        let reduced_chi2 = Zip::from(&ts.t)
-            .and(&ts.m)
-            .and(&ts.inv_err)
-            .fold(0.0, |acc, &t, &m, &inv_err| {
-                acc + ((model(t, &x) - m) * inv_err).powi(2)
-            })
-            / (ts.t.len() - NPARAMS) as f64;
+        let reduced_chi2 = ts.model_chi2(|t| model(t, &x)) / (ts.t.len() - NPARAMS) as f64;
         CurveFitResult {
             x,
             reduced_chi2,

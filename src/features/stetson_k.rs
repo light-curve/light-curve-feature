@@ -61,6 +61,7 @@ impl<T> FeatureEvaluator<T> for StetsonK
 where
     T: Float,
 {
+    #[cfg_attr(feature = "fast-math", reassoc::algebraic)]
     fn eval_no_ts_check(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
         let mean = ts.get_m_weighted_mean();
         let value = Zip::from(&ts.m.sample)

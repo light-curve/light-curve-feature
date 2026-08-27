@@ -59,6 +59,7 @@ impl<T> FeatureEvaluator<T> for ExcessVariance
 where
     T: Float,
 {
+    #[cfg_attr(feature = "fast-math", reassoc::algebraic)]
     fn eval_no_ts_check(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
         let mean_error2 = ts.w.sample.fold(T::zero(), |sum, w| sum + w.recip()) / ts.lenf();
         Ok(vec![

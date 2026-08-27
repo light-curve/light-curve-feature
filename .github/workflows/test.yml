@@ -55,7 +55,7 @@ jobs:
         with:
           shared-key: "msrv"
       # Build "normal" target only, see https://github.com/light-curve/light-curve-feature/issues/74
-      - run: cargo +${{ steps.get_msrv.outputs.msrv }} build --no-default-features --features ceres-source,fftw-source,gsl
+      - run: cargo +${{ steps.get_msrv.outputs.msrv }} build --features ceres-source,fftw-source,gsl
 
   test:
     runs-on: ${{ matrix.os }}
@@ -78,7 +78,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: "stable"
-      - run: cargo test --no-default-features --features=ceres-source,fftw-source,gsl
+      - run: cargo test --features=ceres-source,fftw-source,gsl
 
   test-release:
     runs-on: ubuntu-latest
@@ -97,7 +97,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: "stable"
-      - run: cargo test --profile=release-with-debug --no-default-features --features=ceres-source,fftw-source,gsl
+      - run: cargo test --profile=release-with-debug --features=ceres-source,fftw-source,gsl
 
   examples:
     runs-on: ubuntu-latest
@@ -116,7 +116,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: "stable"
-      - run: cargo run --example plot_snia_curve_fits --no-default-features --features=ceres-source,fftw-source,gsl -- -n=1
+      - run: cargo run --example plot_snia_curve_fits --features=ceres-source,fftw-source,gsl -- -n=1
 
   fmt:
     runs-on: ubuntu-slim
@@ -147,7 +147,9 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: "stable"
-      - run: cargo clippy --all-targets --no-default-features --features=ceres-source,fftw-source,gsl -- -D warnings
+      - run: cargo clippy --all-targets --features=ceres-source,fftw-source,gsl -- -D warnings
+      # Also lint with every optional feature off, which notably disables `fast-math`
+      - run: cargo clippy --all-targets --no-default-features -- -D warnings
 
   fmt-test-util:
     runs-on: ubuntu-slim
@@ -205,8 +207,8 @@ jobs:
           sudo apt-get install -y libfftw3-dev libgsl-dev libfontconfig-dev
       - name: Generate code coverage
         run: |
-          cargo llvm-cov --no-report --no-default-features --features=ceres-source,fftw-system,gsl
-          cargo llvm-cov run --example=plot_snia_curve_fits --no-report --no-default-features --features=ceres-source,fftw-source,gsl -- -n=1
+          cargo llvm-cov --no-report --features=ceres-source,fftw-system,gsl
+          cargo llvm-cov run --example=plot_snia_curve_fits --no-report --features=ceres-source,fftw-source,gsl -- -n=1
           cargo llvm-cov report --lcov --output-path lcov.info
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7
@@ -231,7 +233,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: "macos"
-      - run: cargo build --all-targets --no-default-features --features=ceres-source,fftw-source,gsl
+      - run: cargo build --all-targets --features=ceres-source,fftw-source,gsl
 
   windows:
     runs-on: windows-latest
@@ -262,4 +264,4 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: "windows"
-      - run: cargo test --no-default-features --features=ceres-system,gsl
+      - run: cargo test --features=ceres-system,gsl

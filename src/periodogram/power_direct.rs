@@ -22,6 +22,7 @@ impl<T> PeriodogramPowerTrait<T> for PeriodogramPowerDirect
 where
     T: Float,
 {
+    #[cfg_attr(feature = "fast-math", reassoc::algebraic)]
     fn power(
         &self,
         freq: &FreqGrid<T>,
@@ -87,6 +88,7 @@ impl<'a, T: Float> SinCosOmegaTau<'a, T> {
 impl<'a, T: Float> Iterator for SinCosOmegaTau<'a, T> {
     type Item = (T, T);
 
+    #[cfg_attr(feature = "fast-math", reassoc::algebraic)]
     fn next(&mut self) -> Option<Self::Item> {
         let mut sum_sin = T::zero();
         let mut sum_cos = T::zero();
