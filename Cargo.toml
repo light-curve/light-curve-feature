@@ -66,7 +66,7 @@ take_mut = "0.2.2"
 thiserror = "2"
 thread_local = "1.1"
 unzip3 = "1"
-reassoc = { version = "0.14", optional = true }
+reassoc = { version = "0.16", optional = true }
 
 [dev-dependencies]
 light-curve-feature-test-util = { path = "test-util" }
