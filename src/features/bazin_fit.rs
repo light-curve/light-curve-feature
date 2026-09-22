@@ -5,6 +5,7 @@ use crate::nl_fit::{
 };
 
 use conv::ConvUtil;
+use tinyvec::array_vec;
 
 const NPARAMS: usize = 5;
 
@@ -32,10 +33,10 @@ Bazin et al. 2009 [DOI:10.1051/0004-6361/200911847](https://doi.org/10.1051/0004
 
 #[doc = DOC!()]
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
-pub struct BazinFit {
+pub struct BazinFit<const MAX_NPARAMS: usize = NPARAMS> {
     algorithm: CurveFitAlgorithm,
-    ln_prior: BazinLnPrior,
-    inits_bounds: BazinInitsBounds,
+    ln_prior: BazinLnPrior<MAX_NPARAMS>,
+    inits_bounds: BazinInitsBounds<MAX_NPARAMS>,
 }
 
 impl BazinFit {
@@ -232,26 +233,28 @@ impl FitParametersOriginalDimLessTrait<NPARAMS> for BazinFit {
         norm_data: &NormalizedData<f64>,
         orig: &[f64; NPARAMS],
     ) -> [f64; NPARAMS] {
-        [
+        array_vec!([f64; NPARAMS] =>
             norm_data.m_to_norm_scale(orig[0]), // A amplitude
             norm_data.m_to_norm(orig[1]),       // c baseline
             norm_data.t_to_norm(orig[2]),       // t_0 reference_time
             norm_data.t_to_norm_scale(orig[3]), // tau_rise rise time
             norm_data.t_to_norm_scale(orig[4]), // tau_fall fall time
-        ]
+        )
+        .into_inner()
     }
 
     fn dimensionless_to_orig(
         norm_data: &NormalizedData<f64>,
         norm: &[f64; NPARAMS],
     ) -> [f64; NPARAMS] {
-        [
+        array_vec!([f64; NPARAMS] =>
             norm_data.m_to_orig_scale(norm[0]), // A amplitude
             norm_data.m_to_orig(norm[1]),       // c baseline
             norm_data.t_to_orig(norm[2]),       // t_0 reference_time
             norm_data.t_to_orig_scale(norm[3]), // tau_rise rise time
             norm_data.t_to_orig_scale(norm[4]), // tau_fall fall time
-        ]
+        )
+        .into_inner()
     }
 }
 
@@ -286,13 +289,14 @@ impl FitParametersInternalExternalTrait<NPARAMS> for BazinFit {
         // ∂|x|/∂x = sign(x), so the Jacobian is:
         let m_std = norm_data.m_std();
         let t_std = norm_data.t_std();
-        [
+        array_vec!([f64; NPARAMS] =>
             internal[0].signum() * m_std, // A amplitude: |internal[0]| * m_std
             m_std,                        // B baseline: internal[1] * m_std + m_mean
             t_std,                        // t0: internal[2] * t_std + t_mean
             internal[3].signum() * t_std, // tau_rise: |internal[3]| * t_std
             internal[4].signum() * t_std, // tau_fall: |internal[4]| * t_std
-        ]
+        )
+        .into_inner()
     }
 }
 
@@ -339,11 +343,11 @@ where
 
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, Default, PartialEq)]
 #[non_exhaustive]
-pub enum BazinInitsBounds {
+pub enum BazinInitsBounds<const MAX_NPARAMS: usize = NPARAMS> {
     #[default]
     Default,
-    Arrays(Box<FitInitsBoundsArrays<NPARAMS>>),
-    OptionArrays(Box<OptionFitInitsBoundsArrays<NPARAMS>>),
+    Arrays(Box<FitInitsBoundsArrays<MAX_NPARAMS>>),
+    OptionArrays(Box<OptionFitInitsBoundsArrays<MAX_NPARAMS>>),
 }
 
 impl BazinInitsBounds {
@@ -384,17 +388,23 @@ impl BazinInitsBounds {
         let (fall_lower, fall_upper) = (0.0, 10.0 * t_amplitude);
 
         FitInitsBoundsArrays {
-            init: [a_init, c_init, t0_init, rise_init, fall_init].into(),
-            lower: [a_lower, c_lower, t0_lower, rise_lower, fall_lower].into(),
-            upper: [a_upper, c_upper, t0_upper, rise_upper, fall_upper].into(),
+            init: array_vec!([f64; NPARAMS] => a_init, c_init, t0_init, rise_init, fall_init)
+                .into_inner()
+                .into(),
+            lower: array_vec!([f64; NPARAMS] => a_lower, c_lower, t0_lower, rise_lower, fall_lower)
+                .into_inner()
+                .into(),
+            upper: array_vec!([f64; NPARAMS] => a_upper, c_upper, t0_upper, rise_upper, fall_upper)
+                .into_inner()
+                .into(),
         }
     }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash)]
 #[non_exhaustive]
-pub enum BazinLnPrior {
-    Fixed(Box<LnPrior<NPARAMS>>),
+pub enum BazinLnPrior<const MAX_NPARAMS: usize = NPARAMS> {
+    Fixed(Box<LnPrior<MAX_NPARAMS>>),
 }
 
 impl BazinLnPrior {
@@ -433,6 +443,19 @@ mod tests {
     check_feature!(BazinFit);
 
     check_fit_model_derivatives!(BazinFit);
+
+    #[test]
+    fn tinyvec_array_vec_zero_pads_beyond_pushed_length() {
+        // BazinFit always pushes exactly NPARAMS elements into its MAX_NPARAMS-capacity
+        // ArrayVec, so `.len() == MAX_NPARAMS` in practice. This isolates the underlying
+        // tinyvec mechanism for actual_len < MAX_NPARAMS, which a future variable-length
+        // Fit (e.g. Rainbow) would rely on: indices at or beyond the pushed length read
+        // back as zero via `as_inner()` rather than panicking or holding garbage.
+        let partial: tinyvec::ArrayVec<[f64; NPARAMS]> =
+            tinyvec::array_vec!([f64; NPARAMS] => 1.0, 2.0, 3.0);
+        assert_eq!(partial.len(), 3);
+        assert_eq!(*partial.as_inner(), [1.0, 2.0, 3.0, 0.0, 0.0]);
+    }
 
     feature_test!(
         bazin_fit_almost_plateau,
