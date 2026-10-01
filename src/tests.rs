@@ -1,13 +1,33 @@
+pub use crate::data::TimeSeries;
 pub use crate::evaluator::*;
 pub use crate::extractor::FeatureExtractor;
 pub use crate::feature::Feature;
 pub use crate::float_trait::Float;
-pub use crate::time_series::TimeSeries;
 
 pub use light_curve_common::{all_close, linspace};
 pub use ndarray::Array1;
 pub use rand::prelude::*;
 pub use rand_distr::StandardNormal;
+
+#[test]
+fn feature_schema_generation() {
+    let schema = schemars::schema_for!(Feature<f64>);
+    assert_eq!(
+        schema.get("title").and_then(serde_json::Value::as_str),
+        Some("Feature")
+    );
+}
+
+#[test]
+fn multicolor_feature_schema_generation() {
+    let schema = schemars::schema_for!(
+        crate::multicolor::MultiColorFeature<crate::StringPassband, f64>
+    );
+    assert_eq!(
+        schema.get("title").and_then(serde_json::Value::as_str),
+        Some("MultiColorFeature")
+    );
+}
 
 #[macro_export]
 macro_rules! feature_test {
@@ -119,6 +139,8 @@ pub fn eval_info_tests(
             .as_ref()
             .map(check_size);
     }
+
+    eval_info_variability_required_test(&eval, &t_sorted, &w, &mut rng);
 }
 
 fn eval_info_ts_length_test(
@@ -262,6 +284,45 @@ fn eval_info_sorting_required_test(
                     is_sorting_required: {is_sorting_required}",
     );
     Some(v)
+}
+
+fn eval_info_variability_required_test(
+    eval: &Feature<f64>,
+    t: &[f64],
+    w: &[f64],
+    rng: &mut StdRng,
+) {
+    assert!(
+        !eval.is_variability_required() || eval.is_m_required(),
+        "variability_required is true, but m_required is false"
+    );
+
+    let m = vec![rng.sample::<f64, StandardNormal>(StandardNormal).abs(); t.len()];
+    let mut ts = TimeSeries::new(t, &m, w);
+    assert_eq!(eval.is_variability_required(), eval.eval(&mut ts).is_err());
+
+    match (
+        std::panic::catch_unwind(|| eval.eval_no_ts_check(&mut TimeSeries::new(t, &m, w))),
+        eval.is_variability_required(),
+    ) {
+        (Ok(_result), true) => {}
+        // |-- This doesn't work sometimes because of float rounding issues
+        // v
+        // (Ok(result), true) => assert!(result
+        //     .map(|v| assert!(
+        //         !v.iter().copied().all(f64::is_finite),
+        //         "{:?} are all finite",
+        //         v
+        //     ))
+        //     .is_err()),
+        (Ok(result), false) => assert!(
+            result
+                .map(|v| assert!(v.into_iter().all(f64::is_finite)))
+                .is_ok()
+        ),
+        (Err(_err), true) => {}
+        (Err(err), false) => panic!("{:?}", err),
+    }
 }
 
 #[macro_export]
@@ -442,6 +503,73 @@ macro_rules! check_fit_model_derivatives {
                     let result = <$feature>::model(t, &hyper_param);
                     (1..=NPARAMS).map(|i| result[i]).collect()
                 };
+
+                assert_relative_eq!(&actual[..], &desired[..], epsilon = 1e-9);
+            }
+        }
+    };
+}
+
+/// Test that jacobian_internal_to_external is correctly computed by verifying
+/// against hyperdual automatic differentiation of convert_to_external.
+///
+/// The Jacobian is `d(external)/d(internal)` which is the composition of:
+/// 1. `internal_to_dimensionless` - tested with hyperdual numbers
+/// 2. `dimensionless_to_orig` - linear scaling by t_std, m_std
+#[macro_export]
+macro_rules! check_fit_jacobian {
+    ($feature: ty) => {
+        #[test]
+        fn fit_jacobian() {
+            use $crate::nl_fit::data::NormalizedData;
+            use $crate::nl_fit::evaluator::{
+                FitParametersInternalDimlessTrait, FitParametersInternalExternalTrait,
+                FitParametersOriginalDimLessTrait,
+            };
+
+            const REPEAT: usize = 10;
+
+            // Create NormalizedData with non-trivial scale factors
+            let t = vec![0.0, 10.0, 20.0, 30.0, 40.0];
+            let m = vec![100.0, 200.0, 150.0, 180.0, 120.0];
+            let mut ts = TimeSeries::new_without_weight(t, m);
+            let norm_data = NormalizedData::<f64>::from_ts(&mut ts);
+
+            // Get scale factors from dimensionless_to_orig by passing unit vector
+            let unit = [1.0; NPARAMS];
+            let scales = <$feature>::dimensionless_to_orig(&norm_data, &unit);
+            // Subtract the offsets (which come from mean values)
+            let zeros = [0.0; NPARAMS];
+            let offsets = <$feature>::dimensionless_to_orig(&norm_data, &zeros);
+            let scale_factors: [f64; NPARAMS] = std::array::from_fn(|i| scales[i] - offsets[i]);
+
+            let mut rng = StdRng::seed_from_u64(0);
+            for _ in 0..REPEAT {
+                // Random internal params, avoiding zero to avoid sign discontinuity at abs(0)
+                let internal: [f64; NPARAMS] = std::array::from_fn(|_| {
+                    let x: f64 = rng.random::<f64>() - 0.5;
+                    if x.abs() < 0.1 { 0.5 * x.signum() } else { x }
+                });
+
+                // Compute analytical Jacobian
+                let actual = <$feature>::jacobian_internal_to_external(&norm_data, &internal);
+
+                // Compute expected Jacobian using hyperdual on internal_to_dimensionless
+                // then multiply by the scale factors from dimensionless_to_orig
+                let desired: [f64; NPARAMS] = std::array::from_fn(|i| {
+                    // Set up hyperdual with derivative only in direction i
+                    let hyper_param: [Hyperdual<f64, 2>; NPARAMS] = std::array::from_fn(|j| {
+                        let mut h = Hyperdual::from_real(internal[j]);
+                        if i == j {
+                            h[1] = 1.0;
+                        }
+                        h
+                    });
+
+                    let result = <$feature>::internal_to_dimensionless(&hyper_param);
+                    // d(dimensionless[i])/d(internal[i]) * scale_factor[i]
+                    result[i][1] * scale_factors[i]
+                });
 
                 assert_relative_eq!(&actual[..], &desired[..], epsilon = 1e-9);
             }

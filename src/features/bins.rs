@@ -40,6 +40,7 @@ considering bin. Bins takes any other feature evaluators to extract features fro
     bound(deserialize = "T: Float, F: FeatureEvaluator<T>")
 )]
 #[schemars(
+    inline,
     with = "BinsParameters::<T, F>",
     bound = "T: Float, F: FeatureEvaluator<T>"
 )]
@@ -82,6 +83,7 @@ where
             m_required: true,
             w_required: true,
             sorting_required: true,
+            variability_required: false,
         };
         Self {
             properties: EvaluatorProperties {
@@ -124,6 +126,7 @@ where
         self.properties.info.size += feature.size_hint();
         self.properties.info.min_ts_length =
             usize::max(self.properties.info.min_ts_length, feature.min_ts_length());
+        self.properties.info.variability_required |= feature.is_variability_required();
         self.properties.names.extend(
             feature
                 .get_names()
@@ -159,37 +162,47 @@ where
         DOC
     }
 
-    fn transform_ts(&self, ts: &mut TimeSeries<T>) -> Result<TmwArrays<T>, EvaluatorError> {
-        self.check_ts_length(ts)?;
-        // These conversions should never fail because we validated the range in new() and set methods
+    pub(crate) fn transform_ts(
+        &self,
+        ts: &mut TimeSeries<T>,
+    ) -> Result<TmwArrays<T>, EvaluatorError> {
         let window = self.window.into_inner().approx_as::<T>().unwrap();
         let offset = self.offset.into_inner().approx_as::<T>().unwrap();
-        let (t, m, w): (Vec<_>, Vec<_>, Vec<_>) =
-            ts.t.as_slice()
-                .iter()
-                .copied()
-                .zip(ts.m.as_slice().iter().copied())
-                .zip(ts.w.as_slice().iter().copied())
-                .map(|((t, m), w)| (t, m, w))
-                .chunk_by(|(t, _, _)| ((*t - offset) / window).floor())
-                .into_iter()
-                .map(|(x, chunk)| {
-                    let bin_t = (x + T::half()) * window;
-                    let (n, bin_m, norm) = chunk
-                        .fold((T::zero(), T::zero(), T::zero()), |acc, (_, m, w)| {
-                            (acc.0 + T::one(), acc.1 + m * w, acc.2 + w)
-                        });
-                    let bin_m = bin_m / norm;
-                    let bin_w = norm / n;
-                    (bin_t, bin_m, bin_w)
-                })
-                .unzip3();
-        Ok(TmwArrays {
-            t: t.into(),
-            m: m.into(),
-            w: w.into(),
-        })
+        bin_time_series(ts, window, offset)
     }
+}
+
+/// Bins a single-band time series into weighted means.
+pub(crate) fn bin_time_series<T: Float>(
+    ts: &mut TimeSeries<T>,
+    window: T,
+    offset: T,
+) -> Result<TmwArrays<T>, EvaluatorError> {
+    let (t, m, w): (Vec<_>, Vec<_>, Vec<_>) =
+        ts.t.as_slice()
+            .iter()
+            .copied()
+            .zip(ts.m.as_slice().iter().copied())
+            .zip(ts.w.as_slice().iter().copied())
+            .map(|((t, m), w)| (t, m, w))
+            .chunk_by(|(t, _, _)| ((*t - offset) / window).floor())
+            .into_iter()
+            .map(|(x, chunk)| {
+                let bin_t = (x + T::half()) * window;
+                let (n, bin_m, norm) = chunk
+                    .fold((T::zero(), T::zero(), T::zero()), |acc, (_, m, w)| {
+                        (acc.0 + T::one(), acc.1 + m * w, acc.2 + w)
+                    });
+                let bin_m = bin_m / norm;
+                let bin_w = norm / n;
+                (bin_t, bin_m, bin_w)
+            })
+            .unzip3();
+    Ok(TmwArrays {
+        t: t.into(),
+        m: m.into(),
+        w: w.into(),
+    })
 }
 
 impl<T, F> Default for Bins<T, F>

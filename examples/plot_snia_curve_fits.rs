@@ -1,12 +1,15 @@
 use clap::Parser;
+use light_curve_feature::LnPrior;
+use light_curve_feature::NutsCurveFit;
+use light_curve_feature::ndarray::Array1;
+use light_curve_feature::ndarray::{ArrayRef, Ix1};
 use light_curve_feature::{
     BazinFit, Feature, FeatureEvaluator, LinexpFit, McmcCurveFit, TimeSeries, VillarFit,
     features::VillarLnPrior, prelude::*,
 };
 #[cfg(all(feature = "ceres-source", feature = "gsl"))]
-use light_curve_feature::{CeresCurveFit, LmsderCurveFit, LnPrior};
+use light_curve_feature::{CeresCurveFit, LmsderCurveFit};
 use light_curve_feature_test_util::iter_sn1a_flux_ts;
-use ndarray::{Array1, ArrayView1};
 use plotters::prelude::*;
 use plotters_bitmap::BitMapBackend;
 use rayon::prelude::*;
@@ -146,6 +149,26 @@ fn main() {
             .into(),
         ));
 
+        features.push((
+            "BazinFit NUTS",
+            BazinFit::new(
+                NutsCurveFit::default().into(),
+                LnPrior::none(),
+                BazinFit::default_inits_bounds(),
+            )
+            .into(),
+        ));
+        #[cfg(all(feature = "ceres-source", feature = "gsl"))]
+        features.push((
+            "BazinFit NUTS+Ceres",
+            BazinFit::new(
+                NutsCurveFit::new(50, 50, Some(CeresCurveFit::default().into())).into(),
+                LnPrior::none(),
+                BazinFit::default_inits_bounds(),
+            )
+            .into(),
+        ));
+
         features
     };
 
@@ -174,7 +197,7 @@ struct Opts {
 type BoxedModel = Box<dyn Fn(f64, &[f64]) -> f64>;
 
 fn fitted_model(
-    t: ArrayView1<f64>,
+    t: &ArrayRef<f64, Ix1>,
     ts: &mut TimeSeries<f64>,
     feature: &Feature<f64>,
 ) -> (Array1<f64>, f64) {
@@ -232,7 +255,7 @@ fn fit_and_plot<P>(
 
     let t = Array1::linspace(ts.t.get_min(), ts.t.get_max(), 101);
     for (i, (name, feature)) in features.iter().enumerate() {
-        let (model, reduced_chi2) = fitted_model(t.view(), ts, feature);
+        let (model, reduced_chi2) = fitted_model(&t, ts, feature);
         chart
             .draw_series(LineSeries::new(
                 t.as_slice()

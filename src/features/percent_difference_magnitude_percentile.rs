@@ -24,7 +24,7 @@ D’Isanto et al. 2016 [DOI:10.1093/mnras/stw157](https://doi.org/10.1093/mnras/
     into = "PercentDifferenceMagnitudePercentileParameters",
     from = "PercentDifferenceMagnitudePercentileParameters"
 )]
-#[schemars(with = "PercentDifferenceMagnitudePercentileParameters")]
+#[schemars(inline, with = "PercentDifferenceMagnitudePercentileParameters")]
 pub struct PercentDifferenceMagnitudePercentile {
     quantile: NotNan<f32>,
     name: String,
@@ -40,6 +40,7 @@ lazy_info!(
     m_required: true,
     w_required: false,
     sorting_required: false,
+    variability_required: false,
 );
 
 impl PercentDifferenceMagnitudePercentile {
@@ -97,8 +98,7 @@ impl<T> FeatureEvaluator<T> for PercentDifferenceMagnitudePercentile
 where
     T: Float,
 {
-    fn eval(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
-        self.check_ts_length(ts)?;
+    fn eval_no_ts_check(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
         let quantile = self.quantile.into_inner();
         let nominator = ts.m.get_sorted().ppf(1.0 - quantile) - ts.m.get_sorted().ppf(quantile);
         let denominator = ts.m.get_median();

@@ -1,8 +1,8 @@
+use crate::data::TimeSeries;
 use crate::evaluator::*;
 use crate::extractor::FeatureExtractor;
 use crate::features::*;
 use crate::float_trait::Float;
-use crate::time_series::TimeSeries;
 use crate::transformers::Transformer;
 
 use enum_dispatch::enum_dispatch;
@@ -27,6 +27,9 @@ where
     Bins(Bins<T, Self>),
     BazinFit,
     BeyondNStd(BeyondNStd<T>),
+    BiweightScale(BiweightScale<T>),
+    Bootstrap(Bootstrap<T, Self>),
+    Chi2Pvar,
     Cusum,
     Duration,
     Eta,
@@ -34,6 +37,7 @@ where
     ExcessVariance,
     InterPercentileRange,
     Kurtosis,
+    LaflerKinmanStringLength,
     LinearFit,
     LinearTrend,
     LinexpFit,
@@ -48,10 +52,12 @@ where
     MedianBufferRangePercentage(MedianBufferRangePercentage<T>),
     ObservationCount,
     OtsuSplit,
+    ParabolaFit,
     PercentAmplitude,
     PercentDifferenceMagnitudePercentile,
     Periodogram(Periodogram<T, Self>),
-    _PeriodogramPeaks,
+    _PeriodogramPeaks(PeriodogramPeaks),
+    QnScale,
     ReducedChi2,
     Roms,
     Skew,

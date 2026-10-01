@@ -107,6 +107,7 @@ lazy_info!(
     m_required: true,
     w_required: true,
     sorting_required: true, // improve reproducibility
+    variability_required: true,
 );
 
 struct Params<'a, T> {
@@ -248,7 +249,26 @@ where
     }
 }
 
-impl FitParametersInternalExternalTrait<NPARAMS> for LinexpFit {}
+impl FitParametersInternalExternalTrait<NPARAMS> for LinexpFit {
+    fn jacobian_internal_to_external(
+        norm_data: &NormalizedData<f64>,
+        internal: &[f64; NPARAMS],
+    ) -> [f64; NPARAMS] {
+        // The full transformation is: external = dimensionless_to_orig(internal_to_dimensionless(internal))
+        // internal_to_dimensionless applies abs() to params[0], [2]
+        // dimensionless_to_orig scales by m_std (params 0,3) and t_std (params 1,2)
+        //
+        // ∂|x|/∂x = sign(x), so the Jacobian is:
+        let m_std = norm_data.m_std();
+        let t_std = norm_data.t_std();
+        [
+            internal[0].signum() * m_std, // A amplitude: |internal[0]| * m_std
+            t_std,                        // t0: internal[1] * t_std + t_mean
+            internal[2].signum() * t_std, // tau: |internal[2]| * t_std
+            m_std,                        // B baseline: internal[3] * m_std + m_mean
+        ]
+    }
+}
 
 impl FitFeatureEvaluatorGettersTrait<NPARAMS> for LinexpFit {
     fn get_algorithm(&self) -> &CurveFitAlgorithm {
@@ -378,7 +398,6 @@ mod tests {
     use crate::CeresCurveFit;
     #[cfg(feature = "gsl")]
     use crate::LmsderCurveFit;
-    use crate::TimeSeries;
     use crate::nl_fit::LnPrior1D;
     use crate::tests::*;
 
@@ -389,15 +408,20 @@ mod tests {
 
     check_fit_model_derivatives!(LinexpFit);
 
-    feature_test!(
-        linexp_fit_plateau,
-        [LinexpFit::default()],
-        [0.0, 6.25, 2.5, 0.0, 0.0], // initial model parameters and zero chi2
-        linspace(0.0, 10.0, 11),
-        [0.0; 11],
-    );
+    #[test]
+    fn linexp_fit_plateau() {
+        let fe = LinexpFit::default();
+        let t = linspace(0.0, 10.0, 11);
+        let f = [0.0; 11];
+        let mut ts = TimeSeries::new_without_weight(&t, &f);
+        assert!(fe.eval(&mut ts).is_err());
+    }
 
     fn linexp_fit_noisy(eval: LinexpFit) {
+        linexp_fit_noisy_tolerances(eval, 0.07, 0.04);
+    }
+
+    fn linexp_fit_noisy_tolerances(eval: LinexpFit, tol_param: f64, tol_desired: f64) {
         const N: usize = 50;
 
         let mut rng = StdRng::seed_from_u64(42);
@@ -425,8 +449,12 @@ mod tests {
         let desired = [986.62990444, -15.1956711, 20.05763093, 15.54839175];
 
         let values = eval.eval(&mut ts).unwrap();
-        assert_relative_eq!(&values[..NPARAMS], &param_true[..], max_relative = 0.07);
-        assert_relative_eq!(&values[..NPARAMS], &desired[..], max_relative = 0.04);
+        assert_relative_eq!(
+            &values[..NPARAMS],
+            &param_true[..],
+            max_relative = tol_param
+        );
+        assert_relative_eq!(&values[..NPARAMS], &desired[..], max_relative = tol_desired);
     }
 
     #[cfg(any(feature = "ceres-source", feature = "ceres-system"))]
@@ -520,4 +548,42 @@ mod tests {
         );
         let _result = linexp.eval(&mut ts).unwrap();
     }
+
+    #[cfg(feature = "gsl")]
+    #[test]
+    fn linexp_fit_noisy_nuts() {
+        use crate::{LmsderCurveFit, NutsCurveFit};
+        let prior = LnPrior::ind_components([
+            LnPrior1D::normal(900.0, 100.0),
+            LnPrior1D::uniform(-50.0, 50.0),
+            LnPrior1D::log_normal(f64::ln(20.0), 0.2),
+            LnPrior1D::normal(15.0, 20.0),
+        ]);
+        // NUTS is used for initial exploration; lmsder polishes the result for
+        // a deterministic, cross-platform accurate answer.
+        linexp_fit_noisy_tolerances(
+            LinexpFit::new(
+                NutsCurveFit::new(50, 50, Some(LmsderCurveFit::default().into())).into(),
+                prior,
+                LinexpInitsBounds::Default,
+            ),
+            0.04,
+            0.001,
+        );
+    }
+
+    #[cfg(feature = "gsl")]
+    #[test]
+    fn linexp_fit_noisy_nuts_plus_lmsder() {
+        use crate::NutsCurveFit;
+        let lmsder = LmsderCurveFit::default();
+        let nuts = NutsCurveFit::new(50, 50, Some(lmsder.into()));
+        linexp_fit_noisy(LinexpFit::new(
+            nuts.into(),
+            LnPrior::none(),
+            LinexpInitsBounds::Default,
+        ));
+    }
+
+    check_fit_jacobian!(LinexpFit);
 }

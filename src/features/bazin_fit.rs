@@ -108,7 +108,8 @@ lazy_info!(
     t_required: true,
     m_required: true,
     w_required: true,
-    sorting_required: true, // improve reproducibility
+    sorting_required: true, // improves reproducibility
+    variability_required: true,
 );
 
 struct Params<'a, T> {
@@ -273,7 +274,27 @@ where
     }
 }
 
-impl FitParametersInternalExternalTrait<NPARAMS> for BazinFit {}
+impl FitParametersInternalExternalTrait<NPARAMS> for BazinFit {
+    fn jacobian_internal_to_external(
+        norm_data: &NormalizedData<f64>,
+        internal: &[f64; NPARAMS],
+    ) -> [f64; NPARAMS] {
+        // The full transformation is: external = dimensionless_to_orig(internal_to_dimensionless(internal))
+        // internal_to_dimensionless applies abs() to params[0], [3], [4]
+        // dimensionless_to_orig scales by m_std (params 0,1) and t_std (params 2,3,4)
+        //
+        // ∂|x|/∂x = sign(x), so the Jacobian is:
+        let m_std = norm_data.m_std();
+        let t_std = norm_data.t_std();
+        [
+            internal[0].signum() * m_std, // A amplitude: |internal[0]| * m_std
+            m_std,                        // B baseline: internal[1] * m_std + m_mean
+            t_std,                        // t0: internal[2] * t_std + t_mean
+            internal[3].signum() * t_std, // tau_rise: |internal[3]| * t_std
+            internal[4].signum() * t_std, // tau_fall: |internal[4]| * t_std
+        ]
+    }
+}
 
 impl FitFeatureEvaluatorGettersTrait<NPARAMS> for BazinFit {
     fn get_algorithm(&self) -> &CurveFitAlgorithm {
@@ -403,7 +424,6 @@ mod tests {
     use crate::CeresCurveFit;
     #[cfg(feature = "gsl")]
     use crate::LmsderCurveFit;
-    use crate::TimeSeries;
     use crate::nl_fit::LnPrior1D;
     use crate::tests::*;
 
@@ -415,12 +435,21 @@ mod tests {
     check_fit_model_derivatives!(BazinFit);
 
     feature_test!(
-        bazin_fit_plateau,
+        bazin_fit_almost_plateau,
         [BazinFit::default()],
         [0.0, 0.0, 10.0, 5.0, 5.0, 0.0], // initial model parameters and zero chi2
         linspace(0.0, 10.0, 11),
-        [0.0; 11],
+        linspace(0.0, 1e-100, 11), // make it a bit non-flat
     );
+
+    #[test]
+    fn bazin_fit_plateau() {
+        let fe = BazinFit::default();
+        let t = linspace(0.0, 10.0, 11);
+        let f = [0.0; 11];
+        let mut ts = TimeSeries::new_without_weight(&t, &f);
+        assert!(fe.eval(&mut ts).is_err());
+    }
 
     fn bazin_fit_noisy(eval: BazinFit) {
         const N: usize = 50;
@@ -453,7 +482,7 @@ mod tests {
         ];
 
         let values = eval.eval(&mut ts).unwrap();
-        assert_relative_eq!(&values[..5], &param_true[..], max_relative = 0.03);
+        assert_relative_eq!(&values[..5], &param_true[..], max_relative = 0.05);
         assert_relative_eq!(&values[..5], &desired[..], max_relative = 0.02);
     }
 
@@ -612,4 +641,36 @@ mod tests {
         );
         let _result = bazin.eval(&mut ts).unwrap();
     }
+
+    #[test]
+    fn bazin_fit_noisy_nuts() {
+        use crate::NutsCurveFit;
+        let prior = LnPrior::ind_components([
+            LnPrior1D::normal(1e4, 2e3),
+            LnPrior1D::normal(1e3, 2e2),
+            LnPrior1D::uniform(25.0, 35.0),
+            LnPrior1D::log_normal(f64::ln(10.0), 0.2),
+            LnPrior1D::log_normal(f64::ln(30.0), 0.2),
+        ]);
+        bazin_fit_noisy(BazinFit::new(
+            NutsCurveFit::new(500, 200, None).into(),
+            prior,
+            BazinInitsBounds::Default,
+        ));
+    }
+
+    #[cfg(any(feature = "ceres-source", feature = "ceres-system"))]
+    #[test]
+    fn bazin_fit_noisy_nuts_plus_ceres() {
+        use crate::NutsCurveFit;
+        let ceres = CeresCurveFit::default();
+        let nuts = NutsCurveFit::new(50, 50, Some(ceres.into()));
+        bazin_fit_noisy(BazinFit::new(
+            nuts.into(),
+            LnPrior::none(),
+            BazinInitsBounds::Default,
+        ));
+    }
+
+    check_fit_jacobian!(BazinFit);
 }

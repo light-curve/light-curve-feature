@@ -52,6 +52,7 @@ where
             m_required: feature.is_m_required(),
             w_required: feature.is_w_required(),
             sorting_required: feature.is_sorting_required(),
+            variability_required: feature.is_variability_required(),
         };
         let names = transformer.names(&feature.get_names());
         let descriptions = transformer.descriptions(&feature.get_descriptions());
@@ -110,15 +111,17 @@ where
     F: FeatureEvaluator<T>,
     Tr: TransformerTrait<T>,
 {
+    fn eval_no_ts_check(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
+        Ok(self
+            .transformer
+            .transform(self.feature.eval_no_ts_check(ts)?))
+    }
+
     fn eval(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
         Ok(self.transformer.transform(self.feature.eval(ts)?))
     }
 
     // We keep default implementation of eval_or_fill
-
-    fn check_ts_length(&self, ts: &TimeSeries<T>) -> Result<usize, EvaluatorError> {
-        self.feature.check_ts_length(ts)
-    }
 }
 
 #[derive(Serialize, Deserialize, JsonSchema)]

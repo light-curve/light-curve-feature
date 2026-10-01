@@ -28,7 +28,7 @@ inter-percentile range for $p = 0.1$.
     from = "InterPercentileRangeParameters",
     into = "InterPercentileRangeParameters"
 )]
-#[schemars(with = "InterPercentileRangeParameters")]
+#[schemars(inline, with = "InterPercentileRangeParameters")]
 pub struct InterPercentileRange {
     quantile: NotNan<f32>,
     name: String,
@@ -44,6 +44,7 @@ lazy_info!(
     m_required: true,
     w_required: false,
     sorting_required: false,
+    variability_required: false,
 );
 
 impl InterPercentileRange {
@@ -97,8 +98,7 @@ impl<T> FeatureEvaluator<T> for InterPercentileRange
 where
     T: Float,
 {
-    fn eval(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
-        self.check_ts_length(ts)?;
+    fn eval_no_ts_check(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
         let quantile = self.quantile.into_inner();
         let ppf_low = ts.m.get_sorted().ppf(quantile);
         let ppf_high = ts.m.get_sorted().ppf(1.0 - quantile);

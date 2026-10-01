@@ -42,6 +42,7 @@ lazy_info!(
     m_required: true,
     w_required: false,
     sorting_required: true,
+    variability_required: true,
 );
 
 impl FeatureNamesDescriptionsTrait for Eta {
@@ -58,9 +59,8 @@ impl<T> FeatureEvaluator<T> for Eta
 where
     T: Float,
 {
-    fn eval(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
-        self.check_ts_length(ts)?;
-        let m_std2 = get_nonzero_m_std2(ts)?;
+    fn eval_no_ts_check(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
+        let m_std2 = ts.m.get_std2();
         let value =
             ts.m.as_slice()
                 .iter()

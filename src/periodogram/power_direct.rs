@@ -1,8 +1,8 @@
+use crate::data::TimeSeries;
 use crate::float_trait::Float;
 use crate::periodogram::freq::{FreqGrid, FreqGridTrait};
 use crate::periodogram::power_trait::*;
 use crate::periodogram::sin_cos_iterator::*;
-use crate::time_series::TimeSeries;
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -22,6 +22,7 @@ impl<T> PeriodogramPowerTrait<T> for PeriodogramPowerDirect
 where
     T: Float,
 {
+    #[cfg_attr(feature = "fast-math", reassoc::algebraic)]
     fn power(
         &self,
         freq: &FreqGrid<T>,
@@ -87,6 +88,7 @@ impl<'a, T: Float> SinCosOmegaTau<'a, T> {
 impl<'a, T: Float> Iterator for SinCosOmegaTau<'a, T> {
     type Item = (T, T);
 
+    #[cfg_attr(feature = "fast-math", reassoc::algebraic)]
     fn next(&mut self) -> Option<Self::Item> {
         let mut sum_sin = T::zero();
         let mut sum_cos = T::zero();
@@ -96,7 +98,7 @@ impl<'a, T: Float> Iterator for SinCosOmegaTau<'a, T> {
             sum_cos += cos;
         }
         let cos2 = sum_cos / T::hypot(sum_sin, sum_cos);
-        let sin = T::signum(sum_sin) * T::sqrt(T::half() * (T::one() - cos2));
+        let sin = sum_sin.signum() * (T::half() * (T::one() - cos2)).sqrt();
         let cos = T::sqrt(T::half() * (T::one() + cos2));
         Some((sin, cos))
     }

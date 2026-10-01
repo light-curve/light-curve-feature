@@ -22,7 +22,7 @@ D’Isanto et al. 2016 [DOI:10.1093/mnras/stw157](https://doi.org/10.1093/mnras/
     from = "MedianBufferRangePercentageParameters",
     bound(deserialize = "T: Float")
 )]
-#[schemars(with = "MedianBufferRangePercentageParameters")]
+#[schemars(inline, with = "MedianBufferRangePercentageParameters")]
 pub struct MedianBufferRangePercentage<T>
 where
     T: Float,
@@ -44,6 +44,7 @@ lazy_info!(
     m_required: true,
     w_required: false,
     sorting_required: false,
+    variability_required: false,
 );
 
 impl<T> MedianBufferRangePercentage<T>
@@ -114,15 +115,14 @@ impl<T> FeatureEvaluator<T> for MedianBufferRangePercentage<T>
 where
     T: Float,
 {
-    fn eval(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
-        self.check_ts_length(ts)?;
+    fn eval_no_ts_check(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
         let m_median = ts.m.get_median();
         let amplitude = T::half() * (ts.m.get_max() - ts.m.get_min());
         // This conversion should never fail because f32 is always convertible to f32 or f64
         let quantile = self.quantile.into_inner().value_as::<T>().unwrap();
         let threshold = quantile * amplitude;
         let count_under = ts.m.sample.fold(0, |count, &m| {
-            let under = T::abs(m - m_median) < threshold;
+            let under = (m - m_median).abs() < threshold;
             count + usize::from(under)
         });
         Ok(vec![count_under.approx_as::<T>().unwrap() / ts.lenf()])

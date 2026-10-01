@@ -1,6 +1,6 @@
 [package]
 name = "light-curve-feature"
-version = "0.10.0"
+version = "0.20.0"
 description = "Feature extractor from noisy time series"
 categories = ["science"]
 keywords = ["astronomy", "time-series"]
@@ -8,19 +8,22 @@ repository = "https://github.com/light-curve/light-curve-feature"
 readme = "README.md"
 authors = ["Konstantin Malanchev <hombit@gmail.com>"]
 license = "GPL-3.0-or-later"
-rust-version = "1.85"
+rust-version = "1.98"
 edition = "2024"
 
 [lib]
 bench = false
 
 [features]
-default = ["fftw-source"]
+default = ["fast-math"]
 ceres-system = ["ceres-solver/system"]
 ceres-source = ["ceres-solver/source"]
-fftw-system = ["fftw/system"]
-fftw-source = ["fftw/source"]
-fftw-mkl = ["fftw/intel-mkl"]
+fast-math = ["dep:reassoc"]
+# Base feature indicating FFTW is available (used for conditional compilation)
+fftw = ["dep:fftw"]
+fftw-system = ["fftw", "fftw/system"]
+fftw-source = ["fftw", "fftw/source"]
+fftw-mkl = ["fftw", "fftw/intel-mkl"]
 gsl = ["GSL/v2_1"]
 
 [profile.release]
@@ -32,43 +35,51 @@ inherits = "release"
 debug = true
 
 [dependencies]
-ceres-solver = { version = "0.4.0", optional = true }
+ceres-solver = { version = "0.5.1", optional = true }
 conv = "^0.3.3"
 emcee = "^0.3.0"
 # Transitive dependency of emcee
 emcee_rand = { version = "^0.3.15", package = "rand" }
 enum_dispatch = "^0.3.9"
-fftw = { version = "^0.8", default-features = false }
+fftw = { version = "^0.8", default-features = false, optional = true }
+realfft = "3.4"
+rustfft = "6.2"
 GSL = { version = "^7", default-features = false, optional = true }
-itertools = "^0.14"
+itertools = "^0.15"
 lazy_static = "^1.4"
 libm = "^0.2"
 macro_const = "^0.1"
-ndarray = { version = "^0.16", features = ["serde"] }
-ndarray-stats = "^0.6"
-num-complex = "^0.4" # the same version as used by fftw
+ndarray = { version = "^0.17", features = ["serde"] }
+ndarray-stats = "^0.7"
+num-complex = "^0.4"
 num-traits = "^0.2"
-ordered-float = { version = ">=5.4, <5.5", features = ["serde", "schemars1"] }
+nuts-rs = { version = "^0.18" }
+nuts-storable = { version = "^0.3" }
+ordered-float = { version = "5", features = ["serde", "schemars1"] }
+ouroboros = "0.18"
 paste = "1"
+rand = { version = "0.10" }
 schemars = "^1"
 serde = { version = "1", features = ["derive"] }
+special = "0.14"
+take_mut = "0.2.2"
 thiserror = "2"
 thread_local = "1.1"
 unzip3 = "1"
+reassoc = { version = "0.16", optional = true }
 
 [dev-dependencies]
 light-curve-feature-test-util = { path = "test-util" }
 approx = "0.5"
-chfft = "0.3.4"
 clap = { version = "3.2.6", features = ["std", "color", "suggestions", "derive", "wrap_help", "unstable-v4"] }
-criterion = "0.6"
+criterion = "0.8"
 hyperdual = "1.1"
 light-curve-common = "0.1.0"
-ndarray = { version = "0.16.1", features = ["approx", "serde"] }
+ndarray = { version = "0.17", features = ["approx", "serde"] }
 plotters = { version = "0.3.5", default-features = false, features = ["errorbar", "line_series", "ttf"] }
 plotters-bitmap = "0.3.3"
-rand = "0.9"
-rand_distr = "0.5"
+rand = "0.10"
+rand_distr = "0.6"
 rayon = "1.5"
 realfft = "3.1"
 rustfft = "6.1"

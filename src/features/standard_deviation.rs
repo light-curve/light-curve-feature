@@ -32,6 +32,7 @@ lazy_info!(
     m_required: true,
     w_required: false,
     sorting_required: false,
+    variability_required: false,
 );
 
 impl StandardDeviation {
@@ -58,8 +59,7 @@ impl<T> FeatureEvaluator<T> for StandardDeviation
 where
     T: Float,
 {
-    fn eval(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
-        self.check_ts_length(ts)?;
+    fn eval_no_ts_check(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
         Ok(vec![ts.m.get_std()])
     }
 }

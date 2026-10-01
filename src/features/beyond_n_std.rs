@@ -45,7 +45,7 @@ D’Isanto et al. 2016 [DOI:10.1093/mnras/stw157](https://doi.org/10.1093/mnras/
     into = "BeyondNStdParameters",
     bound(deserialize = "T: Float")
 )]
-#[schemars(with = "BeyondNStdParameters")]
+#[schemars(inline, with = "BeyondNStdParameters")]
 pub struct BeyondNStd<T>
 where
     T: Float,
@@ -106,6 +106,7 @@ lazy_info!(
     m_required: true,
     w_required: false,
     sorting_required: false,
+    variability_required: false,
 );
 
 impl<T> Default for BeyondNStd<T>
@@ -134,14 +135,13 @@ impl<T> FeatureEvaluator<T> for BeyondNStd<T>
 where
     T: Float,
 {
-    fn eval(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
-        self.check_ts_length(ts)?;
+    fn eval_no_ts_check(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
         let m_mean = ts.m.get_mean();
         // This conversion should never fail because f32 is always convertible to f32 or f64
         let nstd = self.nstd.into_inner().value_as::<T>().unwrap();
         let threshold = ts.m.get_std() * nstd;
         let count_beyond = ts.m.sample.fold(0, |count, &m| {
-            let beyond = T::abs(m - m_mean) > threshold;
+            let beyond = (m - m_mean).abs() > threshold;
             count + usize::from(beyond)
         });
         Ok(vec![count_beyond.approx_as::<T>().unwrap() / ts.lenf()])

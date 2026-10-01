@@ -1,5 +1,8 @@
 //! Feature sctructs implements [crate::FeatureEvaluator] trait
 
+mod _periodogram_peaks;
+pub(crate) use _periodogram_peaks::PeriodogramPeaks;
+
 mod amplitude;
 pub use amplitude::Amplitude;
 
@@ -12,8 +15,17 @@ pub use bazin_fit::{BazinFit, BazinInitsBounds, BazinLnPrior};
 mod beyond_n_std;
 pub use beyond_n_std::BeyondNStd;
 
-mod bins;
+pub(crate) mod bins;
 pub use bins::Bins;
+
+mod biweight_scale;
+pub use biweight_scale::BiweightScale;
+
+pub(crate) mod bootstrap;
+pub use bootstrap::{Bootstrap, BootstrapFeatureError, BootstrapUncertainty};
+
+mod chi2_pvar;
+pub use chi2_pvar::Chi2Pvar;
 
 mod cusum;
 pub use cusum::Cusum;
@@ -35,6 +47,9 @@ pub use inter_percentile_range::InterPercentileRange;
 
 mod kurtosis;
 pub use kurtosis::Kurtosis;
+
+mod lafler_kinman_string_length;
+pub use lafler_kinman_string_length::LaflerKinmanStringLength;
 
 mod linear_fit;
 pub use linear_fit::LinearFit;
@@ -78,6 +93,9 @@ pub use observation_count::ObservationCount;
 mod otsu_split;
 pub use otsu_split::OtsuSplit;
 
+mod parabola_fit;
+pub use parabola_fit::ParabolaFit;
+
 mod percent_amplitude;
 pub use percent_amplitude::PercentAmplitude;
 
@@ -85,8 +103,12 @@ mod percent_difference_magnitude_percentile;
 pub use percent_difference_magnitude_percentile::PercentDifferenceMagnitudePercentile;
 
 mod periodogram;
+pub use _periodogram_peaks::PeriodogramPeaks as _PeriodogramPeaks;
 pub use periodogram::Periodogram;
-pub use periodogram::PeriodogramPeaks as _PeriodogramPeaks;
+pub(crate) use periodogram::{eval_phase_ts, eval_phase_ts_or_fill, phase_fold_or_compute};
+
+mod qn_scale;
+pub use qn_scale::QnScale;
 
 mod reduced_chi2;
 pub use reduced_chi2::ReducedChi2;
@@ -116,4 +138,5 @@ mod villar_fit;
 pub use villar_fit::{VillarFit, VillarInitsBounds, VillarLnPrior};
 
 mod weighted_mean;
+
 pub use weighted_mean::WeightedMean;

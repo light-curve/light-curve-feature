@@ -1,9 +1,9 @@
 use crate::nl_fit::constants::PARAMETER_TOLERANCE;
 use crate::nl_fit::curve_fit::{CurveFitResult, CurveFitTrait};
 use crate::nl_fit::data::Data;
+use crate::nl_fit::prior::ln_prior::LnPriorEvaluator;
 
 use ceres_solver::{CurveFitProblem1D, CurveFunctionType, LossFunction, SolverOptions};
-use ndarray::Zip;
 use ordered_float::NotNan;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -71,7 +71,7 @@ impl CurveFitTrait for CeresCurveFit {
     where
         F: 'static + Clone + Fn(f64, &[f64; NPARAMS]) -> f64,
         DF: 'static + Clone + Fn(f64, &[f64; NPARAMS], &mut [f64; NPARAMS]),
-        LP: Clone + Fn(&[f64; NPARAMS]) -> f64,
+        LP: LnPriorEvaluator<NPARAMS>,
     {
         let func: CurveFunctionType = {
             let model = model.clone();
@@ -126,13 +126,7 @@ impl CurveFitTrait for CeresCurveFit {
         let x = solution.parameters.try_into().unwrap();
         let success = solution.summary.is_solution_usable();
 
-        let reduced_chi2 = Zip::from(&ts.t)
-            .and(&ts.m)
-            .and(&ts.inv_err)
-            .fold(0.0, |acc, &t, &m, &inv_err| {
-                acc + ((model(t, &x) - m) * inv_err).powi(2)
-            })
-            / (ts.t.len() - NPARAMS) as f64;
+        let reduced_chi2 = ts.model_chi2(|t| model(t, &x)) / (ts.t.len() - NPARAMS) as f64;
         CurveFitResult {
             x,
             reduced_chi2,
@@ -160,10 +154,6 @@ mod tests {
         derivatives[0] = -param[1] * f64::exp(-param[2] * t) * t.powi(3);
         derivatives[1] = f64::exp(-param[0] * t) * t.powi(2);
         derivatives[2] = 1.0;
-    }
-
-    fn nonlinear_func_dump_ln_prior(_param: &[f64; 3]) -> f64 {
-        0.0
     }
 
     #[test]
@@ -197,7 +187,7 @@ mod tests {
             (&[f64::NEG_INFINITY; 3], &[f64::INFINITY; 3]),
             nonlinear_func,
             nonlinear_func_derivatives,
-            nonlinear_func_dump_ln_prior,
+            crate::nl_fit::LnPrior::none(),
         );
 
         // curve_fit(lambda x, a, b, c: b * np.exp(-a * x) * x**2 + c, xdata=t, ydata=y, sigma=1/np.array(inv_err), p0=[1, 1, 1], xtol=1e-6)

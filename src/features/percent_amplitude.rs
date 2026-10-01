@@ -30,6 +30,7 @@ lazy_info!(
     m_required: true,
     w_required: false,
     sorting_required: false,
+    variability_required: false,
 );
 
 impl PercentAmplitude {
@@ -56,8 +57,7 @@ impl<T> FeatureEvaluator<T> for PercentAmplitude
 where
     T: Float,
 {
-    fn eval(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
-        self.check_ts_length(ts)?;
+    fn eval_no_ts_check(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
         let m_min = ts.m.get_min();
         let m_max = ts.m.get_max();
         let m_median = ts.m.get_median();

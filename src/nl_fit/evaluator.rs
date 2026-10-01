@@ -1,6 +1,6 @@
+use crate::data::TimeSeries;
 use crate::float_trait::Float;
 use crate::nl_fit::{CurveFitAlgorithm, LikeFloat, LnPrior, data::NormalizedData};
-use crate::time_series::TimeSeries;
 
 use schemars::JsonSchema;
 use serde::de::DeserializeOwned;
@@ -41,7 +41,7 @@ pub trait FitDerivalivesTrait<T: Float, const NPARAMS: usize> {
     try_from = "FitArraySerde<T>",
     bound = "T: Debug + Clone + Serialize + DeserializeOwned + JsonSchema"
 )]
-#[schemars(with = "FitArraySerde::<T>", bound = "T: JsonSchema")]
+#[schemars(inline, with = "FitArraySerde::<T>", bound = "T: JsonSchema")]
 pub struct FitArray<T, const NPARAMS: usize>(pub [T; NPARAMS]);
 
 impl<T, const NPARAMS: usize> From<[T; NPARAMS]> for FitArray<T, NPARAMS> {
@@ -207,6 +207,27 @@ pub trait FitParametersInternalExternalTrait<const NPARAMS: usize>:
     ) -> [f64; NPARAMS] {
         Self::dimensionless_to_orig(norm_data, &Self::internal_to_dimensionless(params))
     }
+
+    /// Compute the diagonal Jacobian of the internal → external transformation.
+    ///
+    /// Returns `∂(external_i)/∂(internal_i)` for each parameter `i`.
+    ///
+    /// This is used to correctly transform prior gradients from external to internal
+    /// parameter space via the chain rule:
+    ///
+    /// ```text
+    /// ∂(ln_prior)/∂(internal_i) = ∂(ln_prior)/∂(external_i) × ∂(external_i)/∂(internal_i)
+    /// ```
+    ///
+    /// The Jacobian is the composition of two transformations:
+    /// 1. `internal_to_dimensionless`: often applies `abs()` to positive-only parameters
+    /// 2. `dimensionless_to_orig`: linear scaling by `t_std`, `m_std`, etc.
+    ///
+    /// Since both transformations are element-wise, the full Jacobian is diagonal.
+    fn jacobian_internal_to_external(
+        norm_data: &NormalizedData<f64>,
+        internal: &[f64; NPARAMS],
+    ) -> [f64; NPARAMS];
 }
 
 pub trait FitFeatureEvaluatorGettersTrait<const NPARAMS: usize> {

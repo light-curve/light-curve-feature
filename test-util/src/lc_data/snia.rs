@@ -16,6 +16,7 @@ where
     const LC_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/../test-data/SNIa/light-curves");
 
     ZTF_IDS_CSV.split_terminator('\n').map(move |ztf_id| {
+        let ztf_id = ztf_id.trim_end_matches('\r');
         let filename = format!("{ztf_id}.csv");
         let file = LC_DIR.get_file(&filename).unwrap();
         let mclc_mag =

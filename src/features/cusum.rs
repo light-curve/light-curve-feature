@@ -46,6 +46,7 @@ lazy_info!(
     m_required: true,
     w_required: false,
     sorting_required: true,
+    variability_required: true,
 );
 
 impl FeatureNamesDescriptionsTrait for Cusum {
@@ -62,10 +63,9 @@ impl<T> FeatureEvaluator<T> for Cusum
 where
     T: Float,
 {
-    fn eval(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
-        self.check_ts_length(ts)?;
-        let m_std = get_nonzero_m_std(ts)?;
+    fn eval_no_ts_check(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
         let m_mean = ts.m.get_mean();
+        let m_std = ts.m.get_std();
         let (_last_cusum, min_cusum, max_cusum) = ts.m.as_slice().iter().fold(
             (T::zero(), T::infinity(), -T::infinity()),
             |(mut cusum, min_cusum, max_cusum), &m| {

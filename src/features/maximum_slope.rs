@@ -33,6 +33,7 @@ lazy_info!(
     m_required: true,
     w_required: false,
     sorting_required: true,
+    variability_required: false,
 );
 
 impl MaximumSlope {
@@ -57,8 +58,7 @@ impl<T> FeatureEvaluator<T> for MaximumSlope
 where
     T: Float,
 {
-    fn eval(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
-        self.check_ts_length(ts)?;
+    fn eval_no_ts_check(&self, ts: &mut TimeSeries<T>) -> Result<Vec<T>, EvaluatorError> {
         let result =
             ts.t.as_slice()
                 .iter()
@@ -70,7 +70,7 @@ where
                         .tuple_windows()
                         .map(|(&m1, &m2)| m2 - m1),
                 )
-                .map(|(dt, dm)| T::abs(dm / dt))
+                .map(|(dt, dm)| (dm / dt).abs())
                 .filter(|&x| x.is_finite())
                 .max_by(|a, b| a.partial_cmp(b).unwrap())
                 .expect("All points of the light curve have the same time");

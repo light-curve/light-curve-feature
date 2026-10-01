@@ -4,6 +4,8 @@ use crate::nl_fit::data::Data;
 #[cfg(feature = "gsl")]
 use crate::nl_fit::lmsder::LmsderCurveFit;
 use crate::nl_fit::mcmc::McmcCurveFit;
+use crate::nl_fit::nuts::NutsCurveFit;
+use crate::nl_fit::prior::ln_prior::LnPriorEvaluator;
 
 use enum_dispatch::enum_dispatch;
 use schemars::JsonSchema;
@@ -33,7 +35,7 @@ pub trait CurveFitTrait: Clone + Debug + Serialize + DeserializeOwned {
     where
         F: 'static + Clone + Fn(f64, &[f64; NPARAMS]) -> f64,
         DF: 'static + Clone + Fn(f64, &[f64; NPARAMS], &mut [f64; NPARAMS]),
-        LP: Clone + Fn(&[f64; NPARAMS]) -> f64;
+        LP: LnPriorEvaluator<NPARAMS>;
 }
 
 /// Optimization algorithm for non-linear least squares
@@ -46,4 +48,5 @@ pub enum CurveFitAlgorithm {
     #[cfg(feature = "gsl")]
     Lmsder(LmsderCurveFit),
     Mcmc(McmcCurveFit),
+    Nuts(NutsCurveFit),
 }

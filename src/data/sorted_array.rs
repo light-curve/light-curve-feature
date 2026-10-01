@@ -1,5 +1,6 @@
 use crate::error::SortedArrayError;
 use crate::float_trait::Float;
+use crate::types::ArrayRef1;
 use conv::prelude::*;
 use ndarray::{Array1, ArrayView1};
 use schemars::{JsonSchema, Schema, SchemaGenerator};
@@ -39,7 +40,7 @@ where
     pub fn median(&self) -> T {
         assert_ne!(self.len(), 0);
         let i = (self.len() - 1) / 2;
-        if self.len() % 2 == 0 {
+        if self.len().is_multiple_of(2) {
             T::half() * (self[i] + self[i + 1])
         } else {
             self[i]
@@ -85,6 +86,15 @@ where
 {
     fn from(s: &[T]) -> Self {
         s.to_vec().into()
+    }
+}
+
+impl<T> From<&ArrayRef1<T>> for SortedArray<T>
+where
+    T: Float,
+{
+    fn from(a: &ArrayRef1<T>) -> Self {
+        a.iter().copied().collect::<Vec<_>>().into()
     }
 }
 
