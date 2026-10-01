@@ -1,5 +1,6 @@
 pub(super) use crate::float_trait::Float;
 
+pub(super) use derive_where::derive_where;
 use enum_dispatch::enum_dispatch;
 pub(super) use macro_const::macro_const;
 pub(super) use schemars::JsonSchema;
@@ -34,6 +35,7 @@ pub trait TransformerTrait<T: Float>:
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[serde(bound = "T: Float")]
 #[non_exhaustive]
+#[derive_where(Eq, Hash)]
 pub enum Transformer<T: Float> {
     Arcsinh(super::arcsinh::ArcsinhTransformer),
     BazinFit(super::bazin_fit::BazinFitTransformer<T>),

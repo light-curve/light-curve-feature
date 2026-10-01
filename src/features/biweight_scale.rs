@@ -53,6 +53,7 @@ Beers, Flynn & Gebhardt 1990 [DOI:10.1086/115487](https://doi.org/10.1086/115487
     bound(deserialize = "T: Float")
 )]
 #[schemars(inline, with = "BiweightScaleParameters", bound = "")]
+#[derive_where(Eq, Hash)]
 pub struct BiweightScale<T>
 where
     T: Float,

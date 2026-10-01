@@ -17,13 +17,14 @@ Bulk feature extractor
 }
 
 #[doc = DOC!()]
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(
     into = "FeatureExtractorParameters<F>",
     from = "FeatureExtractorParameters<F>",
     bound = "T: Float, F: FeatureEvaluator<T>"
 )]
 #[schemars(with = "FeatureExtractorParameters::<F>", bound = "F: JsonSchema")]
+#[derive_where(PartialEq, Eq, Hash; F)]
 pub struct FeatureExtractor<T, F> {
     features: Vec<F>,
     info: Box<EvaluatorInfo>,

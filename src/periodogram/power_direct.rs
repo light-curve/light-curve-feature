@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 /// [PeriodogramPowerFft](crate::periodogram::PeriodogramPowerFft) instead
 ///
 /// The implementation is inspired by Numerical Recipes, Press et al., 1997, Section 13.8
-#[derive(Debug, Default, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash)]
 #[serde(rename = "Direct")]
 pub struct PeriodogramPowerDirect;
 

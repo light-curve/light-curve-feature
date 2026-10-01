@@ -9,12 +9,14 @@ use crate::multicolor::multicolor_evaluator::*;
 use crate::multicolor::{MultiColorExtractor, PassbandSet, PassbandTrait};
 
 use conv::ConvUtil;
+use ordered_float::NotNan;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fmt::Debug;
 
 use super::MultiColorFeature;
+use derive_where::derive_where;
 
 /// Multi-color meta-feature that bins each passband's time series independently,
 /// then evaluates inner multi-color features on the collection of binned per-band series.
@@ -32,13 +34,14 @@ use super::MultiColorFeature;
     with = "MultiColorBinsParameters<P, T>",
     bound = "P: PassbandTrait + JsonSchema, T: Float"
 )]
+#[derive_where(PartialEq, Eq, Hash; P)]
 pub struct MultiColorBins<P, T>
 where
     P: PassbandTrait,
     T: Float,
 {
-    window: f64,
-    offset: f64,
+    window: NotNan<f64>,
+    offset: NotNan<f64>,
     feature_extractor: MultiColorExtractor<P, T>,
     properties: Box<EvaluatorProperties>,
 }
@@ -61,8 +64,8 @@ where
             offset
         );
         Self {
-            window,
-            offset,
+            window: NotNan::new(window).expect("window must not be NaN"),
+            offset: NotNan::new(offset).expect("offset must not be NaN"),
             feature_extractor: MultiColorExtractor::new(vec![]),
             properties: EvaluatorProperties {
                 info: EvaluatorInfo {
@@ -82,8 +85,8 @@ where
     }
 
     pub fn add_feature(&mut self, feature: MultiColorFeature<P, T>) -> &mut Self {
-        let window = self.window;
-        let offset = self.offset;
+        let window = self.window.into_inner();
+        let offset = self.offset.into_inner();
         self.properties.info.size += feature.size_hint();
         self.properties.info.min_ts_length = self
             .properties
@@ -128,8 +131,8 @@ where
     where
         P: 'binned,
     {
-        let window: T = self.window.approx_as::<T>().unwrap();
-        let offset: T = self.offset.approx_as::<T>().unwrap();
+        let window: T = self.window.into_inner().approx_as::<T>().unwrap();
+        let offset: T = self.offset.into_inner().approx_as::<T>().unwrap();
 
         let PassbandSet(set) = self.feature_extractor.get_passband_set();
 
@@ -277,8 +280,8 @@ where
 {
     fn from(b: MultiColorBins<P, T>) -> Self {
         Self {
-            window: b.window,
-            offset: b.offset,
+            window: b.window.into_inner(),
+            offset: b.offset.into_inner(),
             feature_extractor: b.feature_extractor,
         }
     }

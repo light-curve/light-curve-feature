@@ -21,7 +21,7 @@ Feature extractor transforming output of other feature extractors
 }
 
 #[doc = DOC!()]
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(
     into = "TransformedParameters<F, Tr>",
     try_from = "TransformedParameters<F, Tr>",
@@ -32,6 +32,7 @@ Feature extractor transforming output of other feature extractors
     with = "TransformedParameters<F, Tr>",
     bound = "T: Float, F: FeatureEvaluator<T>, Tr: TransformerTrait<T>"
 )]
+#[derive_where(PartialEq, Eq, Hash; F, Tr)]
 pub struct Transformed<T, F, Tr> {
     // We need to store the feature in a box to avoid a recursive type in `Feature`
     feature: Box<F>,

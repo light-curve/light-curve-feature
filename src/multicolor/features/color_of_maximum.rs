@@ -15,7 +15,7 @@ use std::fmt::Debug;
 ///
 /// Note that maximum is calculated for each passband separately, and maximum has mathematical
 /// meaning, not magnitude in the astronomical sense (where brighter objects have smaller magnitude).
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash)]
 #[serde(bound(deserialize = "P: PassbandTrait + Deserialize<'de>"))]
 pub struct ColorOfMaximum<P>
 where

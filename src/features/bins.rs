@@ -44,6 +44,7 @@ considering bin. Bins takes any other feature evaluators to extract features fro
     with = "BinsParameters::<T, F>",
     bound = "T: Float, F: FeatureEvaluator<T>"
 )]
+#[derive_where(Eq, Hash; F)]
 pub struct Bins<T, F>
 where
     T: Float,

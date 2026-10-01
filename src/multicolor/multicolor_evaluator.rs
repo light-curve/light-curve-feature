@@ -27,7 +27,7 @@ where
 /// Set of passbands required by a [MultiColorEvaluator].
 /// Input [MultiColorTimeSeries](crate::data::MultiColorTimeSeries) data is subsampled to
 /// contain only the passbands in this set when the evaluator is applied.
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash)]
 #[serde(bound(deserialize = "P: PassbandTrait + Deserialize<'de>"))]
 pub struct PassbandSet<P>(pub BTreeSet<P>)
 where

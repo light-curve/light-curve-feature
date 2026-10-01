@@ -9,11 +9,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
---
+- `Eq` and `Hash` for all features https://github.com/light-curve/light-curve-feature/pull/332
 
 ### Changed
 
 - Bump `reassoc` from 0.14 to 0.16
+- `PartialEq` treats NaN parameters as equal https://github.com/light-curve/light-curve-feature/pull/332
 - **Breaking** Bump `schemars` from 0.8 to 1, JSON schemas now use draft 2020-12 https://github.com/light-curve/light-curve-feature/pull/243
 
 ### Deprecated

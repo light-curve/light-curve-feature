@@ -37,7 +37,7 @@ Villar et al. 2019 [DOI:10.3847/1538-4357/ab418c](https://doi.org/10.3847/1538-4
 }
 
 #[doc = DOC!()]
-#[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq, Eq, Hash)]
 pub struct VillarFit {
     algorithm: CurveFitAlgorithm,
     ln_prior: VillarLnPrior,
@@ -467,7 +467,7 @@ where
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, Default, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, Default, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum VillarInitsBounds {
     #[default]
@@ -556,7 +556,7 @@ impl VillarInitsBounds {
 }
 
 /// Logarithm of priors for [VillarFit] parameters
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum VillarLnPrior {
     Fixed(Box<LnPrior<NPARAMS>>),

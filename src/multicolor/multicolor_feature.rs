@@ -8,6 +8,7 @@ use crate::multicolor::features::{
 use crate::multicolor::multicolor_evaluator::*;
 use crate::multicolor::{MultiColorBins, MultiColorBootstrap, MultiColorExtractor, PerBandFeature};
 
+use derive_where::derive_where;
 use enum_dispatch::enum_dispatch;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -17,6 +18,7 @@ use std::fmt::Debug;
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(bound(deserialize = "P: PassbandTrait + Deserialize<'de>, T: Float"))]
 #[non_exhaustive]
+#[derive_where(PartialEq, Eq, Hash; P)]
 pub enum MultiColorFeature<P, T>
 where
     P: PassbandTrait,

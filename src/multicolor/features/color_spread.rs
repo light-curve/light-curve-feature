@@ -26,7 +26,7 @@ use std::fmt::Debug;
 ///
 /// The set of passbands to include must be specified at construction time via
 /// [`ColorSpread::new`]. Input data is subsampled to the specified bands.
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash)]
 #[serde(bound(
     serialize = "P: PassbandTrait",
     deserialize = "P: PassbandTrait + Deserialize<'de>"

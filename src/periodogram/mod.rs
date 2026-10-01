@@ -3,6 +3,7 @@
 use crate::data::TimeSeries;
 use crate::float_trait::Float;
 
+use derive_where::derive_where;
 use enum_dispatch::enum_dispatch;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -44,6 +45,7 @@ pub type DefaultPeriodogramPowerFft<T> = PeriodogramPowerFft<T, RustFft<T>>;
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[serde(bound = "T: Float")]
 #[non_exhaustive]
+#[derive_where(Eq, Hash)]
 pub enum PeriodogramPower<T>
 where
     T: Float,

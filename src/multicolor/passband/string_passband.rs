@@ -6,7 +6,9 @@ use serde::{Deserialize, Serialize};
 /// A passband identified by a string name.
 ///
 /// Useful when passband information is available only as a label (e.g. "r", "g", "i").
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema)]
+#[derive(
+    Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema, Hash,
+)]
 pub struct StringPassband(pub String);
 
 impl PassbandTrait for StringPassband {
