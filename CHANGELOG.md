@@ -16,7 +16,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Bump `reassoc` from 0.14 to 0.16
 - **Breaking** Bump `schemars` from 0.8 to 1, `JsonSchema` implementations now produce JSON Schema 2020-12. As a side
   effect, schemas of types serialized via an intermediate parameters struct now match their serialized form, e.g.
-  `NormalLnPrior1D` https://github.com/light-curve/light-curve-feature/pull/243
+  `NormalLnPrior1D`, and schemas of all features include their documentation as a description
+  https://github.com/light-curve/light-curve-feature/pull/243
 - **Build breaking** Bump minimum `ordered-float` version from 5.0 to 5.4 https://github.com/light-curve/light-curve-feature/pull/243
 
 ### Deprecated
