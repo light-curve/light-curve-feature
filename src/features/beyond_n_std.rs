@@ -46,6 +46,7 @@ D’Isanto et al. 2016 [DOI:10.1093/mnras/stw157](https://doi.org/10.1093/mnras/
     bound(deserialize = "T: Float")
 )]
 #[schemars(inline, with = "BeyondNStdParameters")]
+#[derive_where(Eq, Hash)]
 pub struct BeyondNStd<T>
 where
     T: Float,

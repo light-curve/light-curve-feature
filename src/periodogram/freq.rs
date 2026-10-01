@@ -4,8 +4,10 @@ use crate::types::ArrayRef1;
 
 use crate::RecurrentSinCos;
 use crate::error::SortedArrayError;
+use crate::float_trait::{float_total_eq, hash_float};
 use crate::periodogram::sin_cos_iterator::SinCosIterator;
 use conv::{ConvAsUtil, ConvUtil, RoundToNearest};
+use derive_where::derive_where;
 use enum_dispatch::enum_dispatch;
 use itertools::Itertools;
 use macro_const::macro_const;
@@ -14,6 +16,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::fmt::Debug;
+use std::hash::{Hash, Hasher};
 
 macro_const! {
     const NYQUIST_FREQ_DOC: &'static str = r"Derive Nyquist frequency from time series
@@ -31,7 +34,7 @@ trait NyquistFreqTrait: Send + Sync + Clone + Debug {
 
 #[doc = NYQUIST_FREQ_DOC!()]
 #[enum_dispatch(NyquistFreqTrait)]
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum NyquistFreq {
     Average(AverageNyquistFreq),
@@ -63,7 +66,7 @@ impl NyquistFreq {
 /// The denominator is $(N-1)$ for compatibility with Nyquist frequency for uniform grid. Note that
 /// in literature definition of "average Nyquist" frequency usually differ and place $N$ to the
 /// denominator
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash)]
 #[serde(rename = "Average")]
 pub struct AverageNyquistFreq;
 
@@ -79,7 +82,7 @@ fn diff<T: Float>(x: &[T]) -> Vec<T> {
 }
 
 /// $\Delta t$ is the median time interval between observations
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash)]
 #[serde(rename = "Median")]
 pub struct MedianNyquistFreq;
 
@@ -92,10 +95,24 @@ impl NyquistFreqTrait for MedianNyquistFreq {
 }
 
 /// $\Delta t$ is the $q$th quantile of time intervals between subsequent observations
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(rename = "Quantile")]
 pub struct QuantileNyquistFreq {
     pub quantile: f32,
+}
+
+impl PartialEq for QuantileNyquistFreq {
+    fn eq(&self, other: &Self) -> bool {
+        float_total_eq(self.quantile, other.quantile)
+    }
+}
+
+impl Eq for QuantileNyquistFreq {}
+
+impl Hash for QuantileNyquistFreq {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        hash_float(self.quantile, state);
+    }
 }
 
 impl NyquistFreqTrait for QuantileNyquistFreq {
@@ -110,9 +127,23 @@ impl NyquistFreqTrait for QuantileNyquistFreq {
 ///
 /// Note, that the actual maximum periodogram frequency provided by `FreqGrid` differs from this
 /// value because of `max_freq_factor` and maximum value to step ratio rounding
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(rename = "Fixed")]
 pub struct FixedNyquistFreq(pub f32);
+
+impl PartialEq for FixedNyquistFreq {
+    fn eq(&self, other: &Self) -> bool {
+        float_total_eq(self.0, other.0)
+    }
+}
+
+impl Eq for FixedNyquistFreq {}
+
+impl Hash for FixedNyquistFreq {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        hash_float(self.0, state);
+    }
+}
 
 impl FixedNyquistFreq {
     /// pi / dt
@@ -143,6 +174,7 @@ pub trait FreqGridTrait<T>: Send + Sync + Clone + Debug {
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[serde(bound = "T: Float")]
 #[non_exhaustive]
+#[derive_where(Eq, Hash)]
 pub enum FreqGrid<T: Float> {
     Arbitrary(SortedArray<T>),
     ZeroBasedPow2(ZeroBasedPow2FreqGrid<T>),
@@ -215,7 +247,7 @@ impl<T: Float> FreqGridTrait<T> for SortedArray<T> {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(bound = "T: Float")]
 pub struct ZeroBasedPow2FreqGrid<T: Float> {
     /// Step between the points
@@ -224,6 +256,24 @@ pub struct ZeroBasedPow2FreqGrid<T: Float> {
     size: usize,
     /// log2(size - 1)
     log2_size_m1: u32,
+}
+
+impl<T: Float> PartialEq for ZeroBasedPow2FreqGrid<T> {
+    fn eq(&self, other: &Self) -> bool {
+        float_total_eq(self.step, other.step)
+            && self.size == other.size
+            && self.log2_size_m1 == other.log2_size_m1
+    }
+}
+
+impl<T: Float> Eq for ZeroBasedPow2FreqGrid<T> {}
+
+impl<T: Float> Hash for ZeroBasedPow2FreqGrid<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        hash_float(self.step, state);
+        self.size.hash(state);
+        self.log2_size_m1.hash(state);
+    }
 }
 
 impl<T: Float> ZeroBasedPow2FreqGrid<T> {
@@ -288,7 +338,7 @@ impl<T: Float> FreqGridTrait<T> for ZeroBasedPow2FreqGrid<T> {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(bound = "T: Float")]
 pub struct LinearFreqGrid<T: Float> {
     /// Grid start point
@@ -297,6 +347,24 @@ pub struct LinearFreqGrid<T: Float> {
     step: T,
     /// Number of points
     size: usize,
+}
+
+impl<T: Float> PartialEq for LinearFreqGrid<T> {
+    fn eq(&self, other: &Self) -> bool {
+        float_total_eq(self.start, other.start)
+            && float_total_eq(self.step, other.step)
+            && self.size == other.size
+    }
+}
+
+impl<T: Float> Eq for LinearFreqGrid<T> {}
+
+impl<T: Float> Hash for LinearFreqGrid<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        hash_float(self.start, state);
+        hash_float(self.step, state);
+        self.size.hash(state);
+    }
 }
 
 impl<T: Float> LinearFreqGrid<T> {
@@ -387,11 +455,29 @@ mod tests {
     }
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct DynamicFreqGridParams {
     pub resolution: f32,
     pub max_freq_factor: f32,
     pub nyquist: NyquistFreq,
+}
+
+impl PartialEq for DynamicFreqGridParams {
+    fn eq(&self, other: &Self) -> bool {
+        float_total_eq(self.resolution, other.resolution)
+            && float_total_eq(self.max_freq_factor, other.max_freq_factor)
+            && self.nyquist == other.nyquist
+    }
+}
+
+impl Eq for DynamicFreqGridParams {}
+
+impl Hash for DynamicFreqGridParams {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        hash_float(self.resolution, state);
+        hash_float(self.max_freq_factor, state);
+        self.nyquist.hash(state);
+    }
 }
 
 impl DynamicFreqGridParams {
@@ -423,6 +509,7 @@ impl DynamicFreqGridParams {
 /// It is either a fixed grid, or a grid defined dynamically for each input time series.
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[serde(bound = "T: Float")]
+#[derive_where(Eq, Hash)]
 pub enum FreqGridStrategy<T: Float> {
     Fixed(FreqGrid<T>),
     Dynamic(DynamicFreqGridParams),

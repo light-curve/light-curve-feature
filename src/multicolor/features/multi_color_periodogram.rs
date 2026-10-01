@@ -13,13 +13,14 @@ use crate::multicolor::multicolor_evaluator::*;
 use crate::multicolor::{PassbandSet, PassbandTrait};
 use crate::periodogram::{self, FreqGridStrategy, NyquistFreq, PeriodogramPower};
 
+use derive_where::derive_where;
 use ndarray::Array1;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
 /// Normalisation of the combined periodogram across passbands
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema, Eq, Hash)]
 pub enum MultiColorPeriodogramNormalisation {
     /// Weight individual periodograms by the number of observations in each passband.
     ///
@@ -77,6 +78,7 @@ pub enum MultiColorPeriodogramNormalisation {
     with = "MultiColorPeriodogramParameters<P, T, F>",
     bound = "P: PassbandTrait + JsonSchema, T: Float, F: FeatureEvaluator<T>"
 )]
+#[derive_where(PartialEq, Eq, Hash; P, F)]
 pub struct MultiColorPeriodogram<P, T, F>
 where
     P: PassbandTrait,

@@ -15,7 +15,7 @@ use std::fmt::Debug;
 /// Difference of median magnitudes in two passbands
 ///
 /// Note that median is calculated for each passband separately
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash)]
 #[serde(bound(deserialize = "P: PassbandTrait + Deserialize<'de>"))]
 pub struct ColorOfMedian<P>
 where

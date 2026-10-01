@@ -5,7 +5,9 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
 /// A passband for the cases where we don't care about the actual passband.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema)]
+#[derive(
+    Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema, Hash,
+)]
 pub struct DumpPassband {}
 
 impl PassbandTrait for DumpPassband {

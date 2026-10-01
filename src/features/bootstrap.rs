@@ -155,6 +155,7 @@ impl BootstrapUncertainty {
     with = "BootstrapParameters<T, F>",
     bound = "T: Float, F: FeatureEvaluator<T>"
 )]
+#[derive_where(Eq, Hash; F)]
 pub struct Bootstrap<T, F>
 where
     T: Float,
