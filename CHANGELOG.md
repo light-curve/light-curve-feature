@@ -15,7 +15,6 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Bump `reassoc` from 0.14 to 0.16
 - **Breaking** Bump `schemars` from 0.8 to 1 https://github.com/light-curve/light-curve-feature/pull/243
-- **Build breaking** Bump `ordered-float` from 5.0 to 5.4 https://github.com/light-curve/light-curve-feature/pull/243
 
 ### Deprecated
 
