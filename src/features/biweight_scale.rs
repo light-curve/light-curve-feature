@@ -46,12 +46,13 @@ Beers, Flynn & Gebhardt 1990 [DOI:10.1086/115487](https://doi.org/10.1086/115487
 /// let values = fe.eval(&mut ts).unwrap();
 /// assert_eq!(values.len(), 2);
 /// ```
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[serde(
     from = "BiweightScaleParameters",
     into = "BiweightScaleParameters",
     bound(deserialize = "T: Float")
 )]
+#[schemars(inline, with = "BiweightScaleParameters", bound = "")]
 pub struct BiweightScale<T>
 where
     T: Float,
@@ -202,13 +203,6 @@ where
     fn from(p: BiweightScaleParameters) -> Self {
         Self::new(p.c)
     }
-}
-
-impl<T> JsonSchema for BiweightScale<T>
-where
-    T: Float,
-{
-    json_schema!(BiweightScaleParameters, false);
 }
 
 #[cfg(test)]

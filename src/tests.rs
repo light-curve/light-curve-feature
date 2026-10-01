@@ -9,6 +9,56 @@ pub use ndarray::Array1;
 pub use rand::prelude::*;
 pub use rand_distr::StandardNormal;
 
+/// Check that every variant of an externally tagged enum schema has a description
+fn assert_all_variants_described(schema: &schemars::Schema) {
+    let defs = schema.get("$defs").unwrap().as_object().unwrap();
+    for variant in schema.get("oneOf").unwrap().as_array().unwrap() {
+        let (name, subschema) = variant
+            .get("properties")
+            .unwrap()
+            .as_object()
+            .unwrap()
+            .iter()
+            .next()
+            .unwrap();
+        let subschema = match subschema.get("$ref").and_then(serde_json::Value::as_str) {
+            Some(reference) => &defs[reference.strip_prefix("#/$defs/").unwrap()],
+            None => subschema,
+        };
+        assert!(
+            subschema.get("description").is_some(),
+            "{name} schema has no description"
+        );
+    }
+}
+
+#[test]
+fn feature_schema_generation() {
+    let schema = schemars::schema_for!(Feature<f64>);
+    assert_eq!(
+        schema.get("title").and_then(serde_json::Value::as_str),
+        Some("Feature")
+    );
+    // These types were inlined with schemars 0.8, keep it that way
+    let defs = schema.get("$defs").unwrap().as_object().unwrap();
+    for name in ["FitArray", "IndComponentsLnPrior"] {
+        assert!(!defs.contains_key(name), "{name} must be inlined");
+    }
+    assert_all_variants_described(&schema);
+}
+
+#[test]
+fn multicolor_feature_schema_generation() {
+    let schema = schemars::schema_for!(
+        crate::multicolor::MultiColorFeature<crate::StringPassband, f64>
+    );
+    assert_eq!(
+        schema.get("title").and_then(serde_json::Value::as_str),
+        Some("MultiColorFeature")
+    );
+    assert_all_variants_described(&schema);
+}
+
 #[macro_export]
 macro_rules! feature_test {
     ($name: ident, $fe: tt, $desired: expr, $y: expr $(,)?) => {

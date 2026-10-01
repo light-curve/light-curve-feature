@@ -33,11 +33,16 @@ considering bin. Bins takes any other feature evaluators to extract features fro
 }
 
 #[doc = DOC!()]
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[serde(
     into = "BinsParameters<T, F>",
     from = "BinsParameters<T, F>",
     bound(deserialize = "T: Float, F: FeatureEvaluator<T>")
+)]
+#[schemars(
+    inline,
+    with = "BinsParameters::<T, F>",
+    bound = "T: Float, F: FeatureEvaluator<T>"
 )]
 pub struct Bins<T, F>
 where
@@ -287,14 +292,6 @@ where
             });
         bins
     }
-}
-
-impl<T, F> JsonSchema for Bins<T, F>
-where
-    T: Float,
-    F: FeatureEvaluator<T>,
-{
-    json_schema!(BinsParameters<T, F>, false);
 }
 
 #[cfg(test)]

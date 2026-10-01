@@ -71,7 +71,12 @@ pub enum MultiColorPeriodogramNormalisation {
 /// eval.set_periodogram_algorithm(PeriodogramPowerDirect.into());
 /// let result = eval.eval_multicolor(&mut mcts)?;
 /// ```
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, JsonSchema)]
+#[schemars(
+    inline,
+    with = "MultiColorPeriodogramParameters<P, T, F>",
+    bound = "P: PassbandTrait + JsonSchema, T: Float, F: FeatureEvaluator<T>"
+)]
 pub struct MultiColorPeriodogram<P, T, F>
 where
     P: PassbandTrait,
@@ -178,25 +183,6 @@ where
         D: serde::Deserializer<'de>,
     {
         MultiColorPeriodogramParameters::<P, T, F>::deserialize(deserializer).map(Self::from)
-    }
-}
-
-impl<P, T, F> JsonSchema for MultiColorPeriodogram<P, T, F>
-where
-    P: PassbandTrait + JsonSchema,
-    T: Float,
-    F: FeatureEvaluator<T> + JsonSchema,
-{
-    fn is_referenceable() -> bool {
-        false
-    }
-
-    fn schema_name() -> String {
-        MultiColorPeriodogramParameters::<P, T, F>::schema_name()
-    }
-
-    fn json_schema(g: &mut schemars::r#gen::SchemaGenerator) -> schemars::schema::Schema {
-        MultiColorPeriodogramParameters::<P, T, F>::json_schema(g)
     }
 }
 

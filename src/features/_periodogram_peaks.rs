@@ -21,11 +21,12 @@ Peak evaluator for [Periodogram]
 
 #[doc(hidden)]
 #[doc = PERIODOGRAM_PEAKS_DOC!()]
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(
     from = "PeriodogramPeaksParameters",
     into = "PeriodogramPeaksParameters"
 )]
+#[schemars(inline, with = "PeriodogramPeaksParameters")]
 pub struct PeriodogramPeaks {
     peaks: usize,
     properties: Box<EvaluatorProperties>,
@@ -148,10 +149,6 @@ impl From<PeriodogramPeaksParameters> for PeriodogramPeaks {
     fn from(p: PeriodogramPeaksParameters) -> Self {
         Self::new(p.peaks)
     }
-}
-
-impl JsonSchema for PeriodogramPeaks {
-    json_schema!(PeriodogramPeaksParameters, false);
 }
 
 #[cfg(test)]

@@ -21,10 +21,15 @@ Feature extractor transforming output of other feature extractors
 }
 
 #[doc = DOC!()]
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[serde(
     into = "TransformedParameters<F, Tr>",
     try_from = "TransformedParameters<F, Tr>",
+    bound = "T: Float, F: FeatureEvaluator<T>, Tr: TransformerTrait<T>"
+)]
+#[schemars(
+    inline,
+    with = "TransformedParameters<F, Tr>",
     bound = "T: Float, F: FeatureEvaluator<T>, Tr: TransformerTrait<T>"
 )]
 pub struct Transformed<T, F, Tr> {
@@ -151,15 +156,6 @@ where
     fn try_from(p: TransformedParameters<F, Tr>) -> Result<Self, Self::Error> {
         Self::new(p.feature, p.transformer)
     }
-}
-
-impl<T, F, Tr> JsonSchema for Transformed<T, F, Tr>
-where
-    T: Float,
-    F: FeatureEvaluator<T>,
-    Tr: TransformerTrait<T>,
-{
-    json_schema!(TransformedParameters<F, Tr>, false);
 }
 
 #[cfg(test)]

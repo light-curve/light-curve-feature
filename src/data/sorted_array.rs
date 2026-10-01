@@ -3,9 +3,9 @@ use crate::float_trait::Float;
 use crate::types::ArrayRef1;
 use conv::prelude::*;
 use ndarray::{Array1, ArrayView1};
-use schemars::schema::Schema;
-use schemars::{JsonSchema, r#gen::SchemaGenerator};
+use schemars::{JsonSchema, Schema, SchemaGenerator};
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 use std::ops::Deref;
 
 // Underlying array is guaranteed to be sorted and contiguous
@@ -125,12 +125,12 @@ impl<T> JsonSchema for SortedArray<T>
 where
     T: JsonSchema,
 {
-    fn is_referenceable() -> bool {
-        false
+    fn inline_schema() -> bool {
+        true
     }
 
-    fn schema_name() -> String {
-        "SortedArray".to_string()
+    fn schema_name() -> Cow<'static, str> {
+        Cow::Borrowed("SortedArray")
     }
 
     fn json_schema(generator: &mut SchemaGenerator) -> Schema {

@@ -15,7 +15,7 @@ use std::fmt::Debug;
 ///
 /// Evaluates multiple [`MultiColorFeature`]s on a [`MultiColorTimeSeries`] and returns
 /// a flat vector of all feature values.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(
     into = "MultiColorExtractorParameters<P, T>",
     from = "MultiColorExtractorParameters<P, T>",
@@ -23,6 +23,10 @@ use std::fmt::Debug;
         serialize = "P: PassbandTrait, T: Float",
         deserialize = "P: PassbandTrait + Deserialize<'de>, T: Float"
     )
+)]
+#[schemars(
+    with = "MultiColorExtractorParameters<P, T>",
+    bound = "P: PassbandTrait + JsonSchema, T: Float"
 )]
 pub struct MultiColorExtractor<P, T>
 where
@@ -228,15 +232,6 @@ where
     fn from(p: MultiColorExtractorParameters<P, T>) -> Self {
         Self::new(p.features)
     }
-}
-
-impl<P, T> JsonSchema for MultiColorExtractor<P, T>
-where
-    P: PassbandTrait,
-    T: Float,
-    MultiColorFeature<P, T>: JsonSchema,
-{
-    json_schema!(MultiColorExtractorParameters<P, T>, true);
 }
 
 #[cfg(test)]

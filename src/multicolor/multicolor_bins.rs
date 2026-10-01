@@ -18,7 +18,7 @@ use super::MultiColorFeature;
 
 /// Multi-color meta-feature that bins each passband's time series independently,
 /// then evaluates inner multi-color features on the collection of binned per-band series.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(
     into = "MultiColorBinsParameters<P, T>",
     from = "MultiColorBinsParameters<P, T>",
@@ -26,6 +26,11 @@ use super::MultiColorFeature;
         serialize = "P: PassbandTrait + Serialize, T: Float",
         deserialize = "P: PassbandTrait + Deserialize<'de>, T: Float"
     )
+)]
+#[schemars(
+    inline,
+    with = "MultiColorBinsParameters<P, T>",
+    bound = "P: PassbandTrait + JsonSchema, T: Float"
 )]
 pub struct MultiColorBins<P, T>
 where
@@ -295,14 +300,6 @@ where
             });
         bins
     }
-}
-
-impl<P, T> JsonSchema for MultiColorBins<P, T>
-where
-    P: PassbandTrait + JsonSchema,
-    T: Float,
-{
-    json_schema!(MultiColorBinsParameters<P, T>, false);
 }
 
 #[cfg(test)]

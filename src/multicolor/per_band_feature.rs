@@ -13,7 +13,12 @@ use std::fmt::Debug;
 use std::marker::PhantomData;
 
 /// Multi-color feature which evaluates a monochrome feature independently for each passband.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, JsonSchema)]
+#[schemars(
+    inline,
+    with = "PerBandFeatureData<P, T, F>",
+    bound = "P: PassbandTrait + JsonSchema, T: Float, F: FeatureEvaluator<T>"
+)]
 pub struct PerBandFeature<P, T, F>
 where
     P: PassbandTrait,
@@ -85,25 +90,6 @@ where
                 phantom: d.phantom,
             }
         })
-    }
-}
-
-impl<P, T, F> JsonSchema for PerBandFeature<P, T, F>
-where
-    P: PassbandTrait + JsonSchema,
-    T: Float,
-    F: FeatureEvaluator<T> + JsonSchema,
-{
-    fn is_referenceable() -> bool {
-        false
-    }
-
-    fn schema_name() -> String {
-        PerBandFeatureData::<P, T, F>::schema_name()
-    }
-
-    fn json_schema(g: &mut schemars::r#gen::SchemaGenerator) -> schemars::schema::Schema {
-        PerBandFeatureData::<P, T, F>::json_schema(g)
     }
 }
 

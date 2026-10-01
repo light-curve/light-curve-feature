@@ -144,11 +144,16 @@ impl BootstrapUncertainty {
 }
 
 #[doc = DOC!()]
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[serde(
     into = "BootstrapParameters<T, F>",
     try_from = "BootstrapParameters<T, F>",
     bound(deserialize = "T: Float, F: FeatureEvaluator<T>")
+)]
+#[schemars(
+    inline,
+    with = "BootstrapParameters<T, F>",
+    bound = "T: Float, F: FeatureEvaluator<T>"
 )]
 pub struct Bootstrap<T, F>
 where
@@ -414,14 +419,6 @@ where
         }
         Ok(bootstrap)
     }
-}
-
-impl<T, F> JsonSchema for Bootstrap<T, F>
-where
-    T: Float,
-    F: FeatureEvaluator<T>,
-{
-    json_schema!(BootstrapParameters<T, F>, false);
 }
 
 #[cfg(test)]

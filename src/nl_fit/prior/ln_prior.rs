@@ -122,11 +122,13 @@ impl<const NPARAMS: usize> LnPriorEvaluator<NPARAMS> for NoneLnPrior {
 
 impl<const NPARAMS: usize> LnPriorTrait<NPARAMS> for NoneLnPrior {}
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash)]
 #[serde(
     into = "IndComponentsLnPriorSerde",
     try_from = "IndComponentsLnPriorSerde"
 )]
+// No doc comment, so schemars delegates everything, including `inline_schema()`, to the `with` type
+#[schemars(with = "IndComponentsLnPriorSerde", bound = "")]
 pub struct IndComponentsLnPrior<const NPARAMS: usize> {
     pub components: [LnPrior1D; NPARAMS],
 }
@@ -159,22 +161,9 @@ impl<const NPARAMS: usize> LnPriorEvaluator<NPARAMS> for IndComponentsLnPrior<NP
 
 impl<const NPARAMS: usize> LnPriorTrait<NPARAMS> for IndComponentsLnPrior<NPARAMS> {}
 
-impl<const NPARAMS: usize> JsonSchema for IndComponentsLnPrior<NPARAMS> {
-    fn is_referenceable() -> bool {
-        false
-    }
-
-    fn schema_name() -> String {
-        IndComponentsLnPriorSerde::schema_name()
-    }
-
-    fn json_schema(r#gen: &mut schemars::r#gen::SchemaGenerator) -> schemars::schema::Schema {
-        IndComponentsLnPriorSerde::json_schema(r#gen)
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(rename = "IndComponentsLnPrior")]
+#[schemars(inline)]
 struct IndComponentsLnPriorSerde {
     components: Vec<LnPrior1D>,
 }

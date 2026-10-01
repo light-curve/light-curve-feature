@@ -35,30 +35,15 @@ pub trait FitDerivalivesTrait<T: Float, const NPARAMS: usize> {
     fn derivatives(t: T, param: &[T; NPARAMS], jac: &mut [T; NPARAMS]);
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, PartialEq)]
 #[serde(
     into = "FitArraySerde<T>",
     try_from = "FitArraySerde<T>",
     bound = "T: Debug + Clone + Serialize + DeserializeOwned + JsonSchema"
 )]
+// No doc comment, so schemars delegates everything, including `inline_schema()`, to the `with` type
+#[schemars(with = "FitArraySerde::<T>", bound = "T: JsonSchema")]
 pub struct FitArray<T, const NPARAMS: usize>(pub [T; NPARAMS]);
-
-impl<T, const NPARAMS: usize> JsonSchema for FitArray<T, NPARAMS>
-where
-    T: schemars::JsonSchema,
-{
-    fn is_referenceable() -> bool {
-        false
-    }
-
-    fn schema_name() -> String {
-        FitArraySerde::<T>::schema_name()
-    }
-
-    fn json_schema(r#gen: &mut schemars::r#gen::SchemaGenerator) -> schemars::schema::Schema {
-        FitArraySerde::<T>::json_schema(r#gen)
-    }
-}
 
 impl<T, const NPARAMS: usize> From<[T; NPARAMS]> for FitArray<T, NPARAMS> {
     fn from(item: [T; NPARAMS]) -> Self {
@@ -107,6 +92,7 @@ where
     rename = "FitArray",
     bound = "T: Debug + Clone + Serialize + DeserializeOwned + JsonSchema"
 )]
+#[schemars(inline)]
 struct FitArraySerde<T>(Vec<T>);
 
 impl<T, const NPARAMS: usize> From<FitArray<T, NPARAMS>> for FitArraySerde<T> {

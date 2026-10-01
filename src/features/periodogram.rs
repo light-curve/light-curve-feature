@@ -188,11 +188,16 @@ where
 }
 
 #[doc = DOC!()]
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
 #[serde(
     bound = "T: Float, F: FeatureEvaluator<T> + From<PeriodogramPeaks> + TryInto<PeriodogramPeaks>, <F as TryInto<PeriodogramPeaks>>::Error: Debug,",
     from = "PeriodogramParameters<T, F>",
     into = "PeriodogramParameters<T, F>"
+)]
+#[schemars(
+    inline,
+    with = "PeriodogramParameters<T, F>",
+    bound = "T: Float, F: FeatureEvaluator<T>"
 )]
 pub struct Periodogram<T, F>
 where
@@ -727,14 +732,6 @@ where
         periodogram.set_normalization(normalization);
         periodogram
     }
-}
-
-impl<T, F> JsonSchema for Periodogram<T, F>
-where
-    T: Float,
-    F: FeatureEvaluator<T>,
-{
-    json_schema!(PeriodogramParameters<T, F>, false);
 }
 
 #[cfg(test)]

@@ -55,7 +55,7 @@ impl BandStrategy {
 ///
 /// As in the single-band case, sub-features that require sorting, or that require variability,
 /// are rejected by [MultiColorBootstrap::add_feature].
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(
     into = "MultiColorBootstrapParameters<P, T>",
     try_from = "MultiColorBootstrapParameters<P, T>",
@@ -63,6 +63,11 @@ impl BandStrategy {
         serialize = "P: PassbandTrait + Serialize, T: Float",
         deserialize = "P: PassbandTrait + Deserialize<'de>, T: Float"
     )
+)]
+#[schemars(
+    inline,
+    with = "MultiColorBootstrapParameters<P, T>",
+    bound = "P: PassbandTrait + JsonSchema, T: Float"
 )]
 pub struct MultiColorBootstrap<P, T>
 where
@@ -421,14 +426,6 @@ where
         }
         Ok(bootstrap)
     }
-}
-
-impl<P, T> JsonSchema for MultiColorBootstrap<P, T>
-where
-    P: PassbandTrait + JsonSchema,
-    T: Float,
-{
-    json_schema!(MultiColorBootstrapParameters<P, T>, false);
 }
 
 #[cfg(test)]
