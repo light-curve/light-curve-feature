@@ -16,6 +16,11 @@ fn feature_schema_generation() {
         schema.get("title").and_then(serde_json::Value::as_str),
         Some("Feature")
     );
+    // These types were inlined with schemars 0.8, keep it that way
+    let defs = schema.get("$defs").unwrap().as_object().unwrap();
+    for name in ["FitArray", "IndComponentsLnPrior"] {
+        assert!(!defs.contains_key(name), "{name} must be inlined");
+    }
 }
 
 #[test]

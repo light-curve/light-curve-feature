@@ -127,7 +127,8 @@ impl<const NPARAMS: usize> LnPriorTrait<NPARAMS> for NoneLnPrior {}
     into = "IndComponentsLnPriorSerde",
     try_from = "IndComponentsLnPriorSerde"
 )]
-#[schemars(inline, with = "IndComponentsLnPriorSerde", bound = "")]
+// No doc comment, so schemars delegates everything, including `inline_schema()`, to the `with` type
+#[schemars(with = "IndComponentsLnPriorSerde", bound = "")]
 pub struct IndComponentsLnPrior<const NPARAMS: usize> {
     pub components: [LnPrior1D; NPARAMS],
 }
@@ -162,6 +163,7 @@ impl<const NPARAMS: usize> LnPriorTrait<NPARAMS> for IndComponentsLnPrior<NPARAM
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(rename = "IndComponentsLnPrior")]
+#[schemars(inline)]
 struct IndComponentsLnPriorSerde {
     components: Vec<LnPrior1D>,
 }

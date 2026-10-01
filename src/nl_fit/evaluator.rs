@@ -41,7 +41,8 @@ pub trait FitDerivalivesTrait<T: Float, const NPARAMS: usize> {
     try_from = "FitArraySerde<T>",
     bound = "T: Debug + Clone + Serialize + DeserializeOwned + JsonSchema"
 )]
-#[schemars(inline, with = "FitArraySerde::<T>", bound = "T: JsonSchema")]
+// No doc comment, so schemars delegates everything, including `inline_schema()`, to the `with` type
+#[schemars(with = "FitArraySerde::<T>", bound = "T: JsonSchema")]
 pub struct FitArray<T, const NPARAMS: usize>(pub [T; NPARAMS]);
 
 impl<T, const NPARAMS: usize> From<[T; NPARAMS]> for FitArray<T, NPARAMS> {
@@ -91,6 +92,7 @@ where
     rename = "FitArray",
     bound = "T: Debug + Clone + Serialize + DeserializeOwned + JsonSchema"
 )]
+#[schemars(inline)]
 struct FitArraySerde<T>(Vec<T>);
 
 impl<T, const NPARAMS: usize> From<FitArray<T, NPARAMS>> for FitArraySerde<T> {
