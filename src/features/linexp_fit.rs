@@ -5,6 +5,7 @@ use crate::nl_fit::{
 };
 
 use conv::ConvUtil;
+use tinyvec::array_vec;
 
 const NPARAMS: usize = 4;
 
@@ -30,10 +31,10 @@ Note, that the Linexp function is developed to be used with fluxes, not magnitud
 
 #[doc = DOC!()]
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
-pub struct LinexpFit {
+pub struct LinexpFit<const MAX_NPARAMS: usize = NPARAMS> {
     algorithm: CurveFitAlgorithm,
-    ln_prior: LinexpLnPrior,
-    inits_bounds: LinexpInitsBounds,
+    ln_prior: LinexpLnPrior<MAX_NPARAMS>,
+    inits_bounds: LinexpInitsBounds<MAX_NPARAMS>,
 }
 
 impl LinexpFit {
@@ -215,24 +216,26 @@ impl FitParametersOriginalDimLessTrait<NPARAMS> for LinexpFit {
         norm_data: &NormalizedData<f64>,
         orig: &[f64; NPARAMS],
     ) -> [f64; NPARAMS] {
-        [
+        array_vec!([f64; NPARAMS] =>
             norm_data.m_to_norm_scale(orig[0]), // A amplitude
             norm_data.t_to_norm(orig[1]),       // t_0 reference_time
             norm_data.t_to_norm_scale(orig[2]), // tau fall time
             norm_data.m_to_norm(orig[3]),       // b baseline
-        ]
+        )
+        .into_inner()
     }
 
     fn dimensionless_to_orig(
         norm_data: &NormalizedData<f64>,
         norm: &[f64; NPARAMS],
     ) -> [f64; NPARAMS] {
-        [
+        array_vec!([f64; NPARAMS] =>
             norm_data.m_to_orig_scale(norm[0]), // A amplitude
             norm_data.t_to_orig(norm[1]),       // t_0 reference_time
             norm_data.t_to_orig_scale(norm[2]), // tau fall time
             norm_data.m_to_orig(norm[3]),       // b baseline
-        ]
+        )
+        .into_inner()
     }
 }
 
@@ -261,12 +264,13 @@ impl FitParametersInternalExternalTrait<NPARAMS> for LinexpFit {
         // ∂|x|/∂x = sign(x), so the Jacobian is:
         let m_std = norm_data.m_std();
         let t_std = norm_data.t_std();
-        [
+        array_vec!([f64; NPARAMS] =>
             internal[0].signum() * m_std, // A amplitude: |internal[0]| * m_std
             t_std,                        // t0: internal[1] * t_std + t_mean
             internal[2].signum() * t_std, // tau: |internal[2]| * t_std
             m_std,                        // B baseline: internal[3] * m_std + m_mean
-        ]
+        )
+        .into_inner()
     }
 }
 
@@ -311,11 +315,11 @@ where
 
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, Default, PartialEq)]
 #[non_exhaustive]
-pub enum LinexpInitsBounds {
+pub enum LinexpInitsBounds<const MAX_NPARAMS: usize = NPARAMS> {
     #[default]
     Default,
-    Arrays(Box<FitInitsBoundsArrays<NPARAMS>>),
-    OptionArrays(Box<OptionFitInitsBoundsArrays<NPARAMS>>),
+    Arrays(Box<FitInitsBoundsArrays<MAX_NPARAMS>>),
+    OptionArrays(Box<OptionFitInitsBoundsArrays<MAX_NPARAMS>>),
 }
 
 impl LinexpInitsBounds {
@@ -358,17 +362,23 @@ impl LinexpInitsBounds {
         let (b_lower, b_upper) = (m_min - 100.0 * m_amplitude, m_max + 100.0 * m_amplitude);
 
         FitInitsBoundsArrays {
-            init: [a_init, t0_init, tau_init, b_init].into(),
-            lower: [a_lower, t0_lower, tau_lower, b_lower].into(),
-            upper: [a_upper, t0_upper, tau_upper, b_upper].into(),
+            init: array_vec!([f64; NPARAMS] => a_init, t0_init, tau_init, b_init)
+                .into_inner()
+                .into(),
+            lower: array_vec!([f64; NPARAMS] => a_lower, t0_lower, tau_lower, b_lower)
+                .into_inner()
+                .into(),
+            upper: array_vec!([f64; NPARAMS] => a_upper, t0_upper, tau_upper, b_upper)
+                .into_inner()
+                .into(),
         }
     }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[non_exhaustive]
-pub enum LinexpLnPrior {
-    Fixed(Box<LnPrior<NPARAMS>>),
+pub enum LinexpLnPrior<const MAX_NPARAMS: usize = NPARAMS> {
+    Fixed(Box<LnPrior<MAX_NPARAMS>>),
 }
 
 impl LinexpLnPrior {
