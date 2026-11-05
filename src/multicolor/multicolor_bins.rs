@@ -117,6 +117,39 @@ where
         0.0
     }
 
+    /// Bin every passband time series of `mcts`, see [Bins](crate::Bins) for the formulas
+    ///
+    /// All passbands present in the input are binned, not only the ones required by the wrapped
+    /// features. Each passband time series must be sorted by time. The output owns its data, so
+    /// its lifetime `'binned` is unconstrained.
+    pub fn bin<'binned>(
+        &self,
+        mcts: &mut MultiColorTimeSeries<'_, P, T>,
+    ) -> Result<MultiColorTimeSeries<'binned, P, T>, MultiColorEvaluatorError>
+    where
+        P: 'binned,
+    {
+        let window: T = self.window.into_inner().approx_as::<T>().unwrap();
+        let offset: T = self.offset.into_inner().approx_as::<T>().unwrap();
+
+        let binned_map: BTreeMap<P, TimeSeries<'binned, T>> = mcts.with_mapping_mut(|mapping| {
+            mapping
+                .iter_mut()
+                .map(
+                    |(&passband, ts)| match bin_time_series(ts, window, offset) {
+                        Ok(tmw) => Ok((passband.clone(), TimeSeries::new(tmw.t, tmw.m, tmw.w))),
+                        Err(error) => Err(MultiColorEvaluatorError::MonochromeEvaluatorError {
+                            passband: passband.name().into(),
+                            error,
+                        }),
+                    },
+                )
+                .collect::<Result<_, _>>()
+        })?;
+
+        Ok(MultiColorTimeSeries::from_map(binned_map))
+    }
+
     /// Bin the passbands required by the wrapped features into a new [MultiColorTimeSeries].
     ///
     /// `policy` tells what to do with a passband which is absent from `mcts` or which time series
@@ -349,6 +382,49 @@ mod tests {
         let result = eval.eval_multicolor(&mut mcts).unwrap();
         assert_eq!(result.len(), 1);
         assert!((result[0] - (-1.0_f64)).abs() < 1e-10, "got {}", result[0]);
+    }
+
+    // Binning doesn't depend on features: both bands are binned, while no feature requires them
+    #[test]
+    fn multicolor_bins_bin_all_passbands() {
+        let t = [0.0_f64, 0.1, 1.0, 1.1, 2.0];
+        let m_g = [1.0_f64, 3.0, 5.0, 7.0, 9.0];
+        let m_r = [2.0_f64, 4.0, 6.0, 8.0, 10.0];
+        let w = [1.0_f64; 5];
+
+        let eval = MultiColorBins::<StringPassband, f64>::new(1.0, 0.0);
+        let mut mcts = make_mcts(&t, &m_g, &m_r, &w);
+        let mut binned = eval.bin(&mut mcts).unwrap();
+        binned.with_mapping_mut(|mapping| {
+            let actual: Vec<_> = mapping
+                .iter_mut()
+                .map(|(passband, ts)| {
+                    (
+                        passband.name().to_owned(),
+                        ts.t.as_slice().to_vec(),
+                        ts.m.as_slice().to_vec(),
+                        ts.w.as_slice().to_vec(),
+                    )
+                })
+                .collect();
+            assert_eq!(
+                actual,
+                vec![
+                    (
+                        "g".to_owned(),
+                        vec![0.5, 1.5, 2.5],
+                        vec![2.0, 6.0, 9.0],
+                        vec![1.0; 3]
+                    ),
+                    (
+                        "r".to_owned(),
+                        vec![0.5, 1.5, 2.5],
+                        vec![3.0, 7.0, 10.0],
+                        vec![1.0; 3]
+                    ),
+                ]
+            );
+        });
     }
 
     #[test]
