@@ -167,8 +167,7 @@ where
 
     /// Bin the time series, see the [struct-level documentation](Bins) for the formulas
     ///
-    /// The input time series must be sorted by time. Only non-empty bins are returned, so the
-    /// output time is sorted, and the output time series owns its data.
+    /// The input time series must be sorted by time.
     pub fn bin(&self, ts: &mut TimeSeries<T>) -> Result<TimeSeries<'static, T>, EvaluatorError> {
         Ok(self.transform_ts(ts)?.ts())
     }

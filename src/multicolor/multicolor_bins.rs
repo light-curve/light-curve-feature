@@ -120,8 +120,7 @@ where
     /// Bin every passband time series of `mcts`, see [Bins](crate::Bins) for the formulas
     ///
     /// All passbands present in the input are binned, not only the ones required by the wrapped
-    /// features. Each passband time series must be sorted by time. The output owns its data, so
-    /// its lifetime `'binned` is unconstrained.
+    /// features. Each passband time series must be sorted by time.
     pub fn bin<'binned>(
         &self,
         mcts: &mut MultiColorTimeSeries<'_, P, T>,
