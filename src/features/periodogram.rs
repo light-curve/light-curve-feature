@@ -466,7 +466,7 @@ where
     ) -> Self {
         let info = EvaluatorInfo {
             size: 0,
-            min_ts_length: 2,
+            min_ts_length: periodogram::PERIODOGRAM_MIN_TS_LENGTH,
             t_required: true,
             m_required: true,
             w_required: false,
@@ -1315,5 +1315,28 @@ mod tests {
             "expected error for short binned ts, got {:?}",
             err
         );
+    }
+
+    // https://github.com/light-curve/light-curve-feature/issues/334
+    #[test]
+    fn periodogram_eval_or_fill_short_ts() {
+        let mut periodogram: Periodogram<f64, Feature<f64>> = Periodogram::default();
+        periodogram.add_phase_feature(crate::features::Amplitude::default().into());
+        for n in [0, 1] {
+            let t: Vec<f64> = (0..n).map(|i| i as f64).collect();
+            let m = t.clone();
+            let mut ts = TimeSeries::new_without_weight(&t, &m);
+            assert_eq!(
+                periodogram.freq_power(&mut ts),
+                Err(PeriodogramPowerError::ShortTimeSeries {
+                    actual: n,
+                    minimum: 2
+                })
+            );
+            assert!(periodogram.eval(&mut ts).is_err());
+            let actual = periodogram.eval_or_fill(&mut ts, f64::NAN);
+            assert_eq!(actual.len(), periodogram.size_hint());
+            assert!(actual.iter().all(|x| x.is_nan()), "n = {n}: {actual:?}");
+        }
     }
 }

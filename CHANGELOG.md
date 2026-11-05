@@ -17,6 +17,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Bump `reassoc` from 0.14 to 0.16
 - `PartialEq` treats NaN parameters as equal https://github.com/light-curve/light-curve-feature/pull/332
 - **Breaking** Bump `schemars` from 0.8 to 1, JSON schemas now use draft 2020-12 https://github.com/light-curve/light-curve-feature/pull/243
+- **Breaking** Add `PeriodogramPowerError::ShortTimeSeries` variant https://github.com/light-curve/light-curve-feature/issues/334
 
 ### Deprecated
 
@@ -31,6 +32,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `Bins` and `MultiColorBins` bin centers ignored `offset` https://github.com/light-curve/light-curve-python/issues/860
 - `Chi2Pvar` docs and description wrongly stated that the value is high for variable sources, while it is
   the $\chi^2$ test $p$-value which is low for variable sources https://github.com/light-curve/light-curve-feature/issues/328
+- `Periodogram` and `MultiColorPeriodogram` panicked on light curves with fewer than two
+  observations https://github.com/light-curve/light-curve-feature/issues/334
+- `MultiColorPeriodogram` built its frequency grid from unsorted observation times
 
 ### Security
 

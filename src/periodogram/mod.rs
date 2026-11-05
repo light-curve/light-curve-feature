@@ -59,6 +59,9 @@ where
     Direct(PeriodogramPowerDirect),
 }
 
+/// Minimum number of observations required to compute a periodogram
+pub(crate) const PERIODOGRAM_MIN_TS_LENGTH: usize = 2;
+
 /// Lamb-Scargle periodogram calculator on uniform frequency grid
 ///
 /// Frequencies are given by $\omega = \{\min\omega..\max\omega\}$: $N_\omega$ nodes with step
@@ -122,6 +125,12 @@ where
         freq_grid_strategy: &'a FreqGridStrategy<T>,
         normalization: PeriodogramNormalization,
     ) -> Result<Self, PeriodogramPowerError> {
+        if t.len() < PERIODOGRAM_MIN_TS_LENGTH {
+            return Err(PeriodogramPowerError::ShortTimeSeries {
+                actual: t.len(),
+                minimum: PERIODOGRAM_MIN_TS_LENGTH,
+            });
+        }
         let zero_base = !matches!(periodogram_power, PeriodogramPower::Direct(_));
         Self::with_normalization(
             periodogram_power,

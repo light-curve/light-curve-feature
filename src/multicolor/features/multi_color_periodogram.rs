@@ -14,6 +14,7 @@ use crate::multicolor::{PassbandSet, PassbandTrait};
 use crate::periodogram::{self, FreqGridStrategy, NyquistFreq, PeriodogramPower};
 
 use derive_where::derive_where;
+use itertools::Itertools;
 use ndarray::Array1;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -476,7 +477,10 @@ where
             mapping
                 .iter_matched_passbands_mut(passband_set.iter())
                 .filter_map(|(_, ts)| ts)
-                .flat_map(|ts| ts.t.as_slice().to_vec())
+                .map(|ts| ts.t.as_slice())
+                // Each band is sorted, merge them into a single sorted array
+                .kmerge_by(|a, b| a < b)
+                .copied()
                 .collect()
         });
         self.monochrome
@@ -1361,5 +1365,69 @@ mod tests {
             result_gr, result_gri,
             "Extra i band must not affect the result"
         );
+    }
+
+    // https://github.com/light-curve/light-curve-feature/issues/334
+    #[test]
+    fn eval_or_fill_short_mcts() {
+        for norm in [
+            MultiColorPeriodogramNormalisation::Count,
+            MultiColorPeriodogramNormalisation::Chi2,
+        ] {
+            let eval = McPeriodogram::new(1, norm, make_gr_passbands());
+            for (t, bands) in [(vec![], vec![]), (vec![0.0], vec!["g"])] {
+                let m = t.clone();
+                let w = vec![1.0; t.len()];
+                let passbands: Vec<_> = bands.into_iter().map(StringPassband::from).collect();
+                let mut mcts = MultiColorTimeSeries::from_flat(t, m, w, passbands);
+                assert!(eval.eval_multicolor(&mut mcts).is_err());
+                let actual = eval.eval_or_fill_multicolor(&mut mcts, f64::NAN).unwrap();
+                assert_eq!(actual.len(), eval.size_hint());
+                assert!(actual.iter().all(|x| x.is_nan()), "{actual:?}");
+            }
+        }
+    }
+
+    // The frequency grid must be built from the sorted union of all passbands' observation times
+    #[test]
+    fn freq_grid_matches_merged_monochrome() {
+        use crate::{AverageNyquistFreq, MedianNyquistFreq, QuantileNyquistFreq, TimeSeries};
+
+        // "g" sorts first, but is observed after "r", so band-by-band concatenation is unsorted
+        let t_g: Vec<f64> = (0..50).map(|i| 60.0 + 0.8 * i as f64).collect();
+        let t_r: Vec<f64> = (0..50).map(|i| 0.8 * i as f64).collect();
+        let t: Vec<f64> = t_g.iter().chain(&t_r).copied().collect();
+        let m: Vec<f64> = t.iter().map(|x| (0.7 * x).sin()).collect();
+        let w = vec![1.0; t.len()];
+        let bands: Vec<StringPassband> = std::iter::repeat_n("g", t_g.len())
+            .chain(std::iter::repeat_n("r", t_r.len()))
+            .map(StringPassband::from)
+            .collect();
+        let mut t_merged = t.clone();
+        t_merged.sort_by(f64::total_cmp);
+
+        let nyquists: [NyquistFreq; 3] = [
+            AverageNyquistFreq.into(),
+            MedianNyquistFreq.into(),
+            QuantileNyquistFreq { quantile: 0.05 }.into(),
+        ];
+        for nyquist in nyquists {
+            let mut eval = McPeriodogram::new(
+                1,
+                MultiColorPeriodogramNormalisation::Count,
+                make_gr_passbands(),
+            );
+            eval.set_nyquist(nyquist);
+            let mut mcts =
+                MultiColorTimeSeries::from_flat(t.clone(), m.clone(), w.clone(), bands.clone());
+            let (freq, _power) = eval.freq_power(&mut mcts).unwrap();
+
+            let mut mono: Periodogram<f64, Feature<f64>> = Periodogram::default();
+            mono.set_nyquist(nyquist);
+            let mut ts = TimeSeries::new_without_weight(&t_merged, &t_merged);
+            let (desired_freq, _power) = mono.freq_power(&mut ts).unwrap();
+
+            assert_eq!(freq.to_vec(), desired_freq, "{nyquist:?}");
+        }
     }
 }
