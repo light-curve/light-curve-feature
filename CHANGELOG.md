@@ -15,6 +15,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Changed
 
 - Bump `reassoc` from 0.14 to 0.16
+- Bump `nuts-rs` from 0.18 to 0.19, `NutsCurveFit` results may change
 - `PartialEq` treats NaN parameters as equal https://github.com/light-curve/light-curve-feature/pull/332
 - **Breaking** Bump `schemars` from 0.8 to 1, JSON schemas now use draft 2020-12 https://github.com/light-curve/light-curve-feature/pull/243
 - **Breaking** Add `PeriodogramPowerError::ShortTimeSeries` variant https://github.com/light-curve/light-curve-feature/issues/334
