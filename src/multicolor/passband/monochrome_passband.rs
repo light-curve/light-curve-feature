@@ -1,10 +1,11 @@
-use crate::float_trait::Float;
+use crate::float_trait::{Float, hash_float};
 use crate::multicolor::PassbandTrait;
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::fmt::Debug;
+use std::hash::{Hash, Hasher};
 
 /// A passband specified by a single wavelength.
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
@@ -45,6 +46,16 @@ where
 }
 
 impl<'a, T> Eq for MonochromePassband<'a, T> where T: Float {}
+
+impl<'a, T> Hash for MonochromePassband<'a, T>
+where
+    T: Float,
+{
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        // Consistent with PartialEq, which compares wavelengths only
+        hash_float(self.wavelength, state);
+    }
+}
 
 impl<'a, T> PartialOrd for MonochromePassband<'a, T>
 where

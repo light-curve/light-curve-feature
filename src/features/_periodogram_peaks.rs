@@ -21,7 +21,7 @@ Peak evaluator for [Periodogram]
 
 #[doc(hidden)]
 #[doc = PERIODOGRAM_PEAKS_DOC!()]
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema, Eq, Hash)]
 #[serde(
     from = "PeriodogramPeaksParameters",
     into = "PeriodogramPeaksParameters"

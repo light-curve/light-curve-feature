@@ -199,6 +199,7 @@ where
     with = "PeriodogramParameters<T, F>",
     bound = "T: Float, F: FeatureEvaluator<T>"
 )]
+#[derive_where(Eq, Hash; F)]
 pub struct Periodogram<T, F>
 where
     T: Float,

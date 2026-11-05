@@ -15,7 +15,7 @@ use std::fmt::Debug;
 ///
 /// Note that minimum is calculated for each passband separately, and maximum has mathematical
 /// meaning, not "magnitudial" (astronomical) one.
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Eq, Hash)]
 #[serde(bound(deserialize = "P: PassbandTrait + Deserialize<'de>"))]
 pub struct ColorOfMinimum<P>
 where

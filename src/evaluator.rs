@@ -2,6 +2,8 @@ pub use crate::data::TimeSeries;
 pub use crate::error::EvaluatorError;
 pub use crate::float_trait::Float;
 
+pub use derive_where::derive_where;
+
 use enum_dispatch::enum_dispatch;
 pub use lazy_static::lazy_static;
 pub use macro_const::macro_const;
@@ -11,7 +13,7 @@ use serde::de::DeserializeOwned;
 pub use serde::{Deserialize, Serialize};
 pub use std::fmt::Debug;
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Hash)]
 pub struct EvaluatorInfo {
     pub size: usize,
     pub min_ts_length: usize,
@@ -22,7 +24,7 @@ pub struct EvaluatorInfo {
     pub variability_required: bool,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema, Eq, Hash)]
 pub struct EvaluatorProperties {
     pub info: EvaluatorInfo,
     pub names: Vec<String>,

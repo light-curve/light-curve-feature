@@ -1,16 +1,32 @@
 use crate::error::SortedArrayError;
 use crate::float_trait::Float;
+use crate::float_trait::{float_slice_total_eq, hash_float_slice};
 use crate::types::ArrayRef1;
 use conv::prelude::*;
 use ndarray::{Array1, ArrayView1};
 use schemars::{JsonSchema, Schema, SchemaGenerator};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
+use std::hash::{Hash, Hasher};
 use std::ops::Deref;
 
 // Underlying array is guaranteed to be sorted and contiguous
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SortedArray<T>(pub Array1<T>);
+
+impl<T: Float> PartialEq for SortedArray<T> {
+    fn eq(&self, other: &Self) -> bool {
+        float_slice_total_eq(self, other)
+    }
+}
+
+impl<T: Float> Eq for SortedArray<T> {}
+
+impl<T: Float> Hash for SortedArray<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        hash_float_slice(self, state);
+    }
+}
 
 impl<T> SortedArray<T>
 where

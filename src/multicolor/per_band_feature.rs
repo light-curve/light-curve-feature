@@ -6,6 +6,7 @@ use crate::evaluator::{
 use crate::float_trait::Float;
 use crate::multicolor::multicolor_evaluator::*;
 
+use derive_where::derive_where;
 use itertools::Itertools;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -19,6 +20,7 @@ use std::marker::PhantomData;
     with = "PerBandFeatureData<P, T, F>",
     bound = "P: PassbandTrait + JsonSchema, T: Float, F: FeatureEvaluator<T>"
 )]
+#[derive_where(PartialEq, Eq, Hash; P, F)]
 pub struct PerBandFeature<P, T, F>
 where
     P: PassbandTrait,

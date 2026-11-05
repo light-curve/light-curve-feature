@@ -13,6 +13,7 @@ use serde::Serialize;
 use serde::de::DeserializeOwned;
 use std::cmp::PartialOrd;
 use std::fmt::{Debug, Display, LowerExp};
+use std::hash::{Hash, Hasher};
 use std::iter::Sum;
 use std::ops::{AddAssign, DivAssign, MulAssign};
 
@@ -201,5 +202,77 @@ impl Float for f64 {
 
     fn array0_unity() -> &'static Array0<Self> {
         &ARRAY0_UNITY_F64
+    }
+}
+
+/// Float equality treating all NaNs as equal to each other, so it is an equivalence relation
+///
+/// Use it together with [hash_float] to implement [Eq] and [Hash] for types holding floats.
+pub(crate) fn float_total_eq<T: Float>(a: T, b: T) -> bool {
+    a == b || (a.is_nan() && b.is_nan())
+}
+
+/// Element-wise [float_total_eq] for slices
+pub(crate) fn float_slice_total_eq<T: Float>(a: &[T], b: &[T]) -> bool {
+    a.len() == b.len() && a.iter().zip(b).all(|(&x, &y)| float_total_eq(x, y))
+}
+
+/// Hash a float consistently with [float_total_eq]
+pub(crate) fn hash_float<T: Float, H: Hasher>(x: T, state: &mut H) {
+    // All NaNs are equal to each other, and so are both zeros, so canonicalize them
+    let x = if x.is_nan() {
+        T::nan()
+    } else if x == T::zero() {
+        T::zero()
+    } else {
+        x
+    };
+    x.integer_decode().hash(state);
+}
+
+/// Hash a float slice consistently with [float_slice_total_eq]
+pub(crate) fn hash_float_slice<T: Float, H: Hasher>(a: &[T], state: &mut H) {
+    a.len().hash(state);
+    for &x in a {
+        hash_float(x, state);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::hash::DefaultHasher;
+
+    fn hash_of(x: f64) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        hash_float(x, &mut hasher);
+        hasher.finish()
+    }
+
+    #[test]
+    fn total_eq_and_hash_agree() {
+        let values = [
+            0.0,
+            -0.0,
+            1.0,
+            -1.0,
+            f64::NAN,
+            -f64::NAN,
+            f64::INFINITY,
+            f64::NEG_INFINITY,
+            f64::MIN_POSITIVE,
+        ];
+        for &a in &values {
+            assert!(float_total_eq(a, a));
+            for &b in &values {
+                if float_total_eq(a, b) {
+                    assert_eq!(hash_of(a), hash_of(b), "{a} and {b}");
+                }
+            }
+        }
+        assert!(float_total_eq(0.0, -0.0));
+        assert!(float_total_eq(f64::NAN, -f64::NAN));
+        assert!(!float_total_eq(1.0, f64::NAN));
+        assert_ne!(hash_of(1.0), hash_of(2.0));
     }
 }

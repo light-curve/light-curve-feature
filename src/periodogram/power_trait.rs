@@ -21,7 +21,7 @@ pub enum PeriodogramPowerError {
 ///
 /// The raw periodogram power computed by this library corresponds to the "psd" normalization
 /// in astropy (unnormalized). Other normalizations are derived from this base power.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Hash)]
 #[non_exhaustive]
 pub enum PeriodogramNormalization {
     /// Standard normalization

@@ -5,6 +5,7 @@ use crate::float_trait::Float;
 use crate::multicolor::multicolor_evaluator::*;
 use crate::multicolor::multicolor_feature::MultiColorFeature;
 
+use derive_where::derive_where;
 use itertools::Itertools;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -28,6 +29,7 @@ use std::fmt::Debug;
     with = "MultiColorExtractorParameters<P, T>",
     bound = "P: PassbandTrait + JsonSchema, T: Float"
 )]
+#[derive_where(PartialEq, Eq, Hash; P)]
 pub struct MultiColorExtractor<P, T>
 where
     P: PassbandTrait,

@@ -1,7 +1,9 @@
 use crate::transformers::transformer::*;
 
+use crate::float_trait::{float_total_eq, hash_float};
 use conv::prelude::*;
 use macro_const::macro_const;
+use std::hash::{Hash, Hasher};
 
 const INPUT_FEATURE_SIZE: usize = 8;
 
@@ -24,10 +26,24 @@ The VillarFit feature extractor returns the following features:
 }
 
 #[doc = DOC!()]
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct VillarFitTransformer<T> {
     /// Magnitude zero point to use for amplitude transformation
     pub mag_zp: T,
+}
+
+impl<T: Float> PartialEq for VillarFitTransformer<T> {
+    fn eq(&self, other: &Self) -> bool {
+        float_total_eq(self.mag_zp, other.mag_zp)
+    }
+}
+
+impl<T: Float> Eq for VillarFitTransformer<T> {}
+
+impl<T: Float> Hash for VillarFitTransformer<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        hash_float(self.mag_zp, state);
+    }
 }
 
 impl<T> VillarFitTransformer<T>

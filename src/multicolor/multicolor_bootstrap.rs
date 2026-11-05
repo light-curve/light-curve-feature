@@ -10,6 +10,7 @@ use crate::float_trait::Float;
 use crate::multicolor::multicolor_evaluator::*;
 use crate::multicolor::{MultiColorExtractor, MultiColorFeature, PassbandSet, PassbandTrait};
 
+use derive_where::derive_where;
 use rand::RngExt;
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -22,7 +23,7 @@ use std::fmt::Debug;
 type BandBuffers<'p, P, T> = BTreeMap<&'p P, (Vec<T>, Vec<T>, Vec<T>)>;
 
 /// Per-band resampling strategy for [MultiColorBootstrap].
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Default)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq, Default, Eq, Hash)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum BandStrategy {
     /// Resample each passband independently with replacement, preserving every per-band count.
@@ -69,6 +70,7 @@ impl BandStrategy {
     with = "MultiColorBootstrapParameters<P, T>",
     bound = "P: PassbandTrait + JsonSchema, T: Float"
 )]
+#[derive_where(PartialEq, Eq, Hash; P)]
 pub struct MultiColorBootstrap<P, T>
 where
     P: PassbandTrait,

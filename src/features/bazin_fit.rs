@@ -31,7 +31,7 @@ Bazin et al. 2009 [DOI:10.1051/0004-6361/200911847](https://doi.org/10.1051/0004
 }
 
 #[doc = DOC!()]
-#[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq, Eq, Hash)]
 pub struct BazinFit {
     algorithm: CurveFitAlgorithm,
     ln_prior: BazinLnPrior,
@@ -337,7 +337,7 @@ where
     fit_eval!();
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, Default, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, Default, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum BazinInitsBounds {
     #[default]

@@ -9,6 +9,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::fmt::Debug;
+use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
 use std::sync::Arc;
 use thread_local::ThreadLocal;
@@ -81,6 +82,23 @@ where
         // PeriodogramPowerFft instances are stateless from the user's perspective
         // The Arc<ThreadLocal<...>> fields are internal caches
         true
+    }
+}
+
+impl<T, F> Eq for PeriodogramPowerFft<T, F>
+where
+    T: FftFloat,
+    F: Fft<T> + Clone,
+{
+}
+
+impl<T, F> Hash for PeriodogramPowerFft<T, F>
+where
+    T: FftFloat,
+    F: Fft<T> + Clone,
+{
+    fn hash<H: Hasher>(&self, _state: &mut H) {
+        // All instances are equal, see PartialEq implementation
     }
 }
 

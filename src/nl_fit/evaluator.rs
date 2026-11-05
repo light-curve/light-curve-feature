@@ -2,10 +2,12 @@ use crate::data::TimeSeries;
 use crate::float_trait::Float;
 use crate::nl_fit::{CurveFitAlgorithm, LikeFloat, LnPrior, data::NormalizedData};
 
+use crate::float_trait::{float_slice_total_eq, float_total_eq, hash_float, hash_float_slice};
 use schemars::JsonSchema;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
+use std::hash::{Hash, Hasher};
 
 pub trait FitModelTrait<T, U, const NPARAMS: usize>
 where
@@ -113,11 +115,48 @@ impl<T, const NPARAMS: usize> TryFrom<FitArraySerde<T>> for FitArray<T, NPARAMS>
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, PartialEq)]
+fn option_float_slice_total_eq(a: &[Option<f64>], b: &[Option<f64>]) -> bool {
+    a.len() == b.len()
+        && a.iter().zip(b).all(|(x, y)| match (x, y) {
+            (Some(x), Some(y)) => float_total_eq(*x, *y),
+            (None, None) => true,
+            _ => false,
+        })
+}
+
+fn hash_option_float_slice<H: Hasher>(a: &[Option<f64>], state: &mut H) {
+    a.len().hash(state);
+    for x in a {
+        x.is_some().hash(state);
+        if let Some(x) = x {
+            hash_float(*x, state);
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 pub struct FitInitsBoundsArrays<const NPARAMS: usize> {
     pub init: FitArray<f64, NPARAMS>,
     pub lower: FitArray<f64, NPARAMS>,
     pub upper: FitArray<f64, NPARAMS>,
+}
+
+impl<const NPARAMS: usize> PartialEq for FitInitsBoundsArrays<NPARAMS> {
+    fn eq(&self, other: &Self) -> bool {
+        float_slice_total_eq(&self.init.0, &other.init.0)
+            && float_slice_total_eq(&self.lower.0, &other.lower.0)
+            && float_slice_total_eq(&self.upper.0, &other.upper.0)
+    }
+}
+
+impl<const NPARAMS: usize> Eq for FitInitsBoundsArrays<NPARAMS> {}
+
+impl<const NPARAMS: usize> Hash for FitInitsBoundsArrays<NPARAMS> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        hash_float_slice(&self.init.0, state);
+        hash_float_slice(&self.lower.0, state);
+        hash_float_slice(&self.upper.0, state);
+    }
 }
 
 impl<const NPARAMS: usize> FitInitsBoundsArrays<NPARAMS> {
@@ -130,11 +169,29 @@ impl<const NPARAMS: usize> FitInitsBoundsArrays<NPARAMS> {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 pub struct OptionFitInitsBoundsArrays<const NPARAMS: usize> {
     pub init: FitArray<Option<f64>, NPARAMS>,
     pub lower: FitArray<Option<f64>, NPARAMS>,
     pub upper: FitArray<Option<f64>, NPARAMS>,
+}
+
+impl<const NPARAMS: usize> PartialEq for OptionFitInitsBoundsArrays<NPARAMS> {
+    fn eq(&self, other: &Self) -> bool {
+        option_float_slice_total_eq(&self.init.0, &other.init.0)
+            && option_float_slice_total_eq(&self.lower.0, &other.lower.0)
+            && option_float_slice_total_eq(&self.upper.0, &other.upper.0)
+    }
+}
+
+impl<const NPARAMS: usize> Eq for OptionFitInitsBoundsArrays<NPARAMS> {}
+
+impl<const NPARAMS: usize> Hash for OptionFitInitsBoundsArrays<NPARAMS> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        hash_option_float_slice(&self.init.0, state);
+        hash_option_float_slice(&self.lower.0, state);
+        hash_option_float_slice(&self.upper.0, state);
+    }
 }
 
 impl<const NPARAMS: usize> OptionFitInitsBoundsArrays<NPARAMS> {

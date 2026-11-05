@@ -22,7 +22,7 @@ use std::fmt::{Debug, Display};
 /// let band = LabeledPassband::new("r");
 /// assert_eq!(band.name(), "r");
 /// ```
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, JsonSchema)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, JsonSchema, Hash)]
 pub struct LabeledPassband<N> {
     pub label: N,
     #[serde(skip)]

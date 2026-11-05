@@ -1,6 +1,8 @@
 use crate::transformers::transformer::*;
 
+use crate::float_trait::{float_total_eq, hash_float};
 use conv::prelude::*;
+use std::hash::{Hash, Hasher};
 
 macro_const! {
     const DOC: &str = r#"
@@ -9,9 +11,23 @@ Decimal logarithm of a value clipped to a minimum value
 }
 
 #[doc = DOC!()]
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct ClippedLgTransformer<T> {
     pub min_value: T,
+}
+
+impl<T: Float> PartialEq for ClippedLgTransformer<T> {
+    fn eq(&self, other: &Self) -> bool {
+        float_total_eq(self.min_value, other.min_value)
+    }
+}
+
+impl<T: Float> Eq for ClippedLgTransformer<T> {}
+
+impl<T: Float> Hash for ClippedLgTransformer<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        hash_float(self.min_value, state);
+    }
 }
 
 impl<T> ClippedLgTransformer<T>

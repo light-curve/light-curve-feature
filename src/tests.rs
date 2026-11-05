@@ -59,6 +59,84 @@ fn multicolor_feature_schema_generation() {
     assert_all_variants_described(&schema);
 }
 
+pub fn hash_of<H: std::hash::Hash>(value: &H) -> u64 {
+    use std::hash::{DefaultHasher, Hasher};
+
+    let mut hasher = DefaultHasher::new();
+    value.hash(&mut hasher);
+    hasher.finish()
+}
+
+#[test]
+fn features_are_hashable() {
+    use crate::StringPassband;
+    use crate::multicolor::{MonochromePassband, MultiColorFeature};
+    use std::hash::Hash;
+
+    fn assert_hash<H: Eq + Hash>() {}
+
+    assert_hash::<Feature<f32>>();
+    assert_hash::<Feature<f64>>();
+    assert_hash::<MultiColorFeature<StringPassband, f64>>();
+    assert_hash::<MultiColorFeature<MonochromePassband<'static, f32>, f32>>();
+}
+
+#[test]
+fn features_with_different_parameters_have_different_hashes() {
+    use crate::features::*;
+    use crate::multicolor::{MultiColorBins, MultiColorFeature};
+    use crate::periodogram::{FreqGrid, LinearFreqGrid};
+    use crate::transformers::bazin_fit::BazinFitTransformer;
+    use crate::{BazinInitsBounds, StringPassband};
+    use std::collections::HashSet;
+
+    let bazin_fit = |init_a: f64| -> Feature<f64> {
+        BazinFit::new(
+            BazinFit::default_algorithm(),
+            BazinFit::default_ln_prior(),
+            BazinInitsBounds::arrays(
+                [init_a, 0.0, 0.0, 1.0, 1.0],
+                [0.0, -1.0, -1.0, 0.0, 0.0],
+                [10.0, 1.0, 1.0, 10.0, 10.0],
+            ),
+        )
+        .into()
+    };
+    let bazin_transformed = |mag_zp: f64| -> Feature<f64> {
+        Transformed::new(
+            Feature::from(BazinFit::default()),
+            BazinFitTransformer::new(mag_zp).into(),
+        )
+        .unwrap()
+        .into()
+    };
+    let periodogram = |step: f64| -> Feature<f64> {
+        let mut periodogram = Periodogram::new(1);
+        periodogram.set_freq_grid(FreqGrid::from(LinearFreqGrid::new(0.0, step, 16)));
+        periodogram.into()
+    };
+    let features = [
+        BeyondNStd::new(1.0).into(),
+        BeyondNStd::new(2.0).into(),
+        bazin_fit(1.0),
+        bazin_fit(2.0),
+        bazin_transformed(8.9),
+        bazin_transformed(25.0),
+        periodogram(0.1),
+        periodogram(0.2),
+    ];
+    let hashes: HashSet<_> = features.iter().map(hash_of).collect();
+    assert_eq!(hashes.len(), features.len());
+
+    let multicolor_bins = |window: f64| -> MultiColorFeature<StringPassband, f64> {
+        MultiColorBins::new(window, 0.0).into()
+    };
+    assert_ne!(
+        hash_of(&multicolor_bins(1.0)),
+        hash_of(&multicolor_bins(2.0))
+    );
+}
+
 #[macro_export]
 macro_rules! feature_test {
     ($name: ident, $fe: tt, $desired: expr, $y: expr $(,)?) => {
@@ -400,6 +478,8 @@ macro_rules! serde_json_test {
             let feature: Feature<_> = eval.into();
             let feature_serde: Feature<_> =
                 serde_json::from_str(&serde_json::to_string(&feature).unwrap()).unwrap();
+            assert_eq!(feature, feature_serde);
+            assert_eq!(hash_of(&feature), hash_of(&feature_serde));
             assert_eq!(
                 feature.eval(&mut TimeSeries::new(&t, &m, &w)),
                 feature_serde.eval(&mut TimeSeries::new(&t, &m, &w))
@@ -477,6 +557,13 @@ macro_rules! check_partial_eq {
 
             // Test symmetry: if a == b then b == a
             assert_eq!(feature2, feature1, "PartialEq should be symmetric");
+
+            // Test that equal instances have equal hashes
+            assert_eq!(
+                hash_of(&feature1),
+                hash_of(&feature2),
+                "Equal instances should have equal hashes"
+            );
         }
     };
     ($feature_type: ty) => {

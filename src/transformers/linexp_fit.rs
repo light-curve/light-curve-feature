@@ -1,7 +1,9 @@
 use crate::transformers::transformer::*;
 
+use crate::float_trait::{float_total_eq, hash_float};
 use conv::prelude::*;
 use macro_const::macro_const;
+use std::hash::{Hash, Hasher};
 
 const INPUT_FEATURE_SIZE: usize = 5;
 
@@ -21,10 +23,24 @@ The LinexpFit feature extractor returns the following features:
 }
 
 #[doc = DOC!()]
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct LinexpFitTransformer<T> {
     /// Magnitude zero point to use for amplitude transformation
     pub mag_zp: T,
+}
+
+impl<T: Float> PartialEq for LinexpFitTransformer<T> {
+    fn eq(&self, other: &Self) -> bool {
+        float_total_eq(self.mag_zp, other.mag_zp)
+    }
+}
+
+impl<T: Float> Eq for LinexpFitTransformer<T> {}
+
+impl<T: Float> Hash for LinexpFitTransformer<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        hash_float(self.mag_zp, state);
+    }
 }
 
 impl<T> LinexpFitTransformer<T>

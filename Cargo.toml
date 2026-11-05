@@ -37,6 +37,7 @@ debug = true
 [dependencies]
 ceres-solver = { version = "0.5.1", optional = true }
 conv = "^0.3.3"
+derive-where = "1.2"
 emcee = "^0.3.0"
 # Transitive dependency of emcee
 emcee_rand = { version = "^0.3.15", package = "rand" }
