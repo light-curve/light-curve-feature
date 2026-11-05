@@ -15,9 +15,12 @@ $$
 is the chi-squared statistic with $N-1$ degrees of freedom.
 The weighted mean $\bar{m}$ is computed as described in [WeightedMean].
 
-$p_{\rm var}$ is the probability that the observed scatter exceeds what is
-expected from measurement uncertainties alone, i.e.\ the probability that
-the source is intrinsically variable.
+$p_{\rm var}$ is the $p$-value of the $\chi^2$ test under the null hypothesis
+of a non-variable source: the probability that scatter at least as large as
+observed arises from measurement uncertainties alone. Note that despite the
+name, **low** values indicate variability: $p_{\rm var} \to 0$ for strongly
+variable sources, while non-variable sources yield values distributed
+uniformly between 0 and 1.
 
 - Depends on: **magnitude**, **magnitude error**
 - Minimum number of observations: **2**
@@ -59,7 +62,9 @@ impl FeatureNamesDescriptionsTrait for Chi2Pvar {
     }
 
     fn get_descriptions(&self) -> Vec<&str> {
-        vec!["probability of variability from the chi-squared test"]
+        vec![
+            "p-value of the chi-squared test for a non-variable source, low values indicate variability",
+        ]
     }
 }
 
