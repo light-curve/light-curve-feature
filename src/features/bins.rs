@@ -21,10 +21,12 @@ $$
 m_j^* = \frac{\sum{m_i / \delta_i^2}}{\sum{\delta_i^{-2}}},
 $$
 $$
-\delta_j^* = \frac{N_j}{\sum{\delta_i^{-2}}},
+{\delta_j^*}^2 = \frac{N_j}{\sum{\delta_i^{-2}}},
 $$
 where $N_j$ is a number of sampling observations and all sums are over observations inside
-considering bin. Bins takes any other feature evaluators to extract features from sample time series
+considering bin. Empty bins are skipped. Bins takes any other feature evaluators to extract
+features from sample time series. The binned time series itself is available via
+`Bins::bin()`.
 
 - Depends on: **time**, **magnitude**, **magnitude error**
 - Minimum number of observations: as required by sub-features, but at least **1**
@@ -163,6 +165,13 @@ where
         DOC
     }
 
+    /// Bin the time series, see the [struct-level documentation](Bins) for the formulas
+    ///
+    /// The input time series must be sorted by time.
+    pub fn bin(&self, ts: &mut TimeSeries<T>) -> Result<TimeSeries<'static, T>, EvaluatorError> {
+        Ok(self.transform_ts(ts)?.ts())
+    }
+
     pub(crate) fn transform_ts(
         &self,
         ts: &mut TimeSeries<T>,
@@ -189,7 +198,7 @@ pub(crate) fn bin_time_series<T: Float>(
             .chunk_by(|(t, _, _)| ((*t - offset) / window).floor())
             .into_iter()
             .map(|(x, chunk)| {
-                let bin_t = (x + T::half()) * window;
+                let bin_t = (x + T::half()) * window + offset;
                 let (n, bin_m, norm) = chunk
                     .fold((T::zero(), T::zero(), T::zero()), |acc, (_, m, w)| {
                         (acc.0 + T::one(), acc.1 + m * w, acc.2 + w)
@@ -410,6 +419,42 @@ mod tests {
         assert_eq!(len(1.0, 0.1), 5);
         assert_eq!(len(1.0, 0.5), 5);
         assert_eq!(len(2.0, 1.0), 3);
+    }
+
+    #[test]
+    fn bins_offset_bin_centers() {
+        let t = [0.0_f64, 0.4, 0.6, 1.7, 2.4];
+        let m = [1.0, 3.0, 5.0, 7.0, 9.0];
+        let mut ts = TimeSeries::new_without_weight(&t, &m);
+
+        // Bins are [-0.5, 0.5), [0.5, 1.5), [1.5, 2.5)
+        let bins: Bins<_, Feature<_>> = Bins::new(1.0, 0.5);
+        let mut binned = bins.bin(&mut ts).unwrap();
+
+        all_close(binned.t.as_slice(), &[0.0, 1.0, 2.0], 1e-12);
+        all_close(binned.m.as_slice(), &[2.0, 5.0, 8.0], 1e-12);
+        all_close(binned.w.as_slice(), &[1.0, 1.0, 1.0], 1e-12);
+    }
+
+    #[test]
+    fn bin_matches_feature_evaluation() {
+        let t = [0.0_f64, 0.1, 1.0, 1.1, 2.0, 2.2, 3.5];
+        let m = [1.0, 3.0, 5.0, 7.0, 9.0, 2.0, 4.0];
+        let w = [1.0, 2.0, 1.0, 3.0, 1.0, 2.0, 1.0];
+
+        let mut bins: Bins<_, Feature<_>> = Bins::new(1.0, 0.3);
+        bins.add_feature(Amplitude::default().into());
+        bins.add_feature(EtaE::default().into());
+
+        let binned_features = {
+            let mut ts = TimeSeries::new(&t, &m, &w);
+            let mut binned = bins.bin(&mut ts).unwrap();
+            let amplitude = Amplitude::default().eval(&mut binned).unwrap();
+            let eta_e = EtaE::default().eval(&mut binned).unwrap();
+            [amplitude, eta_e].concat()
+        };
+        let features = bins.eval(&mut TimeSeries::new(&t, &m, &w)).unwrap();
+        all_close(&binned_features, &features, 1e-12);
     }
 
     // Add more Bins::get_info() tests for non-trivial cases

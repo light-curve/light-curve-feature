@@ -10,6 +10,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Added
 
 - `Eq` and `Hash` for all features https://github.com/light-curve/light-curve-feature/pull/332
+- `Bins::bin()` and `MultiColorBins::bin()` returning the binned time series https://github.com/light-curve/light-curve-python/issues/860
 
 ### Changed
 
@@ -27,6 +28,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- `Bins` and `MultiColorBins` bin centers ignored `offset` https://github.com/light-curve/light-curve-python/issues/860
 - `Chi2Pvar` docs and description wrongly stated that the value is high for variable sources, while it is
   the $\chi^2$ test $p$-value which is low for variable sources https://github.com/light-curve/light-curve-feature/issues/328
 
