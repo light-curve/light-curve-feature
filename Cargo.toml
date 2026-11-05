@@ -52,7 +52,7 @@ ndarray = { version = "^0.17", features = ["serde"] }
 ndarray-stats = "^0.7"
 num-complex = "^0.4"
 num-traits = "^0.2"
-nuts-rs = { version = "^0.18", default-features = false }
+nuts-rs = { version = "^0.19", default-features = false }
 nuts-storable = { version = "^0.3" }
 ordered-float = { version = "5.4", features = ["serde", "schemars1"] }
 ouroboros = "0.18"
