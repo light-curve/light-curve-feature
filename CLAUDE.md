@@ -7,9 +7,9 @@ This document provides comprehensive guidance for AI assistants working with the
 `light-curve-feature` is a Rust library for extracting numerous light curve features used in astrophysics. It processes noisy time series data from astronomical observations to compute statistical and model-fit features used for anomaly detection and classification of variable stars and transient objects.
 
 **Repository**: https://github.com/light-curve/light-curve-feature
-**Current Version**: 0.13.1
+**Current Version**: see `version` in `Cargo.toml`
 **Rust Edition**: 2024
-**MSRV**: 1.88
+**MSRV**: 1.98 (`rust-version` in `Cargo.toml`; CI reads it from there)
 **License**: GPL-3.0-or-later
 
 Python bindings are available separately at https://github.com/light-curve/light-curve-python
@@ -23,24 +23,25 @@ light-curve-feature/
 │   ├── feature.rs             # Main Feature enum (all feature variants)
 │   ├── evaluator.rs           # Core FeatureEvaluator trait definitions
 │   ├── extractor.rs           # FeatureExtractor for bulk extraction
-│   ├── time_series.rs         # TimeSeries and DataSample structures
+│   ├── data/                  # TimeSeries, MultiColorTimeSeries, DataSample, SortedArray
 │   ├── error.rs               # EvaluatorError enum
 │   ├── float_trait.rs         # Generic Float trait (f32/f64)
 │   ├── prelude.rs             # Convenience re-exports
 │   ├── macros.rs              # Proc-macro helpers
 │   ├── types.rs               # Type aliases (CowArray1)
-│   ├── sorted_array.rs        # Cached sorted array wrapper
 │   ├── straight_line_fit.rs   # Linear regression utilities
+│   ├── parabola_fit.rs        # Weighted quadratic least-squares utilities
 │   ├── lnerfc.rs              # Math helpers (ln complementary error function)
 │   ├── peak_indices.rs        # Peak finding utilities
 │   ├── tests.rs               # Shared test macros
 │   │
-│   ├── features/              # Individual feature implementations (38+ files)
+│   ├── features/              # Individual feature implementations (45+ files)
 │   │   ├── mod.rs             # Feature module exports
 │   │   ├── amplitude.rs       # Half amplitude feature
 │   │   ├── bazin_fit.rs       # Bazin function curve fit
 │   │   ├── periodogram.rs     # Periodogram-based features
 │   │   ├── bins.rs            # Meta-feature for binning
+│   │   ├── bootstrap.rs       # Meta-feature for bootstrap uncertainties
 │   │   └── ...                # Other statistical/model features
 │   │
 │   ├── periodogram/           # FFT-based periodogram (9 modules)
@@ -66,6 +67,14 @@ light-curve-feature/
 │   │   ├── nuts.rs            # NUTS sampler (NutsCurveFit, always available)
 │   │   └── prior/             # Prior probability distributions
 │   │
+│   ├── multicolor/            # Multi-band features
+│   │   ├── multicolor_feature.rs  # MultiColorFeature enum
+│   │   ├── multicolor_extractor.rs
+│   │   ├── multicolor_bins.rs, multicolor_bootstrap.rs  # Multi-band meta-features
+│   │   ├── per_band_feature.rs    # Apply a single-band feature per passband
+│   │   ├── features/          # ColorOf*, ColorSpread, MultiColorPeriodogram
+│   │   └── passband/          # Passband types
+│   │
 │   └── transformers/          # Feature transformation pipeline (7 modules)
 │       ├── mod.rs
 │       ├── transformer.rs     # Core transformer trait
@@ -78,7 +87,7 @@ light-curve-feature/
 │   └── src/                   # Test data loading, CSV parsing
 │
 ├── test-data/                 # Git submodule with test datasets
-├── benches/lib.rs             # Criterion benchmarks
+├── benches/                  # Criterion benchmarks
 ├── examples/                  # Example programs
 ├── Cargo.toml                 # Main package configuration
 ├── CHANGELOG.md               # Version history
@@ -113,8 +122,12 @@ light-curve-feature/
 ## Cargo Features
 
 ```toml
-# Default: empty (RustFFT is always available, no feature flag needed)
-default = []
+# Default: fast-math (RustFFT is always available, no feature flag needed)
+default = ["fast-math"]
+
+# Uses `reassoc` "algebraic" float ops for speed; results may differ across
+# OSs/compilers. `--no-default-features` disables it
+fast-math
 
 # FFTW options (mutually exclusive preference: mkl > source > system)
 fftw-source    # Build FFTW from source
@@ -132,6 +145,7 @@ gsl            # GNU Scientific Library for LMSDER algorithm
 # --features ceres-source,fftw-source,gsl     # Full features, source builds
 # --features ceres-system,fftw-system,gsl     # Full features, system libs
 # (no flags needed)                           # Minimal build with RustFFT
+# --no-default-features                       # Also disable fast-math
 ```
 
 ## Development Setup
@@ -155,13 +169,13 @@ git clone --recursive https://github.com/light-curve/light-curve-feature
 cd light-curve-feature
 
 # Build with all features (FFTW + Ceres + GSL)
-cargo build --no-default-features --features ceres-source,fftw-source,gsl
+cargo build --features ceres-source,fftw-source,gsl
 
 # Build minimal (RustFFT only, no system deps)
 cargo build
 
 # Run tests (full features)
-cargo test --no-default-features --features ceres-source,fftw-source,gsl
+cargo test --features ceres-source,fftw-source,gsl
 
 # Run tests (minimal)
 cargo test
@@ -178,7 +192,8 @@ Note: On ARM macOS, Ceres may require `CPATH=/opt/homebrew/include`
 cargo fmt -- --check
 
 # Clippy (all warnings are errors)
-cargo clippy --all-targets --no-default-features --features=ceres-source,fftw-source,gsl -- -D warnings
+cargo clippy --all-targets --features=ceres-source,fftw-source,gsl -- -D warnings
+cargo clippy --all-targets --no-default-features -- -D warnings
 
 # Also check test-util crate
 cd test-util && cargo fmt -- --check && cargo clippy --all-targets -- -D warnings && cd ..
@@ -229,10 +244,10 @@ When adding a new feature evaluator, modify these files:
 cargo test
 
 # Full feature tests
-cargo test --no-default-features --features ceres-source,fftw-source,gsl
+cargo test --features ceres-source,fftw-source,gsl
 
 # Release mode tests (catches optimization-related issues)
-cargo test --profile=release-with-debug --no-default-features --features ceres-source,fftw-source,gsl
+cargo test --profile=release-with-debug --features ceres-source,fftw-source,gsl
 ```
 
 ### Test Organization
@@ -392,7 +407,7 @@ The GitHub Actions workflow (`.github/workflows/test.yml`) runs:
 | Job | Purpose |
 |-----|---------|
 | `build` | Multiple feature combinations on Ubuntu |
-| `msrv-build` | Minimum Supported Rust Version (1.85) |
+| `msrv-build` | Minimum Supported Rust Version (from `rust-version` in `Cargo.toml`) |
 | `test` | Tests on Ubuntu x64 and ARM |
 | `test-release` | Release mode with debug symbols |
 | `examples` | Run example programs |
@@ -408,7 +423,7 @@ The GitHub Actions workflow (`.github/workflows/test.yml`) runs:
 
 - LTO enabled in release profile for optimization
 - Single codegen unit for maximum optimization
-- Benchmarks available: `cargo bench --no-default-features --features ceres-source,fftw-source,gsl`
+- Benchmarks available: `cargo bench --features ceres-source,fftw-source,gsl`
 - Be mindful of floating-point precision in astronomical calculations
 - Test numerical stability with edge cases
 
@@ -416,18 +431,18 @@ The GitHub Actions workflow (`.github/workflows/test.yml`) runs:
 
 ```bash
 # Development
-cargo check --all-targets --no-default-features --features=ceres-source,fftw-source,gsl
-cargo test --no-default-features --features=ceres-source,fftw-source,gsl
-cargo fmt && cargo clippy --all-targets --no-default-features --features=ceres-source,fftw-source,gsl -- -D warnings
+cargo check --all-targets --features=ceres-source,fftw-source,gsl
+cargo test --features=ceres-source,fftw-source,gsl
+cargo fmt && cargo clippy --all-targets --features=ceres-source,fftw-source,gsl -- -D warnings
 
 # Benchmarks
-cargo bench --no-default-features --features ceres-source,fftw-source,gsl
+cargo bench --features ceres-source,fftw-source,gsl
 
 # Documentation
-cargo doc --no-default-features --features ceres-source,fftw-source,gsl --open
+cargo doc --features ceres-source,fftw-source,gsl --open
 
 # Run example
-cargo run --example plot_snia_curve_fits --no-default-features --features=ceres-source,fftw-source,gsl -- -n=1
+cargo run --example plot_snia_curve_fits --features=ceres-source,fftw-source,gsl -- -n=1
 ```
 
 ## Important Notes for AI Assistants

@@ -9,16 +9,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
-- `Eq` and `Hash` for all features https://github.com/light-curve/light-curve-feature/pull/332
-- `Bins::bin()` and `MultiColorBins::bin()` returning the binned time series https://github.com/light-curve/light-curve-python/issues/860
+--
 
 ### Changed
 
-- Bump `reassoc` from 0.14 to 0.16
-- **Breaking** Bump `nuts-rs` from 0.18 to 0.19, `NutsCurveFit` results change https://github.com/light-curve/light-curve-feature/pull/340
-- `PartialEq` treats NaN parameters as equal https://github.com/light-curve/light-curve-feature/pull/332
-- **Breaking** Bump `schemars` from 0.8 to 1, JSON schemas now use draft 2020-12 https://github.com/light-curve/light-curve-feature/pull/243
-- **Breaking** Add `PeriodogramPowerError::ShortTimeSeries` variant https://github.com/light-curve/light-curve-feature/issues/334
+--
 
 ### Deprecated
 
@@ -30,16 +25,36 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
-- `Bins` and `MultiColorBins` bin centers ignored `offset` https://github.com/light-curve/light-curve-python/issues/860
-- `Chi2Pvar` docs and description wrongly stated that the value is high for variable sources, while it is
-  the $\chi^2$ test $p$-value which is low for variable sources https://github.com/light-curve/light-curve-feature/issues/328
-- `Periodogram` and `MultiColorPeriodogram` panicked on light curves with fewer than two
-  observations https://github.com/light-curve/light-curve-feature/issues/334
-- `MultiColorPeriodogram` built its frequency grid from unsorted observation times
+--
 
 ### Security
 
 --
+
+# [0.21.0] 2026 November 5
+
+### Added
+
+- `Eq` and `Hash` for all features https://github.com/light-curve/light-curve-feature/pull/332
+- `Bins::bin()` and `MultiColorBins::bin()` returning the binned time series https://github.com/light-curve/light-curve-python/issues/860 https://github.com/light-curve/light-curve-feature/pull/339
+
+### Changed
+
+- **Breaking** Bump `schemars` from 0.8 to 1, JSON schemas now use draft 2020-12 https://github.com/light-curve/light-curve-feature/pull/243
+- **Breaking** Add `PeriodogramPowerError::ShortTimeSeries` variant https://github.com/light-curve/light-curve-feature/issues/334 https://github.com/light-curve/light-curve-feature/pull/335
+- **Breaking** Bump `nuts-rs` from 0.18 to 0.19, `NutsCurveFit` results change https://github.com/light-curve/light-curve-feature/pull/340 https://github.com/light-curve/light-curve-feature/pull/341
+- `PartialEq` treats NaN parameters as equal https://github.com/light-curve/light-curve-feature/pull/332
+- Bump `reassoc` from 0.14 to 0.16 https://github.com/light-curve/light-curve-feature/pull/331
+- Disable unused default features of dependencies, reducing the dependency tree https://github.com/light-curve/light-curve-feature/pull/337
+
+### Fixed
+
+- `Bins` and `MultiColorBins` bin centers ignored `offset` https://github.com/light-curve/light-curve-python/issues/860 https://github.com/light-curve/light-curve-feature/pull/339
+- `Chi2Pvar` docs and description wrongly stated that the value is high for variable sources, while it is
+  the $\chi^2$ test $p$-value which is low for variable sources https://github.com/light-curve/light-curve-feature/issues/328 https://github.com/light-curve/light-curve-feature/pull/336
+- `Periodogram` and `MultiColorPeriodogram` panicked on light curves with fewer than two
+  observations https://github.com/light-curve/light-curve-feature/issues/334 https://github.com/light-curve/light-curve-feature/pull/335
+- `MultiColorPeriodogram` built its frequency grid from unsorted observation times https://github.com/light-curve/light-curve-feature/pull/335
 
 # [0.20.0] 2026 August 27
 
