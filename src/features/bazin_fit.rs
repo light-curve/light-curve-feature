@@ -653,7 +653,7 @@ mod tests {
             LnPrior1D::log_normal(f64::ln(30.0), 0.2),
         ]);
         bazin_fit_noisy(BazinFit::new(
-            NutsCurveFit::new(1000, 1000, None).into(),
+            NutsCurveFit::new(500, 700, None).into(),
             prior,
             BazinInitsBounds::Default,
         ));
