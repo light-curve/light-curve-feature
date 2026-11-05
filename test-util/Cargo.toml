@@ -9,8 +9,8 @@ rust-version = "1.85"
 edition = "2024"
 
 [dependencies]
-csv = "1.1"
 conv = "0.3.3"
+csv = "1.1"
 include_dir = {version = "0.7.3", features = ["glob"]}
 itertools = "0.15.0"
 lazy_static = "1.4"
