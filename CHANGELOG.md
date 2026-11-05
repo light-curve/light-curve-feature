@@ -27,7 +27,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
---
+- `Chi2Pvar` docs and description wrongly stated that the value is high for variable sources, while it is
+  the $\chi^2$ test $p$-value which is low for variable sources https://github.com/light-curve/light-curve-feature/issues/328
 
 ### Security
 
