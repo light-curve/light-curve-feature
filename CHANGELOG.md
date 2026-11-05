@@ -30,9 +30,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - `Chi2Pvar` docs and description wrongly stated that the value is high for variable sources, while it is
   the $\chi^2$ test $p$-value which is low for variable sources https://github.com/light-curve/light-curve-feature/issues/328
-- `Periodogram` and `MultiColorPeriodogram` panicked on light curves with fewer than two observations: `eval_or_fill`
-  now returns the fill value, `power`, `freq_power` and `periodogram::Periodogram::from_t` return
-  `PeriodogramPowerError::ShortTimeSeries` https://github.com/light-curve/light-curve-feature/issues/334
+- `Periodogram` and `MultiColorPeriodogram` panicked on light curves with fewer than two
+  observations https://github.com/light-curve/light-curve-feature/issues/334
+- `MultiColorPeriodogram` built its frequency grid from unsorted observation times
 
 ### Security
 
