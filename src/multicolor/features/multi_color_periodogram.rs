@@ -1362,4 +1362,25 @@ mod tests {
             "Extra i band must not affect the result"
         );
     }
+
+    // https://github.com/light-curve/light-curve-feature/issues/334
+    #[test]
+    fn eval_or_fill_short_mcts() {
+        for norm in [
+            MultiColorPeriodogramNormalisation::Count,
+            MultiColorPeriodogramNormalisation::Chi2,
+        ] {
+            let eval = McPeriodogram::new(1, norm, make_gr_passbands());
+            for (t, bands) in [(vec![], vec![]), (vec![0.0], vec!["g"])] {
+                let m = t.clone();
+                let w = vec![1.0; t.len()];
+                let passbands: Vec<_> = bands.into_iter().map(StringPassband::from).collect();
+                let mut mcts = MultiColorTimeSeries::from_flat(t, m, w, passbands);
+                assert!(eval.eval_multicolor(&mut mcts).is_err());
+                let actual = eval.eval_or_fill_multicolor(&mut mcts, f64::NAN).unwrap();
+                assert_eq!(actual.len(), eval.size_hint());
+                assert!(actual.iter().all(|x| x.is_nan()), "{actual:?}");
+            }
+        }
+    }
 }

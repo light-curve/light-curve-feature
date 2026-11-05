@@ -11,6 +11,9 @@ use std::fmt::Debug;
 pub enum PeriodogramPowerError {
     #[error("PeriodogramFft supports FreqGrid::ZeroBasedPow2 only")]
     PeriodogramFftWrongFreqGrid,
+
+    #[error("time-series' length {actual} is smaller than the minimum required length {minimum}")]
+    ShortTimeSeries { actual: usize, minimum: usize },
 }
 
 /// Periodogram power normalization strategy
