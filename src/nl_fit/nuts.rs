@@ -212,7 +212,14 @@ impl CurveFitTrait for NutsCurveFit {
         };
 
         let mut rng = StdRng::seed_from_u64(0);
-        let mut sampler = settings.new_chain(0, math, &mut rng);
+        let mut sampler = settings.new_chain(0, math, &mut rng).unwrap_or_else(|e| {
+            panic!(
+                "Failed to create NUTS sampler chain, this is a bug in the sampler settings. \
+                     num_tune: {}, num_draws: {}, initial parameters: {:?}, \
+                     lower bounds: {:?}, upper bounds: {:?}, settings: {:?}, Error: {:?}",
+                self.num_tune, self.num_draws, x0, bounds.0, bounds.1, settings, e
+            )
+        });
 
         // Set initial position
         sampler.set_position(&x0[..]).unwrap_or_else(|e| {
